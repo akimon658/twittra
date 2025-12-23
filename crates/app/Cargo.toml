@@ -8,3 +8,6 @@ anyhow = { workspace = true }
 axum = { workspace = true }
 domain = { path = "../domain" }
 tokio = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
