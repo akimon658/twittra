@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "jsxImportSourceTypes": "@types/react",
+    "lib": [
+      "dom"
+    ]
+  },
+  "fmt": {
+    "options": {
+      "semiColons": false
+    }
+  },
+  "imports": {
+    "@types/react": "npm:@types/react@^19.2.7",
+    "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^5.1.2",
+    "react": "npm:react@^19.2.3",
+    "react-dom": "npm:react-dom@^19.2.3",
+    "vite": "npm:vite@^7.3.0"
+  },
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "vite"
+  }
+}
