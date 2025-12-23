@@ -2,5 +2,13 @@
 name = "app"
 version = "0.1.0"
 edition = "2024"
+default-run = "app"
 
 [dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+domain = { path = "../domain" }
+tokio = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
