@@ -8,9 +8,7 @@
     ]
   },
   "fmt": {
-    "options": {
-      "semiColons": false
-    }
+    "semiColons": false
   },
   "imports": {
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
