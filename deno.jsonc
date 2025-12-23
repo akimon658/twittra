@@ -13,14 +13,20 @@
     }
   },
   "imports": {
+    "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
     "@types/react": "npm:@types/react@^19.2.7",
     "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^5.1.2",
+    "orval": "npm:orval@^7.17.2",
     "react": "npm:react@^19.2.3",
     "react-dom": "npm:react-dom@^19.2.3",
     "vite": "npm:vite@^7.3.0"
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "vite"
-  }
+    "dev": "vite",
+    "gen": "cargo run --package app --bin export_schema && orval"
+  },
+  "unstable": [
+    "sloppy-imports" // Required for type inference on oval-generated files which import without file extensions
+  ]
 }
