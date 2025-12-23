@@ -27,6 +27,6 @@
     "gen": "cargo run --package app --bin export_schema && orval"
   },
   "unstable": [
-    "sloppy-imports" // Required for type inference on oval-generated files which import without file extensions
+    "sloppy-imports" // Required for type inference on orval-generated files which import without file extensions
   ]
 }
