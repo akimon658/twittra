@@ -2011,10 +2011,12 @@ dependencies = [
 
 [[package]]
 name = "traq"
-version = "3.27.2-alpha"
+version = "0.1.5"
+source = "git+https://github.com/akimon658/rust-traq.git?branch=patch%2Fstamp-recommend-and-delete-webhook-messages#5c6e65b1f9f71613c23c4791f9e0ecc539bc5a9f"
 dependencies = [
  "reqwest",
  "serde",
+ "serde_derive",
  "serde_json",
  "serde_repr",
  "url",
@@ -2141,7 +2143,6 @@ version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2e054861b4bd027cd373e18e8d8d8e6548085000e41290d95ce0c373a654b4a"
 dependencies = [
- "getrandom 0.3.4",
  "js-sys",
  "serde_core",
  "wasm-bindgen",
