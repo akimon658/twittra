@@ -34,7 +34,8 @@
   "nodeModulesDir": "auto",
   "tasks": {
     "dev": "vite",
-    "gen": "cargo run --package app --bin export_schema && orval"
+    "gen": "cargo run --package app --bin export_schema && orval",
+    "gen:traq": "openapi-generator-cli generate --additional-properties=packageName=traq,packageVersion=3.27.2-alpha --input-spec https://github.com/traPtitech/traQ/raw/a69fd6a42f54907a9d78a6810b41f5d578a0c0a3/docs/v3-api.yaml --output crates/traq --generator-name rust && cargo fmt"
   },
   "unstable": [
     "sloppy-imports" // Required for type inference on orval-generated files which import without file extensions

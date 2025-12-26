@@ -4,9 +4,17 @@ members = ["crates/app", "crates/domain", "crates/infra"]
 
 [workspace.dependencies]
 anyhow = "1.0.100"
-axum = { version = "0.8.8", default-features = false, features = ["http1", "json", "tokio"] }
+axum = { version = "0.8.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
+axum-login = "0.18.0"
+dotenv = "0.15.0"
+http = "1.4.0"
+oauth2 = "5.0.0"
+reqwest = "0.12.28"
 serde = { version = "1.0.228", features = ["derive"] }
+thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["net", "rt-multi-thread"] }
+tower-sessions = "0.14.0"
 utoipa = "5.4.0"
 utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", default-features = false, features = ["axum", "vendored"] }
+uuid = { version = "1.19.0", features = ["serde"] }
