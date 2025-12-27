@@ -16,14 +16,50 @@ impl MySqlUserRepository {
 #[async_trait::async_trait]
 impl UserRepository for MySqlUserRepository {
     async fn get_user(&self, id: &Uuid) -> Result<User> {
-        unimplemented!()
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT id as `id: _`, handle
+            FROM users
+            WHERE id = ?
+            "#,
+            id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(user)
     }
 
     async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()> {
-        unimplemented!()
+        sqlx::query!(
+            r#"
+            INSERT INTO user_tokens (user_id, access_token)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE access_token = VALUES(access_token)
+            "#,
+            user_id,
+            access_token
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 
     async fn save_user(&self, user: &User) -> Result<()> {
-        unimplemented!()
+        sqlx::query!(
+            r#"
+            INSERT INTO users (id, handle)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE handle = VALUES(handle)
+            "#,
+            user.id,
+            user.handle
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 }
