@@ -1,21 +1,23 @@
 use axum::{
-    Router,
     extract::Query,
     response::{IntoResponse, Redirect},
-    routing,
 };
 use http::StatusCode;
 
-use crate::{handler::AppState, session::AuthSession};
+use crate::session::AuthSession;
 
 const CSRF_STATE_KEY: &str = "oauth.csrf_state";
 
-pub fn router() -> Router<AppState> {
-    Router::new()
-        .route("/auth/login", routing::get(login))
-        .route("/auth/callback", routing::get(oauth_callback))
-}
-
+/// Start the OAuth2 login process by redirecting to the authorization URL.
+#[utoipa::path(
+    get,
+    path = "/auth/login",
+    responses(
+        (status = StatusCode::FOUND),
+        (status = StatusCode::INTERNAL_SERVER_ERROR),
+    ),
+    tag = "auth",
+)]
 pub async fn login(auth_session: AuthSession) -> impl IntoResponse {
     let (authorize_url, csrf_state) = auth_session.backend.authorize_url();
 
@@ -37,6 +39,22 @@ pub struct AuthorizeQuery {
     state: String,
 }
 
+/// Handle the OAuth2 callback.
+#[utoipa::path(
+    get,
+    params(
+        ("code" = String, Query, description = "The authorization code returned by the OAuth2 provider."),
+        ("state" = String, Query, description = "The CSRF state returned by the OAuth2 provider."),
+    ),
+    path = "/auth/callback",
+    responses(
+        (status = StatusCode::FOUND),
+        (status = StatusCode::BAD_REQUEST),
+        (status = StatusCode::UNAUTHORIZED),
+        (status = StatusCode::INTERNAL_SERVER_ERROR),
+    ),
+    tag = "auth",
+)]
 pub async fn oauth_callback(
     mut auth_session: AuthSession,
     Query(AuthorizeQuery {

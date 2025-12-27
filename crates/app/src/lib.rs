@@ -7,7 +7,10 @@ use infra::repository::mysql;
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use tokio::net::TcpListener;
 use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
-use utoipa::openapi::{Info, OpenApi, OpenApiBuilder, Server};
+use utoipa::openapi::{
+    Components, Info, OpenApi, OpenApiBuilder, Server,
+    security::{ApiKey, ApiKeyValue, SecurityScheme},
+};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -26,12 +29,22 @@ mod session;
 const API_ROOT: &str = "/api/v1";
 
 pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
+    let mut components = Components::new();
+
+    components.add_security_scheme(
+        "cookieAuth",
+        SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("id".to_string()))),
+    );
+
     let openapi = OpenApiBuilder::new()
         .info(Info::new("Twittra", env!("CARGO_PKG_VERSION")))
         .servers(Some([Server::new(API_ROOT)]))
+        .components(Some(components))
         .build();
     let openapi_router = OpenApiRouter::with_openapi(openapi)
-        .routes(utoipa_axum::routes!(user::get_me))
+        .routes(utoipa_axum::routes!(auth::login,))
+        .routes(utoipa_axum::routes!(auth::oauth_callback,))
+        .routes(utoipa_axum::routes!(user::get_me,))
         .split_for_parts();
 
     Ok(openapi_router)
@@ -67,7 +80,7 @@ pub async fn serve() -> Result<()> {
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()
-        .nest(API_ROOT, router.merge(auth::router()).layer(auth_layer))
+        .nest(API_ROOT, router.layer(auth_layer))
         .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));
 
     axum::serve(listener, router.with_state(app_state)).await?;

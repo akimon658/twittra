@@ -8,3 +8,14 @@ export interface User {
   handle: string
   id: string
 }
+
+export type OauthCallbackParams = {
+  /**
+   * The authorization code returned by the OAuth2 provider.
+   */
+  code: string
+  /**
+   * The CSRF state returned by the OAuth2 provider.
+   */
+  state: string
+}

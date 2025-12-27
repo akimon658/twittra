@@ -14,7 +14,10 @@ use crate::{handler::AppState, session::AuthSession};
         (status = StatusCode::UNAUTHORIZED),
         (status = StatusCode::INTERNAL_SERVER_ERROR),
     ),
-    tag = "user"
+    security(
+        ("cookieAuth" = []),
+    ),
+    tag = "user",
 )]
 pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) -> impl IntoResponse {
     let user_id = match auth_session.user {
