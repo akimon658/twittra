@@ -20,7 +20,7 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
         Some(user) => user.id,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-    let user = match state.repo.user.get_user(&user_id).await {
+    let user = match state.repo.user.find_by_id(&user_id).await {
         Ok(user) => user,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };

@@ -15,7 +15,7 @@ impl MySqlUserRepository {
 
 #[async_trait::async_trait]
 impl UserRepository for MySqlUserRepository {
-    async fn get_user(&self, id: &Uuid) -> Result<User> {
+    async fn find_by_id(&self, id: &Uuid) -> Result<User> {
         let user = sqlx::query_as!(
             User,
             r#"
@@ -47,7 +47,7 @@ impl UserRepository for MySqlUserRepository {
         Ok(())
     }
 
-    async fn save_user(&self, user: &User) -> Result<()> {
+    async fn save(&self, user: &User) -> Result<()> {
         sqlx::query!(
             r#"
             INSERT INTO users (id, handle)

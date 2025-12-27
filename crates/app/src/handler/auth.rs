@@ -114,7 +114,7 @@ impl AuthnBackend for Backend {
         };
 
         self.user_repository
-            .save_user(&user)
+            .save(&user)
             .await
             .map_err(Self::Error::UserRepository)?;
         self.user_repository
