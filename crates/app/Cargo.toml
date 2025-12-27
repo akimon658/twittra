@@ -9,7 +9,7 @@ anyhow = { workspace = true }
 axum = { workspace = true }
 axum-login = { workspace = true }
 domain = { path = "../domain" }
-dotenv = { workspace = true }
+dotenvy = "0.15.7"
 http = { workspace = true }
 oauth2 = { workspace = true }
 reqwest = { workspace = true }

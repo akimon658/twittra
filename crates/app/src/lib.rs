@@ -3,7 +3,6 @@ use std::env;
 use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
-use dotenv::dotenv;
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use tokio::net::TcpListener;
 use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
@@ -21,7 +20,7 @@ mod handler;
 pub fn create_app() -> Result<(Router, OpenApi)> {
     const API_ROOT: &str = "/api/v1";
 
-    dotenv().ok();
+    dotenvy::dotenv()?;
 
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store).with_same_site(SameSite::Lax);

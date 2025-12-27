@@ -6,7 +6,7 @@ members = ["crates/app", "crates/domain", "crates/infra"]
 anyhow = "1.0.100"
 axum = { version = "0.8.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
 axum-login = "0.18.0"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 http = "1.4.0"
 oauth2 = "5.0.0"
 reqwest = "0.12.28"
