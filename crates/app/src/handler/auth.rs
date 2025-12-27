@@ -59,14 +59,11 @@ type BasicClientSet =
 pub struct Backend {
     http_client: Client,
     oauth_client: BasicClientSet,
-    repository: Arc<dyn UserRepository + Send + Sync>,
+    repository: Arc<dyn UserRepository>,
 }
 
 impl Backend {
-    pub fn new(
-        oauth_client: BasicClientSet,
-        repository: Arc<dyn UserRepository + Send + Sync>,
-    ) -> Self {
+    pub fn new(oauth_client: BasicClientSet, repository: Arc<dyn UserRepository>) -> Self {
         Self {
             http_client: Client::new(),
             oauth_client,
