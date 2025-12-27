@@ -8,9 +8,7 @@ use crate::repository::mysql::user::MySqlUserRepository;
 
 pub mod user;
 
-pub async fn new_repository(database_url: &str) -> Result<Repository> {
-    let pool = MySqlPool::connect(database_url).await?;
-
+pub async fn new_repository(pool: MySqlPool) -> Result<Repository> {
     sqlx::migrate!().run(&pool).await?;
 
     Ok(Repository {

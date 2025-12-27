@@ -1,12 +1,14 @@
-use std::env;
+use std::{env, time::Duration};
 
 use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use infra::repository::mysql;
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
-use tokio::net::TcpListener;
-use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
+use sqlx::MySqlPool;
+use tokio::{net::TcpListener, task};
+use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
+use tower_sessions_sqlx_store::MySqlStore;
 use utoipa::openapi::{
     Components, Info, OpenApi, OpenApiBuilder, Server,
     security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -58,7 +60,17 @@ pub async fn serve() -> Result<()> {
     }
 
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
-    let session_store = MemoryStore::default();
+    let database_url = env::var("DATABASE_URL")?;
+    let pool = MySqlPool::connect(&database_url).await?;
+    let session_store = MySqlStore::new(pool.clone());
+
+    session_store.migrate().await?;
+
+    let deletion_task = task::spawn(
+        session_store
+            .clone()
+            .continuously_delete_expired(Duration::from_mins(10)),
+    );
     let session_layer = SessionManagerLayer::new(session_store).with_same_site(SameSite::Lax);
     let client_id = env::var("TRAQ_CLIENT_ID").map(ClientId::new)?;
     let client_secret = env::var("TRAQ_CLIENT_SECRET").map(ClientSecret::new)?;
@@ -73,8 +85,7 @@ pub async fn serve() -> Result<()> {
             "{}/oauth2/token",
             traq_api_base_url
         ))?);
-    let database_url = env::var("DATABASE_URL")?;
-    let repository = mysql::new_repository(&database_url).await?;
+    let repository = mysql::new_repository(pool).await?;
     let backend = Backend::new(client, repository.user.clone());
     let app_state = AppState { repo: repository };
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
@@ -84,6 +95,7 @@ pub async fn serve() -> Result<()> {
         .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));
 
     axum::serve(listener, router.with_state(app_state)).await?;
+    deletion_task.await??;
 
     Ok(())
 }

@@ -15,9 +15,11 @@ infra = { path = "../infra" }
 oauth2 = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
+sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tower-sessions = { workspace = true }
+tower-sessions-sqlx-store = { workspace = true }
 traq = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
