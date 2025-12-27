@@ -26,6 +26,8 @@ use traq::apis::{
 };
 use uuid::Uuid;
 
+use crate::handler::AppState;
+
 #[derive(Clone)]
 pub struct UserSession {
     pub id: Uuid,
@@ -135,7 +137,7 @@ pub type AuthSession = axum_login::AuthSession<Backend>;
 
 const CSRF_STATE_KEY: &str = "oauth.csrf_state";
 
-pub fn router() -> Router {
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/auth/login", routing::get(login))
         .route("/auth/callback", routing::get(oauth_callback))

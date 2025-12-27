@@ -1,9 +1,9 @@
 use domain::model::User;
 
-use axum::{Json, response::IntoResponse};
+use axum::{Json, extract::State, response::IntoResponse};
 use http::StatusCode;
 
-use crate::handler::auth::AuthSession;
+use crate::handler::{AppState, auth::AuthSession};
 
 /// Get the current authenticated user's information.
 #[utoipa::path(
@@ -15,15 +15,15 @@ use crate::handler::auth::AuthSession;
     ),
     tag = "user"
 )]
-pub async fn get_me(auth_session: AuthSession) -> impl IntoResponse {
+pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) -> impl IntoResponse {
     let user_id = match auth_session.user {
         Some(user) => user.id,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
+    let user = match state.repo.user.get_user(&user_id).await {
+        Ok(user) => user,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
 
-    Json(User {
-        id: user_id,
-        handle: "".to_string(),
-    })
-    .into_response()
+    Json(user).into_response()
 }

@@ -12,6 +12,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::handler::{
+    AppState,
     auth::{self, Backend},
     user,
 };
@@ -20,7 +21,7 @@ mod handler;
 
 const API_ROOT: &str = "/api/v1";
 
-pub fn setup_openapi_routes() -> Result<(Router, OpenApi)> {
+pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
     let openapi = OpenApiBuilder::new()
         .info(Info::new("Twittra", env!("CARGO_PKG_VERSION")))
         .servers(Some([Server::new(API_ROOT)]))
@@ -54,14 +55,15 @@ pub async fn serve() -> Result<()> {
         ))?);
     let database_url = env::var("DATABASE_URL")?;
     let repository = mysql::new_repository(&database_url).await?;
-    let backend = Backend::new(client, repository.user);
+    let backend = Backend::new(client, repository.user.clone());
+    let app_state = AppState { repo: repository };
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()
         .nest(API_ROOT, router.merge(auth::router()).layer(auth_layer))
         .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));
 
-    axum::serve(listener, router).await?;
+    axum::serve(listener, router.with_state(app_state)).await?;
 
     Ok(())
 }

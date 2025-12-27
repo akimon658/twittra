@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::model::User;
 
+#[derive(Clone)]
 pub struct Repository {
     pub user: Arc<dyn UserRepository>,
 }
