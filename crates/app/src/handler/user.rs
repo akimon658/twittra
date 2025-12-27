@@ -16,13 +16,14 @@ use crate::handler::auth::AuthSession;
     tag = "user"
 )]
 pub async fn get_me(auth_session: AuthSession) -> impl IntoResponse {
-    let user_handle = match auth_session.user {
-        Some(user) => user.handle,
+    let user_id = match auth_session.user {
+        Some(user) => user.id,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
 
     Json(User {
-        handle: user_handle,
+        id: user_id,
+        handle: "".to_string(),
     })
     .into_response()
 }

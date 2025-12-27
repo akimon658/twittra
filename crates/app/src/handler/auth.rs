@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Debug, Formatter},
     result,
+    sync::Arc,
 };
 
 use axum::{
@@ -10,6 +11,7 @@ use axum::{
     routing,
 };
 use axum_login::{AuthUser, AuthnBackend};
+use domain::{model::User, repository::UserRepository};
 use http::StatusCode;
 use oauth2::{
     AsyncHttpClient, AuthorizationCode, CsrfToken, EndpointNotSet, EndpointSet, TokenResponse,
@@ -26,9 +28,7 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct UserSession {
-    id: Uuid,
-    pub access_token: String,
-    pub handle: String,
+    pub id: Uuid,
 }
 
 impl Debug for UserSession {
@@ -48,7 +48,7 @@ impl AuthUser for UserSession {
     }
 
     fn session_auth_hash(&self) -> &[u8] {
-        self.access_token.as_bytes()
+        &[]
     }
 }
 
@@ -59,13 +59,18 @@ type BasicClientSet =
 pub struct Backend {
     http_client: Client,
     oauth_client: BasicClientSet,
+    repository: Arc<dyn UserRepository + Send + Sync>,
 }
 
 impl Backend {
-    pub fn new(oauth_client: BasicClientSet) -> Self {
+    pub fn new(
+        oauth_client: BasicClientSet,
+        repository: Arc<dyn UserRepository + Send + Sync>,
+    ) -> Self {
         Self {
             http_client: Client::new(),
             oauth_client,
+            repository,
         }
     }
 
@@ -102,23 +107,24 @@ impl AuthnBackend for Backend {
             ..Default::default()
         };
         let traq_user = me_api::get_me(&config).await.map_err(Self::Error::Traq)?;
-
-        Ok(Some(UserSession {
+        let user = User {
             id: traq_user.id,
-            access_token: "".to_string(),
             handle: traq_user.name,
-        }))
+        };
+
+        self.repository.save_user(&user).await;
+        self.repository
+            .save_token(&traq_user.id, token_res.access_token().secret())
+            .await;
+
+        Ok(Some(UserSession { id: traq_user.id }))
     }
 
     async fn get_user(
         &self,
         user_id: &axum_login::UserId<Self>,
     ) -> result::Result<Option<Self::User>, Self::Error> {
-        Ok(Some(UserSession {
-            id: *user_id,
-            access_token: "".to_string(),
-            handle: "".to_string(),
-        }))
+        Ok(Some(UserSession { id: *user_id }))
     }
 }
 

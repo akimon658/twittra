@@ -11,6 +11,7 @@ axum-login = { workspace = true }
 domain = { path = "../domain" }
 dotenvy = "0.15.7"
 http = { workspace = true }
+infra = { path = "../infra" }
 oauth2 = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
