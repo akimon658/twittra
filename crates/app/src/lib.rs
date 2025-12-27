@@ -1,9 +1,9 @@
-use std::{env, sync::Arc};
+use std::env;
 
 use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
-use infra::repository::mysql::MySqlRepository;
+use infra::repository::mysql;
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use tokio::net::TcpListener;
 use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
@@ -53,8 +53,8 @@ pub async fn serve() -> Result<()> {
             traq_api_base_url
         ))?);
     let database_url = env::var("DATABASE_URL")?;
-    let repository = MySqlRepository::new(&database_url).await?;
-    let backend = Backend::new(client, Arc::new(repository.user));
+    let repository = mysql::new_repository(&database_url).await?;
+    let backend = Backend::new(client, repository.user);
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()

@@ -1,22 +1,19 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+use domain::repository::Repository;
 use sqlx::MySqlPool;
 
 use crate::repository::mysql::user::MySqlUserRepository;
 
 pub mod user;
 
-pub struct MySqlRepository {
-    pub user: MySqlUserRepository,
-}
+pub async fn new_repository(database_url: &str) -> Result<Repository> {
+    let pool = MySqlPool::connect(database_url).await?;
 
-impl MySqlRepository {
-    pub async fn new(database_url: &str) -> Result<Self> {
-        let pool = MySqlPool::connect(database_url).await?;
+    sqlx::migrate!().run(&pool).await?;
 
-        sqlx::migrate!().run(&pool).await?;
-
-        Ok(Self {
-            user: MySqlUserRepository::new(pool),
-        })
-    }
+    Ok(Repository {
+        user: Arc::new(MySqlUserRepository::new(pool)),
+    })
 }
