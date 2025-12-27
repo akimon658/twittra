@@ -66,11 +66,12 @@ pub async fn serve() -> Result<()> {
 
     session_store.migrate().await?;
 
-    let deletion_task = task::spawn(
+    task::spawn(
         session_store
             .clone()
             .continuously_delete_expired(Duration::from_mins(10)),
     );
+
     let session_layer = SessionManagerLayer::new(session_store).with_same_site(SameSite::Lax);
     let client_id = env::var("TRAQ_CLIENT_ID").map(ClientId::new)?;
     let client_secret = env::var("TRAQ_CLIENT_SECRET").map(ClientSecret::new)?;
@@ -95,7 +96,6 @@ pub async fn serve() -> Result<()> {
         .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));
 
     axum::serve(listener, router.with_state(app_state)).await?;
-    deletion_task.await??;
 
     Ok(())
 }
