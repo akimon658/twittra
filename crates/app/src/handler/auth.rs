@@ -81,6 +81,8 @@ pub enum BackendError {
     #[error(transparent)]
     Oauth2(BasicRequestTokenError<<reqwest::Client as AsyncHttpClient<'static>>::Error>),
     #[error(transparent)]
+    UserRepository(anyhow::Error),
+    #[error(transparent)]
     Traq(apis::Error<GetMeError>),
 }
 
@@ -109,10 +111,14 @@ impl AuthnBackend for Backend {
             handle: traq_user.name,
         };
 
-        self.user_repository.save_user(&user).await;
+        self.user_repository
+            .save_user(&user)
+            .await
+            .map_err(Self::Error::UserRepository)?;
         self.user_repository
             .save_token(&traq_user.id, token_res.access_token().secret())
-            .await;
+            .await
+            .map_err(Self::Error::UserRepository)?;
 
         Ok(Some(UserSession { id: traq_user.id }))
     }
