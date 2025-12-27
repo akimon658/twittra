@@ -11,13 +11,17 @@ use utoipa::openapi::{Info, OpenApi, OpenApiBuilder, Server};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::handler::{
-    AppState,
-    auth::{self, Backend},
-    user,
+use crate::{
+    handler::{
+        AppState,
+        auth::{self},
+        user,
+    },
+    session::Backend,
 };
 
 mod handler;
+mod session;
 
 const API_ROOT: &str = "/api/v1";
 

@@ -3,7 +3,7 @@ use domain::model::User;
 use axum::{Json, extract::State, response::IntoResponse};
 use http::StatusCode;
 
-use crate::handler::{AppState, auth::AuthSession};
+use crate::{handler::AppState, session::AuthSession};
 
 /// Get the current authenticated user's information.
 #[utoipa::path(
