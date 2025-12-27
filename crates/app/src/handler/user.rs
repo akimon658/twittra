@@ -12,6 +12,7 @@ use crate::handler::{AppState, auth::AuthSession};
     responses(
         (status = StatusCode::OK, body = User),
         (status = StatusCode::UNAUTHORIZED),
+        (status = StatusCode::INTERNAL_SERVER_ERROR),
     ),
     tag = "user"
 )]
