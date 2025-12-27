@@ -19,13 +19,16 @@ pub fn router() -> Router<AppState> {
 pub async fn login(auth_session: AuthSession) -> impl IntoResponse {
     let (authorize_url, csrf_state) = auth_session.backend.authorize_url();
 
-    auth_session
+    match auth_session
         .session
         .insert(CSRF_STATE_KEY, csrf_state.secret())
         .await
-        .expect("Failed to store CSRF state in session");
+    {
+        Ok(_) => {}
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
 
-    Redirect::to(authorize_url.as_str())
+    Redirect::to(authorize_url.as_str()).into_response()
 }
 
 #[derive(serde::Deserialize)]
@@ -52,8 +55,7 @@ pub async fn oauth_callback(
     let user = match auth_session.authenticate(code).await {
         Ok(Some(user)) => user,
         Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(e) => {
-            eprintln!("Authentication error: {}", e);
+        Err(_) => {
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
