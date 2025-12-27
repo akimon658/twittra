@@ -28,6 +28,7 @@ use uuid::Uuid;
 pub struct UserSession {
     id: Uuid,
     pub access_token: String,
+    pub handle: String,
 }
 
 impl Debug for UserSession {
@@ -105,6 +106,7 @@ impl AuthnBackend for Backend {
         Ok(Some(UserSession {
             id: traq_user.id,
             access_token: "".to_string(),
+            handle: traq_user.name,
         }))
     }
 
@@ -115,11 +117,12 @@ impl AuthnBackend for Backend {
         Ok(Some(UserSession {
             id: *user_id,
             access_token: "".to_string(),
+            handle: "".to_string(),
         }))
     }
 }
 
-type AuthSession = axum_login::AuthSession<Backend>;
+pub type AuthSession = axum_login::AuthSession<Backend>;
 
 const CSRF_STATE_KEY: &str = "oauth.csrf_state";
 
