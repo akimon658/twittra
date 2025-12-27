@@ -59,15 +59,15 @@ type BasicClientSet =
 pub struct Backend {
     http_client: Client,
     oauth_client: BasicClientSet,
-    repository: Arc<dyn UserRepository>,
+    user_repository: Arc<dyn UserRepository>,
 }
 
 impl Backend {
-    pub fn new(oauth_client: BasicClientSet, repository: Arc<dyn UserRepository>) -> Self {
+    pub fn new(oauth_client: BasicClientSet, user_repository: Arc<dyn UserRepository>) -> Self {
         Self {
             http_client: Client::new(),
             oauth_client,
-            repository,
+            user_repository,
         }
     }
 
@@ -109,8 +109,8 @@ impl AuthnBackend for Backend {
             handle: traq_user.name,
         };
 
-        self.repository.save_user(&user).await;
-        self.repository
+        self.user_repository.save_user(&user).await;
+        self.user_repository
             .save_token(&traq_user.id, token_res.access_token().secret())
             .await;
 
