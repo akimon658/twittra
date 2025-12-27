@@ -33,6 +33,7 @@ pub fn setup_openapi_routes() -> Result<(Router, OpenApi)> {
 }
 
 pub async fn serve() -> Result<()> {
+    #[cfg(debug_assertions)]
     dotenvy::dotenv()?;
 
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
