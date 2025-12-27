@@ -34,8 +34,11 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
 }
 
 pub async fn serve() -> Result<()> {
-    #[cfg(debug_assertions)]
-    dotenvy::dotenv()?;
+    if cfg!(debug_assertions) {
+        // Load .env file if exists
+        dotenvy::from_filename(".env.local").ok();
+        dotenvy::dotenv().ok();
+    }
 
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
     let session_store = MemoryStore::default();
