@@ -55,5 +55,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
+      - name: Install sqlx CLI
+        run: cargo install sqlx-cli
+
+      - uses: denoland/setup-deno@v2
+
+      - name: Run migrations
+        run: deno task migrate
+
       - name: Run cargo clippy
         run: cargo clippy -- --deny warnings
