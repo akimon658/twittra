@@ -71,7 +71,7 @@ pub async fn oauth_callback(
         return StatusCode::BAD_REQUEST.into_response();
     };
 
-    if old_state != new_state {
+    if !constant_time_eq::constant_time_eq(old_state.as_bytes(), new_state.as_bytes()) {
         return StatusCode::BAD_REQUEST.into_response();
     }
 

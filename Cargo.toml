@@ -7,6 +7,7 @@ anyhow = "1.0.100"
 async-trait = "0.1.89"
 axum = { version = "0.8.8", default-features = false, features = ["http1", "json", "query", "tokio", "tracing"] }
 axum-login = "0.18.0"
+constant_time_eq = "0.4.2"
 dotenvy = "0.15.7"
 http = "1.4.0"
 oauth2 = "5.0.0"
