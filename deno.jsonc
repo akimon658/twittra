@@ -12,6 +12,7 @@
     "semiColons": false
   },
   "imports": {
+    "@mantine/core": "npm:@mantine/core@^8.3.10",
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
     "@types/react": "npm:@types/react@^19.2.7",
     "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^5.1.2",
