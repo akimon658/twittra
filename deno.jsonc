@@ -21,7 +21,8 @@
     "react": "npm:react@^19.2.3",
     "react-dom": "npm:react-dom@^19.2.3",
     "react-error-boundary": "npm:react-error-boundary@^6.0.0",
-    "vite": "npm:vite@^7.3.0"
+    "vite": "npm:vite@^7.3.0",
+    "vite-plugin-webfont-dl": "npm:vite-plugin-webfont-dl@^3.11.1"
   },
   "lint": {
     "exclude": [

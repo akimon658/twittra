@@ -1,4 +1,4 @@
-import { MantineProvider } from "@mantine/core"
+import { createTheme, MantineProvider } from "@mantine/core"
 import "@mantine/core/styles.css"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AuthProvider } from "../auth/components/AuthProvider.tsx"
@@ -12,10 +12,13 @@ const queryClient = new QueryClient({
     },
   },
 })
+const theme = createTheme({
+  fontFamily: "Google Sans Flex, Noto Sans JP, sans-serif",
+})
 
 export const App = () => {
   return (
-    <MantineProvider>
+    <MantineProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Greet />
