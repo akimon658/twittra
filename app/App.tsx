@@ -18,7 +18,7 @@ const theme = createTheme({
 
 export const App = () => {
   return (
-    <MantineProvider theme={theme}>
+    <MantineProvider defaultColorScheme="auto" theme={theme}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Greet />
