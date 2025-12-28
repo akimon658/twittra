@@ -1,3 +1,4 @@
+import { Center, Container, Loader } from "@mantine/core"
 import { QueryErrorResetBoundary } from "@tanstack/react-query"
 import { type PropsWithChildren, Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
@@ -12,6 +13,16 @@ const AuthUserContextProvider = ({ children }: PropsWithChildren) => {
     <UserContext.Provider value={data}>
       {children}
     </UserContext.Provider>
+  )
+}
+
+const FallbackScreen = () => {
+  return (
+    <Container>
+      <Center h="100dvh">
+        <Loader type="bars" />
+      </Center>
+    </Container>
   )
 }
 
@@ -35,7 +46,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             return <LoginScreen />
           }}
         >
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<FallbackScreen />}>
             <AuthUserContextProvider>
               {children}
             </AuthUserContextProvider>
