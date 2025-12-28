@@ -7,6 +7,7 @@
     "npm:@vitejs/plugin-react@^5.1.2": "5.1.2_vite@7.3.0__picomatch@4.0.3_@babel+core@7.28.5",
     "npm:orval@^7.17.2": "7.17.2_commander@14.0.2_typedoc@0.28.15__typescript@5.9.3",
     "npm:react-dom@^19.2.3": "19.2.3_react@19.2.3",
+    "npm:react-error-boundary@6": "6.0.0_react@19.2.3",
     "npm:react@^19.2.3": "19.2.3",
     "npm:vite@^7.3.0": "7.3.0_picomatch@4.0.3"
   },
@@ -2335,6 +2336,13 @@
         "scheduler"
       ]
     },
+    "react-error-boundary@6.0.0_react@19.2.3": {
+      "integrity": "sha512-gdlJjD7NWr0IfkPlaREN2d9uUZUlksrfOx7SX62VRerwXbMY6ftGCIZua1VG1aXFNOimhISsTq+Owp725b9SiA==",
+      "dependencies": [
+        "@babel/runtime",
+        "react"
+      ]
+    },
     "react-number-format@5.4.4_react@19.2.3_react-dom@19.2.3__react@19.2.3": {
       "integrity": "sha512-wOmoNZoOpvMminhifQYiYSTCLUDOiUbBunrMrMjA+dV52sY+vck1S4UhR6PkgnoCquvvMSeJjErXZ4qSaWCliA==",
       "dependencies": [
@@ -3019,6 +3027,7 @@
       "npm:@vitejs/plugin-react@^5.1.2",
       "npm:orval@^7.17.2",
       "npm:react-dom@^19.2.3",
+      "npm:react-error-boundary@6",
       "npm:react@^19.2.3",
       "npm:vite@^7.3.0"
     ]

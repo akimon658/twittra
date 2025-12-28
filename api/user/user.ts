@@ -21,20 +21,57 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
 /**
  * @summary Get the current authenticated user's information.
  */
+export type getMeResponse200 = {
+  data: User
+  status: 200
+}
+
+export type getMeResponse401 = {
+  data: void
+  status: 401
+}
+
+export type getMeResponse500 = {
+  data: void
+  status: 500
+}
+
+export type getMeResponseSuccess = (getMeResponse200) & {
+  headers: Headers
+}
+export type getMeResponseError = (getMeResponse401 | getMeResponse500) & {
+  headers: Headers
+}
+
 export const getGetMeUrl = () => {
   return `/api/v1/me`
 }
 
-export const getMe = async (options?: RequestInit): Promise<User> => {
+export const getMe = async (
+  options?: RequestInit,
+): Promise<getMeResponseSuccess> => {
   const res = await fetch(getGetMeUrl(), {
     ...options,
     method: "GET",
   })
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text()
-
-  const data: User = body ? JSON.parse(body) : {}
-  return data
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getMeResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: getMeResponseError["data"] = body ? JSON.parse(body) : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: getMeResponseSuccess["data"] = body ? JSON.parse(body) : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getMeResponseSuccess
 }
 
 export const getGetMeQueryKey = () => {

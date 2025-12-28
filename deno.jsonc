@@ -4,7 +4,8 @@
     "jsxImportSource": "react",
     "jsxImportSourceTypes": "@types/react",
     "lib": [
-      "dom"
+      "dom",
+      "esnext"
     ],
     "verbatimModuleSyntax": true
   },
@@ -19,6 +20,7 @@
     "orval": "npm:orval@^7.17.2",
     "react": "npm:react@^19.2.3",
     "react-dom": "npm:react-dom@^19.2.3",
+    "react-error-boundary": "npm:react-error-boundary@^6.0.0",
     "vite": "npm:vite@^7.3.0"
   },
   "lint": {
