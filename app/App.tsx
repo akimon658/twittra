@@ -3,6 +3,7 @@ import "@mantine/core/styles.css"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AuthProvider } from "../auth/components/AuthProvider.tsx"
 import { useUser } from "../auth/hooks/useUser.ts"
+import "./global.css"
 
 const queryClient = new QueryClient({
   defaultOptions: {
