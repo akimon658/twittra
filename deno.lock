@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "npm:@mantine/core@^8.3.10": "8.3.10_@mantine+hooks@8.3.10__react@19.2.3_react@19.2.3_react-dom@19.2.3__react@19.2.3_@types+react@19.2.7",
+    "npm:@tabler/icons-react@^3.36.0": "3.36.0_react@19.2.3",
     "npm:@tanstack/react-query@^5.90.12": "5.90.12_react@19.2.3",
     "npm:@types/react@^19.2.7": "19.2.7",
     "npm:@vitejs/plugin-react@^5.1.2": "5.1.2_vite@7.3.0__picomatch@4.0.3_@babel+core@7.28.5",
@@ -1011,6 +1012,16 @@
         "@stoplight/yaml-ast-parser",
         "tslib@2.8.1"
       ]
+    },
+    "@tabler/icons-react@3.36.0_react@19.2.3": {
+      "integrity": "sha512-sSZ00bEjTdTTskVFykq294RJq+9cFatwy4uYa78HcYBCXU1kSD1DIp5yoFsQXmybkIOKCjp18OnhAYk553UIfQ==",
+      "dependencies": [
+        "@tabler/icons",
+        "react"
+      ]
+    },
+    "@tabler/icons@3.36.0": {
+      "integrity": "sha512-z9OfTEG6QbaQWM9KBOxxUdpgvMUn0atageXyiaSc2gmYm51ORO8Ua7eUcjlks+Dc0YMK4rrodAFdK9SfjJ4ZcA=="
     },
     "@tanstack/query-core@5.90.12": {
       "integrity": "sha512-T1/8t5DhV/SisWjDnaiU2drl6ySvsHj1bHBCWNXd+/T+Hh1cf6JodyEYMd5sgwm+b/mETT4EV3H+zCVczCU5hg=="
@@ -3117,6 +3128,7 @@
   "workspace": {
     "dependencies": [
       "npm:@mantine/core@^8.3.10",
+      "npm:@tabler/icons-react@^3.36.0",
       "npm:@tanstack/react-query@^5.90.12",
       "npm:@types/react@^19.2.7",
       "npm:@vitejs/plugin-react@^5.1.2",
