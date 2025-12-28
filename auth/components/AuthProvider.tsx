@@ -3,6 +3,7 @@ import { type PropsWithChildren, Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 import { useGetMeSuspense } from "../../api/user/user.ts"
 import { UserContext } from "../context/user.ts"
+import { LoginScreen } from "./LoginScreen.tsx"
 
 const AuthUserContextProvider = ({ children }: PropsWithChildren) => {
   const { data: { data } } = useGetMeSuspense()
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
               )
             }
 
-            return <a href="/api/v1/auth/login">Login</a>
+            return <LoginScreen />
           }}
         >
           <Suspense fallback={<div>Loading...</div>}>
