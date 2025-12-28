@@ -48,7 +48,7 @@ impl AuthUser for UserSession {
 type BasicClientSet =
     BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Backend {
     http_client: Client,
     oauth_client: BasicClientSet,

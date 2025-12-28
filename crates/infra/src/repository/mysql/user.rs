@@ -3,6 +3,7 @@ use domain::{model::User, repository::UserRepository};
 use sqlx::MySqlPool;
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct MySqlUserRepository {
     pool: MySqlPool,
 }

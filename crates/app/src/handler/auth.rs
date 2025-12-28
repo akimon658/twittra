@@ -18,6 +18,7 @@ const CSRF_STATE_KEY: &str = "oauth.csrf_state";
     ),
     tag = "auth",
 )]
+#[tracing::instrument]
 pub async fn login(auth_session: AuthSession) -> impl IntoResponse {
     let (authorize_url, csrf_state) = auth_session.backend.authorize_url();
 
@@ -27,7 +28,11 @@ pub async fn login(auth_session: AuthSession) -> impl IntoResponse {
         .await
     {
         Ok(_) => {}
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            tracing::error!("{:?}", e);
+
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     Redirect::to(authorize_url.as_str()).into_response()
@@ -73,12 +78,16 @@ pub async fn oauth_callback(
     let user = match auth_session.authenticate(code).await {
         Ok(Some(user)) => user,
         Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(_) => {
+        Err(e) => {
+            tracing::error!("{:?}", e);
+
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
 
-    if let Err(_) = auth_session.login(&user).await {
+    if let Err(e) = auth_session.login(&user).await {
+        tracing::error!("{:?}", e);
+
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 

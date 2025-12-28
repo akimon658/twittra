@@ -19,6 +19,7 @@ use crate::{handler::AppState, session::AuthSession};
     ),
     tag = "user",
 )]
+#[tracing::instrument]
 pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) -> impl IntoResponse {
     let user_id = match auth_session.user {
         Some(user) => user.id,
@@ -26,7 +27,11 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
     };
     let user = match state.repo.user.find_by_id(&user_id).await {
         Ok(user) => user,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            tracing::error!("{:?}", e);
+
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     Json(user).into_response()

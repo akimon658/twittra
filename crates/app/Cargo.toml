@@ -9,7 +9,7 @@ anyhow = { workspace = true }
 axum = { workspace = true }
 axum-login = { workspace = true }
 domain = { path = "../domain" }
-dotenvy = "0.15.7"
+dotenvy = { workspace = true }
 http = { workspace = true }
 infra = { path = "../infra" }
 oauth2 = { workspace = true }
@@ -20,6 +20,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tower-sessions = { workspace = true }
 tower-sessions-sqlx-store = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 traq = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }

@@ -9,6 +9,7 @@ use sqlx::MySqlPool;
 use tokio::{net::TcpListener, task};
 use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
 use tower_sessions_sqlx_store::MySqlStore;
+use tracing_subscriber::fmt;
 use utoipa::openapi::{
     Components, Info, OpenApi, OpenApiBuilder, Server,
     security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -58,6 +59,8 @@ pub async fn serve() -> Result<()> {
         dotenvy::from_filename(".env.local").ok();
         dotenvy::dotenv().ok();
     }
+
+    fmt::init();
 
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
     let database_url = env::var("DATABASE_URL")?;
