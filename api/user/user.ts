@@ -45,7 +45,7 @@ export const getGetMeQueryKey = () => {
 
 export const getGetMeSuspenseQueryOptions = <
   TData = Awaited<ReturnType<typeof getMe>>,
-  TError = unknown,
+  TError = void,
 >(
   options?: {
     query?: UseSuspenseQueryOptions<
@@ -72,7 +72,7 @@ export const getGetMeSuspenseQueryOptions = <
 export type GetMeSuspenseQueryResult = NonNullable<
   Awaited<ReturnType<typeof getMe>>
 >
-export type GetMeSuspenseQueryError = unknown
+export type GetMeSuspenseQueryError = void
 
 /**
  * @summary Get the current authenticated user's information.
@@ -80,7 +80,7 @@ export type GetMeSuspenseQueryError = unknown
 
 export function useGetMeSuspense<
   TData = Awaited<ReturnType<typeof getMe>>,
-  TError = unknown,
+  TError = void,
 >(
   options?: {
     query?: UseSuspenseQueryOptions<
