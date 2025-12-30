@@ -51,12 +51,13 @@ impl UserRepository for MySqlUserRepository {
     async fn save(&self, user: &User) -> Result<()> {
         sqlx::query!(
             r#"
-            INSERT INTO users (id, handle)
-            VALUES (?, ?)
-            ON DUPLICATE KEY UPDATE handle = VALUES(handle)
+            INSERT INTO users (id, handle, display_name)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)
             "#,
             user.id,
-            user.handle
+            user.handle,
+            user.display_name,
         )
         .execute(&self.pool)
         .await?;
