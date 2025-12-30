@@ -11,7 +11,7 @@ import { IconExclamationCircle } from "@tabler/icons-react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { AuthProvider } from "../auth/components/AuthProvider.tsx"
-import { useUser } from "../auth/hooks/useUser.ts"
+import { Layout } from "../components/Layout.tsx"
 import "./global.css"
 
 const queryClient = new QueryClient({
@@ -51,16 +51,10 @@ export const App = () => {
       <ErrorBoundary FallbackComponent={GlobalErrorFallback}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <Greet />
+            <Layout />
           </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </MantineProvider>
   )
-}
-
-const Greet = () => {
-  const user = useUser()
-
-  return <div>Hello, {user.handle}!</div>
 }
