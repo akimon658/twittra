@@ -1,6 +1,7 @@
 CREATE TABLE users (
   id BINARY(16) NOT NULL PRIMARY KEY, -- UUID
-  handle VARCHAR(32) NOT NULL
+  handle VARCHAR(32) NOT NULL,
+  display_name VARCHAR(32) NOT NULL
 );
 
 CREATE TABLE user_tokens (

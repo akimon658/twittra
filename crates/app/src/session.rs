@@ -102,6 +102,7 @@ impl AuthnBackend for Backend {
         let user = User {
             id: traq_user.id,
             handle: traq_user.name,
+            display_name: traq_user.display_name,
         };
 
         self.user_repository

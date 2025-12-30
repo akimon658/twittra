@@ -13,7 +13,7 @@ export default defineConfig({
       mode: "tags-split",
       override: {
         fetch: {
-          includeHttpResponseReturnType: false,
+          forceSuccessResponse: true,
         },
         query: {
           useSuspenseQuery: true,

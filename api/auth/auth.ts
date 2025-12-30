@@ -21,6 +21,38 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
 /**
  * @summary Handle the OAuth2 callback.
  */
+export type oauthCallbackResponse302 = {
+  data: void
+  status: 302
+}
+
+export type oauthCallbackResponse400 = {
+  data: void
+  status: 400
+}
+
+export type oauthCallbackResponse401 = {
+  data: void
+  status: 401
+}
+
+export type oauthCallbackResponse500 = {
+  data: void
+  status: 500
+}
+export type oauthCallbackResponseError =
+  & (
+    | oauthCallbackResponse302
+    | oauthCallbackResponse400
+    | oauthCallbackResponse401
+    | oauthCallbackResponse500
+  )
+  & {
+    headers: Headers
+  }
+
+export type oauthCallbackResponse = oauthCallbackResponseError
+
 export const getOauthCallbackUrl = (params: OauthCallbackParams) => {
   const normalizedParams = new URLSearchParams()
 
@@ -40,16 +72,31 @@ export const getOauthCallbackUrl = (params: OauthCallbackParams) => {
 export const oauthCallback = async (
   params: OauthCallbackParams,
   options?: RequestInit,
-): Promise<unknown> => {
+): Promise<oauthCallbackResponse> => {
   const res = await fetch(getOauthCallbackUrl(params), {
     ...options,
     method: "GET",
   })
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text()
-
-  const data: unknown = body ? JSON.parse(body) : {}
-  return data
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: oauthCallbackResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: oauthCallbackResponseError["data"] = body
+      ? JSON.parse(body)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: oauthCallbackResponse["data"] = body ? JSON.parse(body) : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as oauthCallbackResponse
 }
 
 export const getOauthCallbackQueryKey = (params?: OauthCallbackParams) => {
@@ -127,20 +174,44 @@ export function useOauthCallbackSuspense<
 /**
  * @summary Start the OAuth2 login process by redirecting to the authorization URL.
  */
+export type loginResponse302 = {
+  data: void
+  status: 302
+}
+
+export type loginResponse500 = {
+  data: void
+  status: 500
+}
+export type loginResponseError = (loginResponse302 | loginResponse500) & {
+  headers: Headers
+}
+
+export type loginResponse = loginResponseError
+
 export const getLoginUrl = () => {
   return `/api/v1/auth/login`
 }
 
-export const login = async (options?: RequestInit): Promise<unknown> => {
+export const login = async (options?: RequestInit): Promise<loginResponse> => {
   const res = await fetch(getLoginUrl(), {
     ...options,
     method: "GET",
   })
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text()
-
-  const data: unknown = body ? JSON.parse(body) : {}
-  return data
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: loginResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: loginResponseError["data"] = body ? JSON.parse(body) : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: loginResponse["data"] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as loginResponse
 }
 
 export const getLoginQueryKey = () => {
