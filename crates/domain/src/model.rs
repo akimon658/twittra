@@ -3,6 +3,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,
     pub handle: String,
@@ -10,6 +11,7 @@ pub struct User {
 }
 
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UserToken {
     pub user_id: Uuid,
     pub access_token: String,
