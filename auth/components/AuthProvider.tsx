@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           fallbackRender={({ error }) => {
             if (error.status !== 401) {
               throw new Error(
-                `retrieving authenticated user`,
+                "error retrieving authenticated user",
                 { cause: error },
               )
             }
