@@ -20,7 +20,7 @@ impl UserRepository for MySqlUserRepository {
         let user = sqlx::query_as!(
             User,
             r#"
-            SELECT id as `id: _`, handle
+            SELECT id as `id: _`, handle, display_name
             FROM users
             WHERE id = ?
             "#,

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 export interface User {
+  display_name: string
   handle: string
   id: string
 }
