@@ -1,0 +1,62 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use time::{Duration, PrimitiveDateTime, UtcDateTime};
+
+use crate::{repository::Repository, traq_client::TraqClient};
+
+pub struct MessageCrawler {
+    client: Arc<dyn TraqClient>,
+    repo: Repository,
+}
+
+impl MessageCrawler {
+    pub fn new(client: Arc<dyn TraqClient>, repo: Repository) -> Self {
+        Self { client, repo }
+    }
+
+    pub async fn run(&self) {
+        loop {
+            if let Err(e) = self.crawl().await {
+                tracing::error!("Crawl failed: {:?}", e);
+            }
+
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+        }
+    }
+
+    pub async fn crawl(&self) -> Result<()> {
+        let last_fetched_at = self
+            .repo
+            .message
+            .find_latest_message_time()
+            .await?
+            .unwrap_or_else(|| {
+                let now = UtcDateTime::now();
+
+                PrimitiveDateTime::new(now.date(), now.time()) - Duration::days(1)
+            });
+        let token = match self.repo.user.find_random_valid_token().await? {
+            Some(t) => t,
+            None => {
+                tracing::warn!("No valid token found. Skipping crawl.");
+
+                return Ok(());
+            }
+        };
+        let messages = self
+            .client
+            .fetch_messages_since(&token, last_fetched_at)
+            .await?;
+
+        if messages.is_empty() {
+            tracing::info!("No new messages found since {}", last_fetched_at);
+
+            return Ok(());
+        }
+
+        self.repo.message.save_batch(&messages).await?;
+
+        Ok(())
+    }
+}

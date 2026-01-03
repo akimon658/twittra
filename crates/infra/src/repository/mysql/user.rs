@@ -32,6 +32,35 @@ impl UserRepository for MySqlUserRepository {
         Ok(user)
     }
 
+    async fn find_random_valid_token(&self) -> Result<Option<String>> {
+        let rows_count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*)
+            FROM user_tokens
+            "#
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        if rows_count == 0 {
+            return Ok(None);
+        }
+
+        let random_offset = fastrand::i64(0..rows_count);
+        let record = sqlx::query!(
+            r#"
+            SELECT access_token
+            FROM user_tokens
+            LIMIT 1 OFFSET ?
+            "#,
+            random_offset
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Some(record.access_token))
+    }
+
     async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()> {
         sqlx::query!(
             r#"

@@ -1,9 +1,10 @@
-use std::{env, time::Duration};
+use std::{env, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
-use infra::repository::mysql;
+use domain::crawler::MessageCrawler;
+use infra::{repository::mysql, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use sqlx::MySqlPool;
 use tokio::{net::TcpListener, task};
@@ -90,6 +91,13 @@ pub async fn serve() -> Result<()> {
             traq_api_base_url
         ))?);
     let repository = mysql::new_repository(pool).await?;
+    let traq_client = TraqClientImpl {};
+    let crawler = MessageCrawler::new(Arc::new(traq_client), repository.clone());
+
+    task::spawn(async move {
+        crawler.run().await;
+    });
+
     let backend = Backend::new(client, repository.user.clone());
     let app_state = AppState { repo: repository };
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();

@@ -431,6 +431,10 @@ dependencies = [
  "anyhow",
  "async-trait",
  "serde",
+ "time",
+ "tokio",
+ "tracing",
+ "traq",
  "utoipa",
  "uuid",
 ]
@@ -1058,7 +1062,10 @@ dependencies = [
  "anyhow",
  "async-trait",
  "domain",
+ "fastrand",
  "sqlx",
+ "time",
+ "traq",
  "uuid",
 ]
 

@@ -13,3 +13,12 @@ CREATE TABLE user_tokens (
   CONSTRAINT fk_user_tokens_user FOREIGN KEY (user_id)
     REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE messages (
+  id BINARY(16) NOT NULL PRIMARY KEY, -- UUID
+  user_id BINARY(16) NOT NULL, -- UUID
+  channel_id BINARY(16) NOT NULL, -- UUID
+  content TEXT NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  updated_at DATETIME(6) NOT NULL
+);
