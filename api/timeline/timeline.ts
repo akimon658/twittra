@@ -14,6 +14,8 @@ import type {
 
 import type { Message } from "../twittra.schemas"
 
+import { customReviver } from ".././reviver"
+
 type AwaitedInput<T> = PromiseLike<T> | T
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
@@ -63,12 +65,16 @@ export const getTimeline = async (
       info?: getTimelineResponseError["data"]
       status?: number
     } = new globalThis.Error()
-    const data: getTimelineResponseError["data"] = body ? JSON.parse(body) : {}
+    const data: getTimelineResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
     err.info = data
     err.status = res.status
     throw err
   }
-  const data: getTimelineResponseSuccess["data"] = body ? JSON.parse(body) : {}
+  const data: getTimelineResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
   return {
     data,
     status: res.status,

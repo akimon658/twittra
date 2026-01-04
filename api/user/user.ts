@@ -14,6 +14,8 @@ import type {
 
 import type { User } from "../twittra.schemas"
 
+import { customReviver } from ".././reviver"
+
 type AwaitedInput<T> = PromiseLike<T> | T
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
@@ -61,12 +63,16 @@ export const getMe = async (
       info?: getMeResponseError["data"]
       status?: number
     } = new globalThis.Error()
-    const data: getMeResponseError["data"] = body ? JSON.parse(body) : {}
+    const data: getMeResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
     err.info = data
     err.status = res.status
     throw err
   }
-  const data: getMeResponseSuccess["data"] = body ? JSON.parse(body) : {}
+  const data: getMeResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
   return {
     data,
     status: res.status,

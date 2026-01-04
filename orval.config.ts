@@ -14,6 +14,10 @@ export default defineConfig({
       override: {
         fetch: {
           forceSuccessResponse: true,
+          jsonReviver: {
+            path: "./api/reviver.ts",
+            name: "customReviver",
+          },
         },
         query: {
           useSuspenseQuery: true,
