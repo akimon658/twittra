@@ -1,7 +1,7 @@
 use anyhow::Result;
 use domain::{model::Message, repository::MessageRepository};
 use sqlx::{MySqlPool, QueryBuilder};
-use time::PrimitiveDateTime;
+use time::OffsetDateTime;
 
 #[derive(Debug)]
 pub struct MySqlMessageRepository {
@@ -16,7 +16,7 @@ impl MySqlMessageRepository {
 
 #[async_trait::async_trait]
 impl MessageRepository for MySqlMessageRepository {
-    async fn find_latest_message_time(&self) -> Result<Option<PrimitiveDateTime>> {
+    async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>> {
         let result = sqlx::query_scalar!(
             r#"
             SELECT MAX(created_at)

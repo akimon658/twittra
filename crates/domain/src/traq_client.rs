@@ -1,5 +1,5 @@
 use anyhow::Result;
-use time::PrimitiveDateTime;
+use time::OffsetDateTime;
 
 use crate::model::Message;
 
@@ -8,6 +8,6 @@ pub trait TraqClient: Send + Sync {
     async fn fetch_messages_since(
         &self,
         token: &str,
-        after: PrimitiveDateTime,
+        after: OffsetDateTime,
     ) -> Result<Vec<Message>>;
 }

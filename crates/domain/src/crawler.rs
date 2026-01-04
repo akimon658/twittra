@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use time::{Duration, PrimitiveDateTime, UtcDateTime};
+use time::{Duration, OffsetDateTime};
 
 use crate::{repository::Repository, traq_client::TraqClient};
 
@@ -31,11 +31,7 @@ impl MessageCrawler {
             .message
             .find_latest_message_time()
             .await?
-            .unwrap_or_else(|| {
-                let now = UtcDateTime::now();
-
-                PrimitiveDateTime::new(now.date(), now.time()) - Duration::days(1)
-            });
+            .unwrap_or_else(|| OffsetDateTime::now_utc() - Duration::days(1));
         let token = match self.repo.user.find_random_valid_token().await? {
             Some(t) => t,
             None => {

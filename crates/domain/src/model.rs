@@ -1,5 +1,5 @@
 use serde::Serialize;
-use time::{PrimitiveDateTime, error::Parse, format_description::BorrowedFormatItem, macros};
+use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
 use traq::models::{self, MyUserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -11,12 +11,11 @@ pub struct Message {
     pub user_id: Uuid,
     pub channel_id: Uuid,
     pub content: String,
-    pub created_at: PrimitiveDateTime,
-    pub updated_at: PrimitiveDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
 }
-
-const TIME_FORMAT: &[BorrowedFormatItem] =
-    macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z");
 
 impl TryFrom<models::Message> for Message {
     type Error = Parse;
@@ -27,8 +26,8 @@ impl TryFrom<models::Message> for Message {
             user_id: value.user_id,
             channel_id: value.channel_id,
             content: value.content,
-            created_at: PrimitiveDateTime::parse(&value.created_at, &TIME_FORMAT)?,
-            updated_at: PrimitiveDateTime::parse(&value.updated_at, &TIME_FORMAT)?,
+            created_at: OffsetDateTime::parse(&value.created_at, &Rfc3339)?,
+            updated_at: OffsetDateTime::parse(&value.updated_at, &Rfc3339)?,
         })
     }
 }

@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use anyhow::Result;
-use time::PrimitiveDateTime;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::model::{Message, User};
@@ -14,7 +14,7 @@ pub struct Repository {
 
 #[async_trait::async_trait]
 pub trait MessageRepository: Debug + Send + Sync {
-    async fn find_latest_message_time(&self) -> Result<Option<PrimitiveDateTime>>;
+    async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>>;
     async fn find_recent_messages(&self) -> Result<Vec<Message>>;
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
 }

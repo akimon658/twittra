@@ -1,6 +1,6 @@
 use anyhow::Result;
 use domain::{model::Message, traq_client::TraqClient};
-use time::{PrimitiveDateTime, macros};
+use time::{OffsetDateTime, macros};
 use traq::apis::{configuration::Configuration, message_api};
 
 pub struct TraqClientImpl {}
@@ -10,7 +10,7 @@ impl TraqClient for TraqClientImpl {
     async fn fetch_messages_since(
         &self,
         token: &str,
-        since: PrimitiveDateTime,
+        since: OffsetDateTime,
     ) -> Result<Vec<Message>> {
         let config = Configuration {
             oauth_access_token: Some(token.to_string()),

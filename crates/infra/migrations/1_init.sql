@@ -19,6 +19,6 @@ CREATE TABLE messages (
   user_id BINARY(16) NOT NULL, -- UUID
   channel_id BINARY(16) NOT NULL, -- UUID
   content TEXT NOT NULL,
-  created_at DATETIME(6) NOT NULL,
-  updated_at DATETIME(6) NOT NULL
+  created_at TIMESTAMP(6) NOT NULL,
+  updated_at TIMESTAMP(6) NOT NULL
 );
