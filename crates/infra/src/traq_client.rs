@@ -1,6 +1,6 @@
 use anyhow::Result;
 use domain::{model::Message, traq_client::TraqClient};
-use time::{OffsetDateTime, macros};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use traq::apis::{configuration::Configuration, message_api};
 
 pub struct TraqClientImpl {}
@@ -16,12 +16,10 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let req_time_format =
-            macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
         let search_result = message_api::search_messages(
             &config,
             None,
-            Some(since.format(&req_time_format).unwrap()),
+            Some(since.format(&Rfc3339)?),
             None,
             None,
             None,
