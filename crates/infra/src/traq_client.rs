@@ -38,21 +38,11 @@ impl TraqClient for TraqClientImpl {
             None,
         )
         .await?;
-        let res_time_format = macros::format_description!(
-            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
-        );
         let messages = search_result
             .hits
             .into_iter()
-            .map(|m| Message {
-                id: m.id,
-                user_id: m.user_id,
-                channel_id: m.channel_id,
-                content: m.content,
-                created_at: PrimitiveDateTime::parse(&m.created_at, &res_time_format).unwrap(),
-                updated_at: PrimitiveDateTime::parse(&m.updated_at, &res_time_format).unwrap(),
-            })
-            .collect();
+            .map(|msg| msg.try_into())
+            .collect::<Result<Vec<Message>, _>>()?;
 
         Ok(messages)
     }
