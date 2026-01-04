@@ -4,6 +4,15 @@
  * Twittra
  * OpenAPI spec version: 0.1.0
  */
+export interface Message {
+  channelId: string
+  content: string
+  createdAt: string
+  id: string
+  updatedAt: string
+  userId: string
+}
+
 export interface User {
   displayName: string
   handle: string

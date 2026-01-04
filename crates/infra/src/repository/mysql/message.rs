@@ -29,6 +29,28 @@ impl MessageRepository for MySqlMessageRepository {
         Ok(result)
     }
 
+    async fn find_recent_messages(&self) -> Result<Vec<Message>> {
+        let messages = sqlx::query_as!(
+            Message,
+            r#"
+            SELECT
+                id as `id: _`,
+                user_id as `user_id: _`,
+                channel_id as `channel_id: _`,
+                content,
+                created_at,
+                updated_at
+            FROM messages
+            ORDER BY created_at DESC
+            LIMIT 50
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(messages)
+    }
+
     async fn save_batch(&self, messages: &[Message]) -> Result<()> {
         let mut query_builder = QueryBuilder::new(
             "INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at) ",

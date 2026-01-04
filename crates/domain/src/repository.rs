@@ -15,6 +15,7 @@ pub struct Repository {
 #[async_trait::async_trait]
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<PrimitiveDateTime>>;
+    async fn find_recent_messages(&self) -> Result<Vec<Message>>;
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
 }
 

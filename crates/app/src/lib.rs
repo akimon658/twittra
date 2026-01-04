@@ -22,7 +22,7 @@ use crate::{
     handler::{
         AppState,
         auth::{self},
-        user,
+        timeline, user,
     },
     session::Backend,
 };
@@ -46,9 +46,10 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .components(Some(components))
         .build();
     let openapi_router = OpenApiRouter::with_openapi(openapi)
-        .routes(utoipa_axum::routes!(auth::login,))
-        .routes(utoipa_axum::routes!(auth::oauth_callback,))
-        .routes(utoipa_axum::routes!(user::get_me,))
+        .routes(utoipa_axum::routes!(auth::login))
+        .routes(utoipa_axum::routes!(auth::oauth_callback))
+        .routes(utoipa_axum::routes!(timeline::get_timeline))
+        .routes(utoipa_axum::routes!(user::get_me))
         .split_for_parts();
 
     Ok(openapi_router)
@@ -99,7 +100,7 @@ pub async fn serve() -> Result<()> {
     });
 
     let backend = Backend::new(client, repository.user.clone());
-    let app_state = AppState { repo: repository };
+    let app_state = AppState::new(repository);
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()
