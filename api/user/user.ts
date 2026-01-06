@@ -144,3 +144,130 @@ export function useGetMeSuspense<
 
   return query
 }
+
+/**
+ * @summary Get a user's information by user ID.
+ */
+export type getUserByIdResponse200 = {
+  data: User
+  status: 200
+}
+
+export type getUserByIdResponse500 = {
+  data: void
+  status: 500
+}
+
+export type getUserByIdResponseSuccess = (getUserByIdResponse200) & {
+  headers: Headers
+}
+export type getUserByIdResponseError = (getUserByIdResponse500) & {
+  headers: Headers
+}
+
+export const getGetUserByIdUrl = (userId: string) => {
+  return `/api/v1/users/${userId}`
+}
+
+export const getUserById = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<getUserByIdResponseSuccess> => {
+  const res = await fetch(getGetUserByIdUrl(userId), {
+    ...options,
+    method: "GET",
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getUserByIdResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: getUserByIdResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: getUserByIdResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getUserByIdResponseSuccess
+}
+
+export const getGetUserByIdQueryKey = (userId?: string) => {
+  return [
+    `/api/v1/users/${userId}`,
+  ] as const
+}
+
+export const getGetUserByIdSuspenseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserById>>,
+  TError = void,
+>(
+  userId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getUserById>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserByIdQueryKey(userId)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserById>>> = (
+    { signal },
+  ) => getUserById(userId, { signal, ...fetchOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as
+    & UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getUserById>>,
+      TError,
+      TData
+    >
+    & { queryKey: QueryKey }
+}
+
+export type GetUserByIdSuspenseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserById>>
+>
+export type GetUserByIdSuspenseQueryError = void
+
+/**
+ * @summary Get a user's information by user ID.
+ */
+
+export function useGetUserByIdSuspense<
+  TData = Awaited<ReturnType<typeof getUserById>>,
+  TError = void,
+>(
+  userId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getUserById>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+): UseSuspenseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserByIdSuspenseQueryOptions(userId, options)
+
+  const query = useSuspenseQuery(queryOptions) as
+    & UseSuspenseQueryResult<TData, TError>
+    & { queryKey: QueryKey }
+
+  query.queryKey = queryOptions.queryKey
+
+  return query
+}

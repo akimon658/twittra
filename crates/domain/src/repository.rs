@@ -21,7 +21,7 @@ pub trait MessageRepository: Debug + Send + Sync {
 
 #[async_trait::async_trait]
 pub trait UserRepository: Debug + Send + Sync {
-    async fn find_by_id(&self, id: &Uuid) -> Result<User>;
+    async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>>;
     async fn find_random_valid_token(&self) -> Result<Option<String>>;
     async fn save(&self, user: &User) -> Result<()>;
     async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()>;

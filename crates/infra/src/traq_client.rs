@@ -1,8 +1,13 @@
 use anyhow::Result;
-use domain::{model::Message, traq_client::TraqClient};
+use domain::{
+    model::{Message, User},
+    traq_client::TraqClient,
+};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
-use traq::apis::{configuration::Configuration, message_api};
+use traq::apis::{configuration::Configuration, message_api, user_api};
+use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct TraqClientImpl {}
 
 #[async_trait::async_trait]
@@ -43,5 +48,16 @@ impl TraqClient for TraqClientImpl {
             .collect::<Result<Vec<Message>, _>>()?;
 
         Ok(messages)
+    }
+
+    async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User> {
+        let config = Configuration {
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let traq_user = user_api::get_user(&config, &user_id.to_string()).await?;
+        let user = traq_user.into();
+
+        Ok(user)
     }
 }

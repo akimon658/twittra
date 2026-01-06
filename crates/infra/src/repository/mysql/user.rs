@@ -16,8 +16,8 @@ impl MySqlUserRepository {
 
 #[async_trait::async_trait]
 impl UserRepository for MySqlUserRepository {
-    async fn find_by_id(&self, id: &Uuid) -> Result<User> {
-        let user = sqlx::query_as!(
+    async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>> {
+        let user = match sqlx::query_as!(
             User,
             r#"
             SELECT id as `id: _`, handle, display_name
@@ -27,7 +27,12 @@ impl UserRepository for MySqlUserRepository {
             id
         )
         .fetch_one(&self.pool)
-        .await?;
+        .await
+        {
+            Ok(user) => Some(user),
+            Err(sqlx::Error::RowNotFound) => None,
+            Err(e) => return Err(e.into()),
+        };
 
         Ok(user)
     }

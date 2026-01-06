@@ -1,6 +1,6 @@
 use serde::Serialize;
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
-use traq::models::{self, MyUserDetail};
+use traq::models::{self, MyUserDetail, UserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -42,6 +42,16 @@ pub struct User {
 
 impl From<MyUserDetail> for User {
     fn from(value: MyUserDetail) -> Self {
+        User {
+            id: value.id,
+            handle: value.name,
+            display_name: value.display_name,
+        }
+    }
+}
+
+impl From<UserDetail> for User {
+    fn from(value: UserDetail) -> Self {
         User {
             id: value.id,
             handle: value.name,

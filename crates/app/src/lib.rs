@@ -50,6 +50,7 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .routes(utoipa_axum::routes!(auth::oauth_callback))
         .routes(utoipa_axum::routes!(timeline::get_timeline))
         .routes(utoipa_axum::routes!(user::get_me))
+        .routes(utoipa_axum::routes!(user::get_user_by_id))
         .split_for_parts();
 
     Ok(openapi_router)
@@ -100,7 +101,7 @@ pub async fn serve() -> Result<()> {
     });
 
     let backend = Backend::new(client, repository.user.clone());
-    let app_state = AppState::new(repository);
+    let app_state = AppState::new(repository, Arc::new(TraqClientImpl {}));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()
