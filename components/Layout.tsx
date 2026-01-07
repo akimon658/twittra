@@ -1,5 +1,7 @@
-import { AppShell, Avatar, Group, Stack, Text } from "@mantine/core"
+import { AppShell, Group, Stack, Text } from "@mantine/core"
 import { useUser } from "../auth/hooks/useUser.ts"
+import { Timeline } from "../timeline/components/Timeline.tsx"
+import { UserAvatar } from "./UserAvatar.tsx"
 
 export const Layout = () => {
   const user = useUser()
@@ -11,13 +13,10 @@ export const Layout = () => {
 
         <AppShell.Section p="md">
           <Group gap="sm" wrap="nowrap">
-            <Avatar
-              alt={`@${user.handle}のアイコン`}
-              src={`https://image-proxy.trap.jp/icon/${user.handle}?width=128`}
-            />
+            <UserAvatar username={user.handle} />
 
             <Stack gap={0}>
-              <Text fw={700} span>{user.displayName}</Text>
+              <Text fw={500} span>{user.displayName}</Text>
 
               <Text c="dimmed" span>@{user.handle}</Text>
             </Stack>
@@ -26,7 +25,8 @@ export const Layout = () => {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {/* TODO: Replace this comment with `<Outlet />` */}
+        {/* TODO: Replace below with `<Outlet />` */}
+        <Timeline />
       </AppShell.Main>
     </AppShell>
   )

@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
   },
 })
 const theme = createTheme({
-  fontFamily: "Google Sans Flex, Noto Sans JP, sans-serif",
+  fontFamily: "Google Sans Flex, Noto Sans JP, Noto Color Emoji, sans-serif",
 })
 
 const GlobalErrorFallback = ({ error }: FallbackProps) => {
