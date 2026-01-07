@@ -27,7 +27,7 @@ pub async fn get_timeline(
         Some(user) => user.id,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-    let messages = match state.repo.message.find_recent_messages().await {
+    let messages = match state.timeline_service.get_recommended_messages().await {
         Ok(messages) => messages,
         Err(e) => {
             tracing::error!("{:?}", e);
