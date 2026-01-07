@@ -4,7 +4,7 @@ use anyhow::Result;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::model::{Message, User};
+use crate::model::{Message, MessageListItem, User};
 
 #[derive(Clone, Debug)]
 pub struct Repository {
@@ -15,7 +15,7 @@ pub struct Repository {
 #[async_trait::async_trait]
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>>;
-    async fn find_recent_messages(&self) -> Result<Vec<Message>>;
+    async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>>;
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
 }
 

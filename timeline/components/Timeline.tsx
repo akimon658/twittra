@@ -8,11 +8,7 @@ const TimelineContent = () => {
 
   return (
     <Stack>
-      {data.map((item) => (
-        <Suspense key={item.id} fallback={<div>Loading message...</div>}>
-          <MessageItem key={item.id} message={item} />
-        </Suspense>
-      ))}
+      {data.map((item) => <MessageItem key={item.id} message={item} />)}
     </Stack>
   )
 }

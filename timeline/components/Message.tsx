@@ -1,8 +1,8 @@
-import { Group, Paper, Stack, Text, Typography } from "@mantine/core"
+import { Group, Paper, Stack, Typography } from "@mantine/core"
 import { type Store, traQMarkdownIt } from "@traptitech/traq-markdown-it"
-import type { Message } from "../../api/twittra.schemas.ts"
-import { useGetUserByIdSuspense } from "../../api/user/user.ts"
-import { UserAvatar } from "../../components/UserAvatar.tsx"
+import type { MessageListItem } from "../../api/twittra.schemas.ts"
+import { MessageAuthorAvater } from "./MessageAuthorAvater.tsx"
+import { MessageHeader } from "./MessageHeader.tsx"
 
 const store: Store = {
   generateChannelHref: () => "",
@@ -18,23 +18,17 @@ const store: Store = {
 const md = new traQMarkdownIt(store, undefined, "")
 
 interface MessageProps {
-  message: Message
+  message: MessageListItem
 }
 
 export const MessageItem = ({ message }: MessageProps) => {
-  const { data: { data } } = useGetUserByIdSuspense(message.userId)
-
   return (
     <Paper>
       <Group align="start" wrap="nowrap">
-        <UserAvatar username={data.handle} />
+        <MessageAuthorAvater user={message.user} userId={message.userId} />
 
         <Stack gap={0}>
-          <Group gap="xs">
-            <Text fw={500} span>{data.displayName}</Text>
-
-            <Text c="dimmed" span>@{data.handle}</Text>
-          </Group>
+          <MessageHeader user={message.user} userId={message.userId} />
 
           <Typography>
             <div

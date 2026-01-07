@@ -4,12 +4,15 @@
  * Twittra
  * OpenAPI spec version: 0.1.0
  */
-export interface Message {
+export interface MessageListItem {
   channelId: string
   content: string
   createdAt: string
   id: string
   updatedAt: string
+  /** The user who posted the message.
+Omitted if the server haven't cached the user info. */
+  user?: User
   userId: string
 }
 

@@ -4,16 +4,12 @@ use traq::models::{self, MyUserDetail, UserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: Uuid,
     pub user_id: Uuid,
     pub channel_id: Uuid,
     pub content: String,
-    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
 }
 
@@ -30,6 +26,24 @@ impl TryFrom<models::Message> for Message {
             updated_at: OffsetDateTime::parse(&value.updated_at, &Rfc3339)?,
         })
     }
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageListItem {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    /// The user who posted the message.
+    /// Omitted if the server haven't cached the user info.
+    #[schema(nullable = false)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<User>,
+    pub channel_id: Uuid,
+    pub content: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
 }
 
 #[derive(Serialize, ToSchema)]

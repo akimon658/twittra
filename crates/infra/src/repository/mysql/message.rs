@@ -1,7 +1,11 @@
 use anyhow::Result;
-use domain::{model::Message, repository::MessageRepository};
+use domain::{
+    model::{Message, MessageListItem, User},
+    repository::MessageRepository,
+};
 use sqlx::{MySqlPool, QueryBuilder};
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct MySqlMessageRepository {
@@ -11,6 +15,41 @@ pub struct MySqlMessageRepository {
 impl MySqlMessageRepository {
     pub fn new(pool: MySqlPool) -> Self {
         Self { pool }
+    }
+}
+
+struct MessageRow {
+    id: Uuid,
+    user_id: Uuid,
+    channel_id: Uuid,
+    content: String,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
+
+    user_handle: Option<String>,
+    user_display_name: Option<String>,
+}
+
+impl From<MessageRow> for MessageListItem {
+    fn from(row: MessageRow) -> Self {
+        let user = match (row.user_handle, row.user_display_name) {
+            (Some(handle), Some(display_name)) => Some(User {
+                id: row.user_id,
+                handle,
+                display_name,
+            }),
+            _ => None,
+        };
+
+        MessageListItem {
+            id: row.id,
+            user_id: row.user_id,
+            user,
+            channel_id: row.channel_id,
+            content: row.content,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
     }
 }
 
@@ -29,24 +68,28 @@ impl MessageRepository for MySqlMessageRepository {
         Ok(result)
     }
 
-    async fn find_recent_messages(&self) -> Result<Vec<Message>> {
+    async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>> {
         let messages = sqlx::query_as!(
-            Message,
+            MessageRow,
             r#"
             SELECT
-                id as `id: _`,
-                user_id as `user_id: _`,
-                channel_id as `channel_id: _`,
-                content,
-                created_at,
-                updated_at
-            FROM messages
-            ORDER BY created_at DESC
+                m.id AS `id: _`,
+                m.user_id AS `user_id: _`,
+                m.channel_id AS `channel_id: _`,
+                m.content,
+                m.created_at,
+                m.updated_at,
+                u.handle AS user_handle,
+                u.display_name AS user_display_name
+            FROM messages m
+            LEFT JOIN users u ON m.user_id = u.id
+            ORDER BY m.created_at DESC
             LIMIT 50
             "#
         )
         .fetch_all(&self.pool)
         .await?;
+        let messages = messages.into_iter().map(MessageListItem::from).collect();
 
         Ok(messages)
     }

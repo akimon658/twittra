@@ -12,7 +12,7 @@ import type {
   UseSuspenseQueryResult,
 } from "@tanstack/react-query"
 
-import type { Message } from "../twittra.schemas"
+import type { MessageListItem } from "../twittra.schemas"
 
 import { customReviver } from ".././reviver"
 
@@ -24,7 +24,7 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
  * @summary Get messages for the timeline.
  */
 export type getTimelineResponse200 = {
-  data: Message[]
+  data: MessageListItem[]
   status: 200
 }
 

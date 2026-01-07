@@ -3,7 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    model::{Message, User},
+    model::{MessageListItem, User},
     repository::Repository,
     traq_client::TraqClient,
 };
@@ -18,7 +18,7 @@ impl TimelineService {
         Self { repo }
     }
 
-    pub async fn get_recommended_messages(&self) -> Result<Vec<Message>> {
+    pub async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>> {
         let messages = self.repo.message.find_recent_messages().await?;
 
         Ok(messages)

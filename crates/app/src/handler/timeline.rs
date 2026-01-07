@@ -1,5 +1,5 @@
 use axum::{Json, extract::State, response::IntoResponse};
-use domain::model::Message;
+use domain::model::MessageListItem;
 use http::StatusCode;
 
 use crate::{handler::AppState, session::AuthSession};
@@ -9,7 +9,7 @@ use crate::{handler::AppState, session::AuthSession};
     get,
     path = "/timeline",
     responses(
-        (status = StatusCode::OK, body = [Message]),
+        (status = StatusCode::OK, body = [MessageListItem]),
         (status = StatusCode::UNAUTHORIZED),
         (status = StatusCode::INTERNAL_SERVER_ERROR),
     ),
