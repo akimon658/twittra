@@ -12,7 +12,7 @@ on content discovery and a fluid browsing experience.
    graphs.
 1. **Not a Replacement:** Complement the official traQ client. Focus on timeline
    browsing rather than chat functionalities.
-1. **Performance under Constraints:** Designed to run on low-resource server
+1. **Performance under Constraints:** Designed to run on low-resource servers
    (approx. **100MB RAM**).
 1. **Modern DX:** Prioritize type safety and automated code generation between
    backend and frontend.
@@ -36,7 +36,7 @@ on content discovery and a fluid browsing experience.
 - **Runtime:** Deno.
 - **Fetching:** **Schema-driven**. Uses `Orval` to generate React Query hooks
   from the backend's OpenAPI JSON. Configured to generate only
-  suspence-compatible hooks so that loading states are handled by React
+  suspense-compatible hooks so that loading states are handled by React
   Suspense.
 - **UI:** Mantine v8.
 
