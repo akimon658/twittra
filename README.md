@@ -22,7 +22,7 @@ on content discovery and a fluid browsing experience.
 ### Backend (Rust)
 
 - **Structure:** Cargo Workspace with Clean Architecture.
-- `crates/app`: Entry point, API handlers (Axum), DI container, OpenAPI
+- `crates/app`: Entry point, API handlers (axum), DI container, OpenAPI
   definition.
 - `crates/domain`: Business logic, Traits (Interfaces), Domain models. **Pure
   Rust, no external IO.**
