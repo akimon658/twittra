@@ -24,7 +24,7 @@ const TimelineFallback = () => {
       {Array.from({ length: 10 }).map((_, index) => (
         <Paper key={index}>
           <Group align="start" wrap="nowrap">
-            <Skeleton circle height={40} />
+            <Skeleton circle height={38} />
 
             <Stack flex={1} gap="xs">
               <Skeleton height="1rem" width="10rem" />

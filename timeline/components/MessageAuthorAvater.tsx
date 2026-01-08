@@ -29,7 +29,7 @@ export const MessageAuthorAvater = (
   }
 
   return (
-    <Suspense fallback={<Skeleton circle height={40} />}>
+    <Suspense fallback={<Skeleton circle height={38} />}>
       <MessageAuthorAvaterLoader userId={userId} />
     </Suspense>
   )

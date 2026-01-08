@@ -1,16 +1,51 @@
-import { Avatar } from "@mantine/core"
+import { Avatar, Skeleton } from "@mantine/core"
+import { Suspense, use } from "react"
+
+const imagePromiseMap = new Map<string, Promise<void>>()
+const getImagePromise = (src: string) => {
+  const cachedPromise = imagePromiseMap.get(src)
+
+  if (!cachedPromise) {
+    const promise = new Promise<void>((resolve) => {
+      const img = new Image()
+      img.src = src
+      img.onload = () => resolve()
+      // Even if the image fails to load, we resolve the promise so that Mantine Avatar can show the fallback UI
+      img.onerror = () => resolve()
+    })
+
+    imagePromiseMap.set(src, promise)
+
+    return promise
+  }
+
+  return cachedPromise
+}
 
 interface UserAvatarProps {
   username: string
 }
 
-export const UserAvatar = ({ username }: UserAvatarProps) => {
+const UserAvatarLoader = ({ username }: UserAvatarProps) => {
+  // image-proxy.trap.jp doesn't encode special characters, so we need to double encode them
+  const src = `https://image-proxy.trap.jp/icon/${
+    encodeURIComponent(encodeURIComponent(username))
+  }?width=128`
+
+  use(getImagePromise(src))
+
   return (
     <Avatar
       alt={`@${username}のアイコン`}
-      src={`https://image-proxy.trap.jp/icon/${
-        // image-proxy.trap.jp doesn't encode special characters, so we need to double encode them
-        encodeURIComponent(encodeURIComponent(username))}?width=128`}
+      src={src}
     />
+  )
+}
+
+export const UserAvatar = ({ username }: UserAvatarProps) => {
+  return (
+    <Suspense fallback={<Skeleton circle height={38} />}>
+      <UserAvatarLoader username={username} />
+    </Suspense>
   )
 }
