@@ -1,4 +1,4 @@
-import { Group, Paper, Stack, Typography } from "@mantine/core"
+import { Group, Paper, Spoiler, Stack, Typography } from "@mantine/core"
 import { type Store, traQMarkdownIt } from "@traptitech/traq-markdown-it"
 import type { MessageListItem } from "../../api/twittra.schemas.ts"
 import { MessageAuthorAvater } from "./MessageAuthorAvater.tsx"
@@ -30,14 +30,16 @@ export const MessageItem = ({ message }: MessageProps) => {
         <Stack gap="xs" miw={0}>
           <MessageHeader user={message.user} userId={message.userId} />
 
-          <Typography>
-            <div
-              // deno-lint-ignore react-no-danger
-              dangerouslySetInnerHTML={{
-                __html: md.render(message.content).renderedText,
-              }}
-            />
-          </Typography>
+          <Spoiler hideLabel="閉じる" showLabel="続きを見る">
+            <Typography>
+              <div
+                // deno-lint-ignore react-no-danger
+                dangerouslySetInnerHTML={{
+                  __html: md.render(message.content).renderedText,
+                }}
+              />
+            </Typography>
+          </Spoiler>
         </Stack>
       </Group>
     </Paper>
