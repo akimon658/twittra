@@ -27,7 +27,7 @@ export const MessageItem = ({ message }: MessageProps) => {
       <Group align="start" wrap="nowrap">
         <MessageAuthorAvater user={message.user} userId={message.userId} />
 
-        <Stack gap="xs">
+        <Stack gap="xs" miw={0}>
           <MessageHeader user={message.user} userId={message.userId} />
 
           <Typography>
