@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     viteWebfontDownload([
-      "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wdth,wght@6..144,87.5,1..1000&display=swap&subset=latin",
+      "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wdth,wght@6..144,87.5,1..1000&display=swap",
       "https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap",
     ]),
   ],
