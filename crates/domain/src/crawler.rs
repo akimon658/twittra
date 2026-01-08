@@ -5,6 +5,7 @@ use time::{Duration, OffsetDateTime};
 
 use crate::{repository::Repository, traq_client::TraqClient};
 
+/// Fetches new messages from traQ every 30 seconds and saves them to the repository.
 pub struct MessageCrawler {
     client: Arc<dyn TraqClient>,
     repo: Repository,

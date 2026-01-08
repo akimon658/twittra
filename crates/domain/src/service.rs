@@ -8,6 +8,7 @@ use crate::{
     traq_client::TraqClient,
 };
 
+/// Service for timeline-related operations.
 #[derive(Clone, Debug)]
 pub struct TimelineService {
     repo: Repository,
@@ -25,6 +26,8 @@ impl TimelineService {
     }
 }
 
+/// Service for user-related operations.
+/// Transparently handles fetching user data from the repository or traQ as needed.
 #[derive(Clone, Debug)]
 pub struct UserService {
     repo: Repository,
