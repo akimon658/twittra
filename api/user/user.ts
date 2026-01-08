@@ -153,6 +153,11 @@ export type getUserByIdResponse200 = {
   status: 200
 }
 
+export type getUserByIdResponse401 = {
+  data: void
+  status: 401
+}
+
 export type getUserByIdResponse500 = {
   data: void
   status: 500
@@ -161,9 +166,11 @@ export type getUserByIdResponse500 = {
 export type getUserByIdResponseSuccess = (getUserByIdResponse200) & {
   headers: Headers
 }
-export type getUserByIdResponseError = (getUserByIdResponse500) & {
-  headers: Headers
-}
+export type getUserByIdResponseError =
+  & (getUserByIdResponse401 | getUserByIdResponse500)
+  & {
+    headers: Headers
+  }
 
 export const getGetUserByIdUrl = (userId: string) => {
   return `/api/v1/users/${userId}`

@@ -23,6 +23,7 @@ export default defineConfig({
           useSuspenseQuery: true,
           useQuery: false,
         },
+        useDates: true,
       },
       target: "./api/twittra.ts",
     },

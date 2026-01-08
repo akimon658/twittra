@@ -7,9 +7,9 @@
 export interface MessageListItem {
   channelId: string
   content: string
-  createdAt: string
+  createdAt: Date
   id: string
-  updatedAt: string
+  updatedAt: Date
   /** The user who posted the message.
 Omitted if the server hasn't cached the user info. */
   user?: User
