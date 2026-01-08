@@ -32,7 +32,7 @@ export const MessageItem = ({ message }: MessageProps) => {
 
           <Spoiler hideLabel="閉じる" showLabel="続きを見る">
             <Typography>
-              <div
+              <article
                 // deno-lint-ignore react-no-danger
                 dangerouslySetInnerHTML={{
                   __html: md.render(message.content).renderedText,
