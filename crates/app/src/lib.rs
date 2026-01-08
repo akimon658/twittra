@@ -1,9 +1,10 @@
-use std::{env, time::Duration};
+use std::{env, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
-use infra::repository::mysql;
+use domain::crawler::MessageCrawler;
+use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use sqlx::MySqlPool;
 use tokio::{net::TcpListener, task};
@@ -21,7 +22,7 @@ use crate::{
     handler::{
         AppState,
         auth::{self},
-        user,
+        timeline, user,
     },
     session::Backend,
 };
@@ -45,9 +46,11 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .components(Some(components))
         .build();
     let openapi_router = OpenApiRouter::with_openapi(openapi)
-        .routes(utoipa_axum::routes!(auth::login,))
-        .routes(utoipa_axum::routes!(auth::oauth_callback,))
-        .routes(utoipa_axum::routes!(user::get_me,))
+        .routes(utoipa_axum::routes!(auth::login))
+        .routes(utoipa_axum::routes!(auth::oauth_callback))
+        .routes(utoipa_axum::routes!(timeline::get_timeline))
+        .routes(utoipa_axum::routes!(user::get_me))
+        .routes(utoipa_axum::routes!(user::get_user_by_id))
         .split_for_parts();
 
     Ok(openapi_router)
@@ -89,9 +92,16 @@ pub async fn serve() -> Result<()> {
             "{}/oauth2/token",
             traq_api_base_url
         ))?);
-    let repository = mysql::new_repository(pool).await?;
+    let repository = mariadb::new_repository(pool).await?;
+    let traq_client = TraqClientImpl {};
+    let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone());
+
+    task::spawn(async move {
+        crawler.run().await;
+    });
+
     let backend = Backend::new(client, repository.user.clone());
-    let app_state = AppState { repo: repository };
+    let app_state = AppState::new(repository, Arc::new(traq_client));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()

@@ -5,7 +5,7 @@ use std::{
 };
 
 use axum_login::{AuthUser, AuthnBackend};
-use domain::{model::User, repository::UserRepository};
+use domain::repository::UserRepository;
 use oauth2::{
     AsyncHttpClient, AuthorizationCode, CsrfToken, EndpointNotSet, EndpointSet, TokenResponse,
     basic::{BasicClient, BasicRequestTokenError},
@@ -98,23 +98,21 @@ impl AuthnBackend for Backend {
             oauth_access_token: Some(token_res.access_token().secret().to_string()),
             ..Default::default()
         };
-        let traq_user = me_api::get_me(&config).await.map_err(Self::Error::Traq)?;
-        let user = User {
-            id: traq_user.id,
-            handle: traq_user.name,
-            display_name: traq_user.display_name,
-        };
+        let user = me_api::get_me(&config)
+            .await
+            .map_err(Self::Error::Traq)?
+            .into();
 
         self.user_repository
             .save(&user)
             .await
             .map_err(Self::Error::UserRepository)?;
         self.user_repository
-            .save_token(&traq_user.id, token_res.access_token().secret())
+            .save_token(&user.id, token_res.access_token().secret())
             .await
             .map_err(Self::Error::UserRepository)?;
 
-        Ok(Some(UserSession { id: traq_user.id }))
+        Ok(Some(UserSession { id: user.id }))
     }
 
     async fn get_user(

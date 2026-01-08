@@ -16,6 +16,7 @@
     "@mantine/core": "npm:@mantine/core@^8.3.10",
     "@tabler/icons-react": "npm:@tabler/icons-react@^3.36.0",
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
+    "@traptitech/traq-markdown-it": "npm:@traptitech/traq-markdown-it@^7.0.2",
     "@types/react": "npm:@types/react@^19.2.7",
     "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^5.1.2",
     "orval": "npm:orval@^7.17.2",

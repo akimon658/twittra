@@ -14,6 +14,8 @@ import type {
 
 import type { OauthCallbackParams } from "../twittra.schemas"
 
+import { customReviver } from ".././reviver"
+
 type AwaitedInput<T> = PromiseLike<T> | T
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
@@ -85,13 +87,15 @@ export const oauthCallback = async (
       status?: number
     } = new globalThis.Error()
     const data: oauthCallbackResponseError["data"] = body
-      ? JSON.parse(body)
+      ? JSON.parse(body, customReviver)
       : {}
     err.info = data
     err.status = res.status
     throw err
   }
-  const data: oauthCallbackResponse["data"] = body ? JSON.parse(body) : {}
+  const data: oauthCallbackResponse["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
   return {
     data,
     status: res.status,
@@ -205,12 +209,16 @@ export const login = async (options?: RequestInit): Promise<loginResponse> => {
       info?: loginResponseError["data"]
       status?: number
     } = new globalThis.Error()
-    const data: loginResponseError["data"] = body ? JSON.parse(body) : {}
+    const data: loginResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
     err.info = data
     err.status = res.status
     throw err
   }
-  const data: loginResponse["data"] = body ? JSON.parse(body) : {}
+  const data: loginResponse["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
   return { data, status: res.status, headers: res.headers } as loginResponse
 }
 
