@@ -23,10 +23,10 @@ pub async fn get_timeline(
     auth_session: AuthSession,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    let _user_id = match auth_session.user {
-        Some(user) => user.id,
-        None => return StatusCode::UNAUTHORIZED.into_response(),
-    };
+    if auth_session.user.is_none() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
     let messages = match state.timeline_service.get_recommended_messages().await {
         Ok(messages) => messages,
         Err(e) => {

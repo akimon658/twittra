@@ -51,6 +51,7 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
     path = "/users/{userId}",
     responses(
         (status = StatusCode::OK, body = User),
+        (status = StatusCode::UNAUTHORIZED),
         (status = StatusCode::INTERNAL_SERVER_ERROR),
     ),
     security(
@@ -60,9 +61,14 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
 )]
 #[tracing::instrument]
 pub async fn get_user_by_id(
+    auth_session: AuthSession,
     State(state): State<AppState>,
     user_id: Path<Uuid>,
 ) -> impl IntoResponse {
+    if auth_session.user.is_none() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
     let user = match state.user_service.get_user_by_id(&user_id).await {
         Ok(user) => user,
         Err(e) => {
