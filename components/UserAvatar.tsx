@@ -1,40 +1,29 @@
 import { Avatar, Skeleton } from "@mantine/core"
-import { Suspense, use } from "react"
-
-const getImagePromise = (src: string) => (
-  new Promise<void>((resolve) => {
-    const img = new Image()
-    img.src = src
-    img.onload = () => resolve()
-    // Even if the image fails to load, we resolve the promise so that Mantine Avatar can show the fallback UI
-    img.onerror = () => resolve()
-  })
-)
+import { useState } from "react"
 
 interface UserAvatarProps {
   username: string
 }
 
-const UserAvatarLoader = ({ username }: UserAvatarProps) => {
+export const UserAvatar = ({ username }: UserAvatarProps) => {
+  const [isLoading, setIsLoading] = useState(true)
   // image-proxy.trap.jp doesn't encode special characters, so we need to double encode them
   const src = `https://image-proxy.trap.jp/icon/${
     encodeURIComponent(encodeURIComponent(username))
   }?width=128`
 
-  use(getImagePromise(src))
-
   return (
-    <Avatar
-      alt={`@${username}のアイコン`}
-      src={src}
-    />
-  )
-}
-
-export const UserAvatar = ({ username }: UserAvatarProps) => {
-  return (
-    <Suspense fallback={<Skeleton circle height={38} />}>
-      <UserAvatarLoader username={username} />
-    </Suspense>
+    <>
+      {isLoading && <Skeleton circle height={38} />}
+      <Avatar
+        alt={`@${username}のアイコン`}
+        imageProps={{
+          onLoad: () => setIsLoading(false),
+          onError: () => setIsLoading(false),
+        }}
+        src={src}
+        style={{ display: isLoading ? "none" : undefined }}
+      />
+    </>
   )
 }
