@@ -47,7 +47,7 @@ impl UserService {
                     Some(token) => token,
                     None => {
                         return Err(anyhow::anyhow!(
-                            "no valid token found to fetch user from traq"
+                            "no valid token found to fetch user from traQ"
                         ));
                     }
                 };
