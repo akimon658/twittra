@@ -24,5 +24,5 @@ CREATE TABLE messages (
   created_at TIMESTAMP(6) NOT NULL,
   updated_at TIMESTAMP(6) NOT NULL,
 
-  index idx_created_at (created_at DESC)
+  INDEX idx_created_at (created_at DESC)
 );
