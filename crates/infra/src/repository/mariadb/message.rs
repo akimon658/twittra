@@ -100,6 +100,10 @@ impl MessageRepository for MariaDbMessageRepository {
     }
 
     async fn save_batch(&self, messages: &[Message]) -> Result<()> {
+        if messages.is_empty() {
+            return Ok(());
+        }
+
         let mut query_builder = QueryBuilder::new(
             "INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at) ",
         );

@@ -46,12 +46,6 @@ impl MessageCrawler {
             .fetch_messages_since(&token, last_fetched_at)
             .await?;
 
-        if messages.is_empty() {
-            tracing::info!("No new messages found since {}", last_fetched_at);
-
-            return Ok(());
-        }
-
         self.repo.message.save_batch(&messages).await?;
 
         Ok(())

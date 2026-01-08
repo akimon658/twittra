@@ -16,6 +16,8 @@ pub struct Repository {
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>>;
     async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>>;
+    /// Saves a batch of messages to the repository.
+    /// It does nothing if `messages` is empty.
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
 }
 
