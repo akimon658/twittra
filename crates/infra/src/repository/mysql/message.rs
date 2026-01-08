@@ -113,9 +113,8 @@ impl MessageRepository for MySqlMessageRepository {
                 .push_bind(message.created_at)
                 .push_bind(message.updated_at);
         });
-        query_builder.push(
-            " ON DUPLICATE KEY UPDATE content=VALUES(content), updated_at=VALUES(updated_at)",
-        );
+        query_builder
+            .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)");
         query_builder.build().execute(&self.pool).await?;
 
         Ok(())

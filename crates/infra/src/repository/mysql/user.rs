@@ -71,7 +71,7 @@ impl UserRepository for MySqlUserRepository {
             r#"
             INSERT INTO user_tokens (user_id, access_token)
             VALUES (?, ?)
-            ON DUPLICATE KEY UPDATE access_token = VALUES(access_token)
+            ON DUPLICATE KEY UPDATE access_token = VALUE(access_token)
             "#,
             user_id,
             access_token
@@ -87,7 +87,7 @@ impl UserRepository for MySqlUserRepository {
             r#"
             INSERT INTO users (id, handle, display_name)
             VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)
+            ON DUPLICATE KEY UPDATE display_name = VALUE(display_name)
             "#,
             user.id,
             user.handle,
