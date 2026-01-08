@@ -4,7 +4,7 @@ use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use domain::crawler::MessageCrawler;
-use infra::{repository::mysql, traq_client::TraqClientImpl};
+use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use sqlx::MySqlPool;
 use tokio::{net::TcpListener, task};
@@ -92,7 +92,7 @@ pub async fn serve() -> Result<()> {
             "{}/oauth2/token",
             traq_api_base_url
         ))?);
-    let repository = mysql::new_repository(pool).await?;
+    let repository = mariadb::new_repository(pool).await?;
     let traq_client = TraqClientImpl {};
     let crawler = MessageCrawler::new(Arc::new(traq_client), repository.clone());
 

@@ -8,11 +8,11 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub struct MySqlMessageRepository {
+pub struct MariaDbMessageRepository {
     pool: MySqlPool,
 }
 
-impl MySqlMessageRepository {
+impl MariaDbMessageRepository {
     pub fn new(pool: MySqlPool) -> Self {
         Self { pool }
     }
@@ -54,7 +54,7 @@ impl From<MessageRow> for MessageListItem {
 }
 
 #[async_trait::async_trait]
-impl MessageRepository for MySqlMessageRepository {
+impl MessageRepository for MariaDbMessageRepository {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>> {
         let result = sqlx::query_scalar!(
             r#"

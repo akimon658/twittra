@@ -4,18 +4,18 @@ use sqlx::MySqlPool;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub struct MySqlUserRepository {
+pub struct MariaDbUserRepository {
     pool: MySqlPool,
 }
 
-impl MySqlUserRepository {
+impl MariaDbUserRepository {
     pub fn new(pool: MySqlPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait::async_trait]
-impl UserRepository for MySqlUserRepository {
+impl UserRepository for MariaDbUserRepository {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>> {
         let user = match sqlx::query_as!(
             User,
