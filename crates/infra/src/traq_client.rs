@@ -7,7 +7,7 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use traq::apis::{configuration::Configuration, message_api, user_api};
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TraqClientImpl {}
 
 #[async_trait::async_trait]
