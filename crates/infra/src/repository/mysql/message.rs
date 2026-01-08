@@ -81,10 +81,15 @@ impl MessageRepository for MySqlMessageRepository {
                 m.updated_at,
                 u.handle AS user_handle,
                 u.display_name AS user_display_name
-            FROM messages m
+            FROM (
+                SELECT id
+                FROM messages
+                ORDER BY created_at DESC
+                LIMIT 50
+            ) AS latest_messages
+            JOIN messages m ON latest_messages.id = m.id
             LEFT JOIN users u ON m.user_id = u.id
             ORDER BY m.created_at DESC
-            LIMIT 50
             "#
         )
         .fetch_all(&self.pool)
