@@ -1,43 +1,64 @@
 # Twittra
 
-**Twittra** is an unofficial, Twitter-like client for [**traQ**](https://github.com/traPtitech/traQ) (a Slack-like chat platform).
-It provides a cross-channel timeline view with a recommendation algorithm, focusing on content discovery and a fluid browsing experience.
+**Twittra** is an unofficial, Twitter-like client for
+[**traQ**](https://github.com/traPtitech/traQ) (a Slack-like chat platform). It
+provides a cross-channel timeline view with a recommendation algorithm, focusing
+on content discovery and a fluid browsing experience.
 
 ## Project Philosophy & Objectives
 
-1. **Discovery:** Solve the issue where interesting discussions are buried in specific channels. Provide a unified feed based on user interests and social graphs.
-1. **Not a Replacement:** Complement the official traQ client. Focus on timeline browsing rather than chat functionalities.
-1. **Performance under Constraints:** Designed to run on low-resource server (approx. **100MB RAM**).
-1. **Modern DX:** Prioritize type safety and automated code generation between backend and frontend.
+1. **Discovery:** Solve the issue where interesting discussions are buried in
+   specific channels. Provide a unified feed based on user interests and social
+   graphs.
+1. **Not a Replacement:** Complement the official traQ client. Focus on timeline
+   browsing rather than chat functionalities.
+1. **Performance under Constraints:** Designed to run on low-resource server
+   (approx. **100MB RAM**).
+1. **Modern DX:** Prioritize type safety and automated code generation between
+   backend and frontend.
 
 ## Architecture Overview
 
 ### Backend (Rust)
 
-* **Structure:** Cargo Workspace with Clean Architecture.
-* `crates/app`: Entry point, API handlers (Axum), DI container, OpenAPI definition.
-* `crates/domain`: Business logic, Traits (Interfaces), Domain models. **Pure Rust, no external IO.**
-* `crates/infra`: DB implementation (sqlx), API clients (`traq` crate wrapper), Concrete repositories.
-* **API Definition:** **Code-first**. OpenAPI JSON is generated from Rust code using `utoipa`.
+- **Structure:** Cargo Workspace with Clean Architecture.
+- `crates/app`: Entry point, API handlers (Axum), DI container, OpenAPI
+  definition.
+- `crates/domain`: Business logic, Traits (Interfaces), Domain models. **Pure
+  Rust, no external IO.**
+- `crates/infra`: DB implementation (sqlx), API clients (`traq` crate wrapper),
+  Concrete repositories.
+- **API Definition:** **Code-first**. OpenAPI JSON is generated from Rust code
+  using `utoipa`.
 
 ### Frontend (React)
 
-* **Runtime:** Deno.
-* **Fetching:** **Schema-driven**. Uses `Orval` to generate React Query hooks from the backend's OpenAPI JSON. Configured to generate only suspence-compatible hooks so that loading states are handled by React Suspense.
-* **UI:** Mantine v8.
+- **Runtime:** Deno.
+- **Fetching:** **Schema-driven**. Uses `Orval` to generate React Query hooks
+  from the backend's OpenAPI JSON. Configured to generate only
+  suspence-compatible hooks so that loading states are handled by React
+  Suspense.
+- **UI:** Mantine v8.
 
 ### Authentication & Session Management
 
-* **OAuth2:** Users authenticate via traQ OAuth2.
-* **Session:** Managed by `tower-sessions` (backed by MariaDB).
+- **OAuth2:** Users authenticate via traQ OAuth2.
+- **Session:** Managed by `tower-sessions` (backed by MariaDB).
 
 ## Data & Algorithm Strategy
 
 ### Data Sync
 
-* **Worker:** A background task in the Rust application crawls recently posted messages from traQ.
-* **Token Strategy:** As traQ does not have a concept of private channels (except for DMs), there is no privacy issue in using tokens of users who authorized the app to crawl messages. In other words, no matter which user's token is used, the same set of messages can be accessed. Therefore, we use a random authorized user's token for crawling.
-* **On-Demand Fetching:** If a user accesses a resource (e.g., user profile) not yet in the local DB, it is transparently fetched from traQ API and stored locally.
+- **Worker:** A background task in the Rust application crawls recently posted
+  messages from traQ.
+- **Token Strategy:** As traQ does not have a concept of private channels
+  (except for DMs), there is no privacy issue in using tokens of users who
+  authorized the app to crawl messages. In other words, no matter which user's
+  token is used, the same set of messages can be accessed. Therefore, we use a
+  random authorized user's token for crawling.
+- **On-Demand Fetching:** If a user accesses a resource (e.g., user profile) not
+  yet in the local DB, it is transparently fetched from traQ API and stored
+  locally.
 
 ### Recommendation Scoring
 
