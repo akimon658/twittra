@@ -1,26 +1,15 @@
 import { Avatar, Skeleton } from "@mantine/core"
 import { Suspense, use } from "react"
 
-const imagePromiseMap = new Map<string, Promise<void>>()
-const getImagePromise = (src: string) => {
-  const cachedPromise = imagePromiseMap.get(src)
-
-  if (!cachedPromise) {
-    const promise = new Promise<void>((resolve) => {
-      const img = new Image()
-      img.src = src
-      img.onload = () => resolve()
-      // Even if the image fails to load, we resolve the promise so that Mantine Avatar can show the fallback UI
-      img.onerror = () => resolve()
-    })
-
-    imagePromiseMap.set(src, promise)
-
-    return promise
-  }
-
-  return cachedPromise
-}
+const getImagePromise = (src: string) => (
+  new Promise<void>((resolve) => {
+    const img = new Image()
+    img.src = src
+    img.onload = () => resolve()
+    // Even if the image fails to load, we resolve the promise so that Mantine Avatar can show the fallback UI
+    img.onerror = () => resolve()
+  })
+)
 
 interface UserAvatarProps {
   username: string
