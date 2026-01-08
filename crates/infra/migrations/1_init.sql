@@ -14,6 +14,8 @@ CREATE TABLE user_tokens (
     REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Strict foreign key constraints are not required as this is a cache table.
+-- We regard traQ's API as the source of truth.
 CREATE TABLE messages (
   id BINARY(16) NOT NULL PRIMARY KEY, -- UUID
   user_id BINARY(16) NOT NULL, -- UUID
