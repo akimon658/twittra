@@ -11,7 +11,7 @@ export interface MessageListItem {
   id: string
   updatedAt: string
   /** The user who posted the message.
-Omitted if the server haven't cached the user info. */
+Omitted if the server hasn't cached the user info. */
   user?: User
   userId: string
 }

@@ -4,25 +4,25 @@ import type { User } from "../../api/twittra.schemas.ts"
 import { useGetUserByIdSuspense } from "../../api/user/user.ts"
 import { UserAvatar } from "../../components/UserAvatar.tsx"
 
-interface MessageAuthorAvaterLoaderProps {
+interface MessageAuthorAvatarLoaderProps {
   userId: string
 }
 
-const MessageAuthorAvaterLoader = (
-  { userId }: MessageAuthorAvaterLoaderProps,
+const MessageAuthorAvatarLoader = (
+  { userId }: MessageAuthorAvatarLoaderProps,
 ) => {
   const { data: { data } } = useGetUserByIdSuspense(userId)
 
   return <UserAvatar username={data.handle} />
 }
 
-interface MessageAuthorAvaterProps {
+interface MessageAuthorAvatarProps {
   user?: User
   userId: string
 }
 
-export const MessageAuthorAvater = (
-  { user, userId }: MessageAuthorAvaterProps,
+export const MessageAuthorAvatar = (
+  { user, userId }: MessageAuthorAvatarProps,
 ) => {
   if (user) {
     return <UserAvatar username={user.handle} />
@@ -30,7 +30,7 @@ export const MessageAuthorAvater = (
 
   return (
     <Suspense fallback={<Skeleton circle height={38} />}>
-      <MessageAuthorAvaterLoader userId={userId} />
+      <MessageAuthorAvatarLoader userId={userId} />
     </Suspense>
   )
 }

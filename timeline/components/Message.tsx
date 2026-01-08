@@ -1,7 +1,7 @@
 import { Group, Paper, Spoiler, Stack, Typography } from "@mantine/core"
 import { type Store, traQMarkdownIt } from "@traptitech/traq-markdown-it"
 import type { MessageListItem } from "../../api/twittra.schemas.ts"
-import { MessageAuthorAvater } from "./MessageAuthorAvater.tsx"
+import { MessageAuthorAvatar } from "./MessageAuthorAvatar.tsx"
 import { MessageHeader } from "./MessageHeader.tsx"
 
 const store: Store = {
@@ -25,7 +25,7 @@ export const MessageItem = ({ message }: MessageProps) => {
   return (
     <Paper>
       <Group align="start" wrap="nowrap">
-        <MessageAuthorAvater user={message.user} userId={message.userId} />
+        <MessageAuthorAvatar user={message.user} userId={message.userId} />
 
         <Stack gap="xs" miw={0}>
           <MessageHeader user={message.user} userId={message.userId} />

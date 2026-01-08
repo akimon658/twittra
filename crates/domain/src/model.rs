@@ -34,7 +34,7 @@ pub struct MessageListItem {
     pub id: Uuid,
     pub user_id: Uuid,
     /// The user who posted the message.
-    /// Omitted if the server haven't cached the user info.
+    /// Omitted if the server hasn't cached the user info.
     #[schema(nullable = false)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
