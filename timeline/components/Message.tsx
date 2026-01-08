@@ -33,7 +33,7 @@ export const MessageItem = ({ message }: MessageProps) => {
           <Spoiler hideLabel="閉じる" showLabel="続きを見る">
             <Typography>
               <article
-                // deno-lint-ignore react-no-danger
+                // deno-lint-ignore react-no-danger -- Rendered content is safe unless href generators are unsafe
                 dangerouslySetInnerHTML={{
                   __html: md.render(message.content).renderedText,
                 }}
