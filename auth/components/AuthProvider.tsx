@@ -10,9 +10,9 @@ const AuthUserContextProvider = ({ children }: PropsWithChildren) => {
   const { data: { data } } = useGetMeSuspense()
 
   return (
-    <UserContext.Provider value={data}>
+    <UserContext value={data}>
       {children}
-    </UserContext.Provider>
+    </UserContext>
   )
 }
 
