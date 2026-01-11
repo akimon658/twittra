@@ -9,10 +9,17 @@ export interface MessageListItem {
   content: string
   createdAt: Date
   id: string
+  reactions: Reaction[]
   updatedAt: Date
   /** The user who posted the message.
 Omitted if the server hasn't cached the user info. */
   user?: User
+  userId: string
+}
+
+export interface Reaction {
+  stampCount: number
+  stampId: string
   userId: string
 }
 

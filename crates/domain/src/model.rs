@@ -1,6 +1,6 @@
 use serde::Serialize;
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
-use traq::models::{self, MyUserDetail, UserDetail};
+use traq::models::{self, MessageStamp, MyUserDetail, UserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -11,6 +11,7 @@ pub struct Message {
     pub content: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub reactions: Vec<Reaction>,
 }
 
 impl TryFrom<models::Message> for Message {
@@ -24,6 +25,7 @@ impl TryFrom<models::Message> for Message {
             content: value.content,
             created_at: OffsetDateTime::parse(&value.created_at, &Rfc3339)?,
             updated_at: OffsetDateTime::parse(&value.updated_at, &Rfc3339)?,
+            reactions: value.stamps.into_iter().map(Reaction::from).collect(),
         })
     }
 }
@@ -44,6 +46,25 @@ pub struct MessageListItem {
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
+    pub reactions: Vec<Reaction>,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Reaction {
+    pub stamp_id: Uuid,
+    pub user_id: Uuid,
+    pub stamp_count: i32,
+}
+
+impl From<MessageStamp> for Reaction {
+    fn from(value: MessageStamp) -> Self {
+        Reaction {
+            stamp_id: value.stamp_id,
+            user_id: value.user_id,
+            stamp_count: value.count,
+        }
+    }
 }
 
 #[derive(Serialize, ToSchema)]
