@@ -24,7 +24,7 @@ use crate::{handler::AppState, session::AuthSession};
     ),
     tag = "user",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) -> impl IntoResponse {
     let user_id = match auth_session.user {
         Some(user) => user.id,
@@ -59,7 +59,7 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
     ),
     tag = "user",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip(auth_session, state))]
 pub async fn get_user_by_id(
     auth_session: AuthSession,
     State(state): State<AppState>,
