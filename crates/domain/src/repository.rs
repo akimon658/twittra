@@ -4,11 +4,12 @@ use anyhow::Result;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::model::{Message, MessageListItem, User};
+use crate::model::{Message, MessageListItem, Stamp, User};
 
 #[derive(Clone, Debug)]
 pub struct Repository {
     pub message: Arc<dyn MessageRepository>,
+    pub stamp: Arc<dyn StampRepository>,
     pub user: Arc<dyn UserRepository>,
 }
 
@@ -19,6 +20,12 @@ pub trait MessageRepository: Debug + Send + Sync {
     /// Saves a batch of messages to the repository.
     /// It does nothing if `messages` is empty.
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
+}
+
+#[async_trait::async_trait]
+pub trait StampRepository: Debug + Send + Sync {
+    async fn find_by_id(&self, id: &Uuid) -> Result<Option<Stamp>>;
+    async fn save(&self, stamp: &Stamp) -> Result<()>;
 }
 
 #[async_trait::async_trait]

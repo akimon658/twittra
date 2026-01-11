@@ -23,8 +23,15 @@ export interface Reaction {
   userId: string
 }
 
+export interface Stamp {
+  id: string
+  /** @maxLength 32 */
+  name: string
+}
+
 export interface User {
   displayName: string
+  /** @maxLength 32 */
   handle: string
   id: string
 }

@@ -30,7 +30,7 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
         Some(user) => user.id,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-    let user = match state.user_service.get_user_by_id(&user_id).await {
+    let user = match state.traq_service.get_user_by_id(&user_id).await {
         Ok(user) => user,
         Err(e) => {
             tracing::error!("{:?}", e);
@@ -69,7 +69,7 @@ pub async fn get_user_by_id(
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    let user = match state.user_service.get_user_by_id(&user_id).await {
+    let user = match state.traq_service.get_user_by_id(&user_id).await {
         Ok(user) => user,
         Err(e) => {
             tracing::error!("{:?}", e);

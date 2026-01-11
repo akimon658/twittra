@@ -50,6 +50,17 @@ impl TraqClient for TraqClientImpl {
         Ok(messages)
     }
 
+    async fn get_stamp(&self, token: &str, stamp_id: &Uuid) -> Result<domain::model::Stamp> {
+        let config = Configuration {
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let traq_stamp = traq::apis::stamp_api::get_stamp(&config, &stamp_id.to_string()).await?;
+        let stamp = traq_stamp.into();
+
+        Ok(stamp)
+    }
+
     async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User> {
         let config = Configuration {
             oauth_access_token: Some(token.to_string()),

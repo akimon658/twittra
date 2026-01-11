@@ -69,8 +69,26 @@ impl From<MessageStamp> for Reaction {
 
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct Stamp {
+    pub id: Uuid,
+    #[schema(max_length = 32)]
+    pub name: String,
+}
+
+impl From<models::Stamp> for Stamp {
+    fn from(value: models::Stamp) -> Self {
+        Stamp {
+            id: value.id,
+            name: value.name,
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,
+    #[schema(max_length = 32)]
     pub handle: String,
     pub display_name: String,
 }

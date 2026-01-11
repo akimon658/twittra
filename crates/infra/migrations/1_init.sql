@@ -37,3 +37,8 @@ CREATE TABLE reactions (
   CONSTRAINT fk_reactions_message FOREIGN KEY (message_id)
     REFERENCES messages(id) ON DELETE CASCADE
 );
+
+CREATE TABLE stamps (
+  id BINARY(16) NOT NULL PRIMARY KEY, -- UUID
+  name VARCHAR(32) NOT NULL
+);
