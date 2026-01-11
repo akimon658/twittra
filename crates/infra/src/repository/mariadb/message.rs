@@ -118,6 +118,11 @@ impl MessageRepository for MariaDbMessageRepository {
         .fetch_all(&self.pool)
         .await
         .with_context(|| "could not fetch recent messages")?;
+
+        if messages.is_empty() {
+            return Ok(vec![]);
+        }
+
         let mut query_builder = QueryBuilder::new(
             r#"
             SELECT
