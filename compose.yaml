@@ -5,18 +5,62 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: password
-      MARIADB_DATABASE: twittra
     ports:
       - "3306:3306"
     volumes:
       - type: volume
         source: mariadb_data
         target: /var/lib/mysql
+      - type: bind
+        source: ./dev/db/
+        target: /docker-entrypoint-initdb.d/
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  traq_server:
+    image: ghcr.io/traptitech/traq:3.27.1
+    restart: unless-stopped
+    environment:
+      TRAQ_ALLOWSIGNUP: true
+      TRAQ_MARIADB_HOST: db
+      TRAQ_MARIADB_USER: root
+      TRAQ_MARIADB_PASSWORD: password
+      TRAQ_STORAGE_LOCAL_DIR: /app/storage
+    volumes:
+      - type: volume
+        source: traq_storage
+        target: /app/storage
+    expose:
+      - 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  traq_ui:
+    image: ghcr.io/traptitech/traq-ui:3.31.2
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        source: traq_override
+        target: /app/override
+    expose:
+      - 80
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - type: bind
+        source: ./dev/caddy/
+        target: /etc/caddy/
+    depends_on:
+      - traq_server
+      - traq_ui
 
   adminer:
     image: adminer:5.4.1
@@ -31,3 +75,5 @@ services:
 
 volumes:
   mariadb_data:
+  traq_storage:
+  traq_override:
