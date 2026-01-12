@@ -92,8 +92,6 @@ consistent environment and avoid impacting the production server.
    ```bash
    deno run --allow-net scripts/create_oauth_client.ts >> .env.local
    ```
-   ```
-   ```
 1. Run the Backend:
    ```bash
    cargo run -p app
