@@ -278,3 +278,137 @@ export function useGetUserByIdSuspense<
 
   return query
 }
+
+/**
+ * @summary Get a user's icon by user ID.
+ */
+export type getUserIconResponse200 = {
+  data: number[]
+  status: 200
+}
+
+export type getUserIconResponse401 = {
+  data: void
+  status: 401
+}
+
+export type getUserIconResponse500 = {
+  data: void
+  status: 500
+}
+
+export type getUserIconResponseSuccess = (getUserIconResponse200) & {
+  headers: Headers
+}
+export type getUserIconResponseError =
+  & (getUserIconResponse401 | getUserIconResponse500)
+  & {
+    headers: Headers
+  }
+
+export const getGetUserIconUrl = (userId: string) => {
+  return `/api/v1/users/${userId}/icon`
+}
+
+export const getUserIcon = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<getUserIconResponseSuccess> => {
+  const res = await fetch(getGetUserIconUrl(userId), {
+    ...options,
+    method: "GET",
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getUserIconResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: getUserIconResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: getUserIconResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getUserIconResponseSuccess
+}
+
+export const getGetUserIconQueryKey = (userId?: string) => {
+  return [
+    `/api/v1/users/${userId}/icon`,
+  ] as const
+}
+
+export const getGetUserIconSuspenseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserIcon>>,
+  TError = void,
+>(
+  userId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getUserIcon>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserIconQueryKey(userId)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserIcon>>> = (
+    { signal },
+  ) => getUserIcon(userId, { signal, ...fetchOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as
+    & UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getUserIcon>>,
+      TError,
+      TData
+    >
+    & { queryKey: QueryKey }
+}
+
+export type GetUserIconSuspenseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserIcon>>
+>
+export type GetUserIconSuspenseQueryError = void
+
+/**
+ * @summary Get a user's icon by user ID.
+ */
+
+export function useGetUserIconSuspense<
+  TData = Awaited<ReturnType<typeof getUserIcon>>,
+  TError = void,
+>(
+  userId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getUserIcon>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+): UseSuspenseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserIconSuspenseQueryOptions(userId, options)
+
+  const query = useSuspenseQuery(queryOptions) as
+    & UseSuspenseQueryResult<TData, TError>
+    & { queryKey: QueryKey }
+
+  query.queryKey = queryOptions.queryKey
+
+  return query
+}
