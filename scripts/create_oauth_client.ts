@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
-const TRAQ_BASE_URL = "http://localhost:3000/api/v3";
-const CALLBACK_URL = "http://localhost:5173/api/v1/auth/callback";
+const TRAQ_BASE_URL = "http://localhost:3000/api/v3"
+const CALLBACK_URL = "http://localhost:5173/api/v1/auth/callback"
 
 // 1. Login
 const loginRes = await fetch(`${TRAQ_BASE_URL}/login`, {
