@@ -94,8 +94,8 @@ pub async fn get_user_by_id(
             body = Vec<u8>,
             content(
                 ("image/gif"),
-                ("image/jpeg"), 
-                ("image/png"), 
+                ("image/jpeg"),
+                ("image/png"),
             )
         ),
         (status = StatusCode::UNAUTHORIZED),
