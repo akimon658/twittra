@@ -90,7 +90,7 @@ pub async fn get_user_by_id(
     path = "/users/{userId}/icon",
     responses(
         (
-            status = StatusCode::OK, 
+            status = StatusCode::OK,
             body = Vec<u8>,
             content(
                 ("image/gif"),
