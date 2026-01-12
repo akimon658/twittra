@@ -39,6 +39,8 @@ on content discovery and a fluid browsing experience.
   suspense-compatible hooks so that loading states are handled by React
   Suspense.
 - **UI:** Mantine v8.
+- **Optimization:** Uses React Compiler, which automatically optimizes
+  re-renders. No need for manual `useMemo` or `useCallback`.
 
 ### Authentication & Session Management
 

@@ -8,7 +8,7 @@ import {
   Text,
 } from "@mantine/core"
 import { IconPlus } from "@tabler/icons-react"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { getGetStampImageUrl } from "../../api/stamp/stamp.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
 
@@ -55,16 +55,21 @@ interface MessageFooterProps {
 }
 
 export const MessageFooter = ({ reactions }: MessageFooterProps) => {
-  const groupedReactions = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const r of reactions) {
-      map.set(r.stampId, (map.get(r.stampId) || 0) + r.stampCount)
-    }
-    return Array.from(map.entries()).map(([stampId, count]) => ({
-      stampId,
-      count,
-    }))
-  }, [reactions])
+  const stampCountMap = new Map<string, number>()
+
+  for (const r of reactions) {
+    stampCountMap.set(
+      r.stampId,
+      (stampCountMap.get(r.stampId) || 0) + r.stampCount,
+    )
+  }
+
+  const groupedReactions = Array.from(stampCountMap.entries()).map((
+    [stampId, count],
+  ) => ({
+    stampId,
+    count,
+  }))
 
   return (
     <Group gap="xs">
