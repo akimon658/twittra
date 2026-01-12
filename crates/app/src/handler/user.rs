@@ -80,3 +80,42 @@ pub async fn get_user_by_id(
 
     Json(user).into_response()
 }
+
+/// Get a user's icon by user ID.
+#[utoipa::path(
+    get,
+    params(
+        ("userId" = Uuid, Path, description = "The ID of the user to retrieve"),
+    ),
+    path = "/users/{userId}/icon",
+    responses(
+        (status = StatusCode::OK, body = Vec<u8>, content_type = "image/png"),
+        (status = StatusCode::UNAUTHORIZED),
+        (status = StatusCode::INTERNAL_SERVER_ERROR),
+    ),
+    security(
+        ("cookieAuth" = []),
+    ),
+    tag = "user",
+)]
+#[tracing::instrument]
+pub async fn get_user_icon(
+    auth_session: AuthSession,
+    State(state): State<AppState>,
+    user_id: Path<Uuid>,
+) -> impl IntoResponse {
+    if auth_session.user.is_none() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    let (icon, content_type) = match state.user_service.get_user_icon(&user_id).await {
+        Ok(icon) => icon,
+        Err(e) => {
+            tracing::error!("{:?}", e);
+
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    ([(http::header::CONTENT_TYPE, content_type)], icon).into_response()
+}

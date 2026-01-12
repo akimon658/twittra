@@ -52,14 +52,20 @@ type BasicClientSet =
 pub struct Backend {
     http_client: Client,
     oauth_client: BasicClientSet,
+    traq_base_url: String,
     user_repository: Arc<dyn UserRepository>,
 }
 
 impl Backend {
-    pub fn new(oauth_client: BasicClientSet, user_repository: Arc<dyn UserRepository>) -> Self {
+    pub fn new(
+        oauth_client: BasicClientSet,
+        traq_base_url: String,
+        user_repository: Arc<dyn UserRepository>,
+    ) -> Self {
         Self {
             http_client: Client::new(),
             oauth_client,
+            traq_base_url,
             user_repository,
         }
     }
@@ -95,6 +101,7 @@ impl AuthnBackend for Backend {
             .await
             .map_err(Self::Error::Oauth2)?;
         let config = Configuration {
+            base_path: self.traq_base_url.clone(),
             oauth_access_token: Some(token_res.access_token().secret().to_string()),
             ..Default::default()
         };
