@@ -52,6 +52,7 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .routes(utoipa_axum::routes!(timeline::get_timeline))
         .routes(utoipa_axum::routes!(user::get_me))
         .routes(utoipa_axum::routes!(user::get_user_by_id))
+        .routes(utoipa_axum::routes!(user::get_user_icon))
         .split_for_parts();
 
     Ok(openapi_router)
@@ -94,14 +95,14 @@ pub async fn serve() -> Result<()> {
             traq_api_base_url
         ))?);
     let repository = mariadb::new_repository(pool).await?;
-    let traq_client = TraqClientImpl {};
+    let traq_client = TraqClientImpl::new(traq_api_base_url.clone());
     let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone());
 
     task::spawn(async move {
         crawler.run().await;
     });
 
-    let backend = Backend::new(client, repository.user.clone());
+    let backend = Backend::new(client, traq_api_base_url, repository.user.clone());
     let app_state = AppState::new(repository, Arc::new(traq_client));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;

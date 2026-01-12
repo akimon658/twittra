@@ -13,7 +13,7 @@ const MessageAuthorAvatarLoader = (
 ) => {
   const { data: { data } } = useGetUserByIdSuspense(userId)
 
-  return <UserAvatar username={data.handle} />
+  return <UserAvatar userId={data.id} username={data.handle} />
 }
 
 interface MessageAuthorAvatarProps {
@@ -25,7 +25,7 @@ export const MessageAuthorAvatar = (
   { user, userId }: MessageAuthorAvatarProps,
 ) => {
   if (user) {
-    return <UserAvatar username={user.handle} />
+    return <UserAvatar userId={user.id} username={user.handle} />
   }
 
   return (

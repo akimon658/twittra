@@ -13,7 +13,7 @@ export const Layout = () => {
 
         <AppShell.Section p="md">
           <Group gap="sm" wrap="nowrap">
-            <UserAvatar username={user.handle} />
+            <UserAvatar userId={user.id} username={user.handle} />
 
             <Stack gap={0}>
               <Text fw={500} span>{user.displayName}</Text>
