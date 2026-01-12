@@ -81,14 +81,15 @@ consistent environment and avoid impacting the production server.
    docker compose up -d
    ```
    This will start traQ, MariaDB, Elasticsearch, and other necessary services.
-1. Set API Base URL: Add the local traQ API base URL to your `.env.local` file:
+1. Set API Base URL: Add the local traQ API base URL to your `.env.local` file
+   (first time only):
    ```bash
    echo "TRAQ_API_BASE_URL=http://localhost:3000/api/v3" >> .env.local
    ```
-1. Create an OAuth2 Client and Configure Environment Variables: Run the
-   following script to create an OAuth2 client on the local traQ instance. This
-   script logs in to the local traQ and registers a client with the necessary
-   scopes. Append the output directly to your `.env.local` file:
+1. Create an OAuth2 Client and Configure Environment Variables (first time
+   only): Run the following script to create an OAuth2 client on the local traQ
+   instance. This script logs in to the local traQ and registers a client with
+   the necessary scopes. Append the output directly to your `.env.local` file:
    ```bash
    deno run --allow-net scripts/create_oauth_client.ts >> .env.local
    ```
