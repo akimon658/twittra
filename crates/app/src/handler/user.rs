@@ -89,7 +89,15 @@ pub async fn get_user_by_id(
     ),
     path = "/users/{userId}/icon",
     responses(
-        (status = StatusCode::OK, body = Vec<u8>, content_type = "image/png"),
+        (
+            status = StatusCode::OK, 
+            body = Vec<u8>,
+            content(
+                ("image/gif"),
+                ("image/jpeg"), 
+                ("image/png"), 
+            )
+        ),
         (status = StatusCode::UNAUTHORIZED),
         (status = StatusCode::INTERNAL_SERVER_ERROR),
     ),
