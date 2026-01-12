@@ -70,6 +70,23 @@ impl TraqClient for TraqClientImpl {
         Ok(stamp)
     }
 
+    async fn get_stamp_image(&self, token: &str, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
+        let config = Configuration {
+            base_path: self.base_url.clone(),
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let response = traq::apis::stamp_api::get_stamp_image(&config, &stamp_id.to_string()).await?;
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("application/octet-stream")
+            .to_string();
+        let bytes = response.bytes().await?.to_vec();
+        Ok((bytes, content_type))
+    }
+
     async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User> {
         let config = Configuration {
             base_path: self.base_url.clone(),

@@ -49,6 +49,7 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
         .routes(utoipa_axum::routes!(stamp::get_stamp_by_id))
+        .routes(utoipa_axum::routes!(stamp::get_stamp_image))
         .routes(utoipa_axum::routes!(timeline::get_timeline))
         .routes(utoipa_axum::routes!(user::get_me))
         .routes(utoipa_axum::routes!(user::get_user_by_id))

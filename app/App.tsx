@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
 const theme = createTheme({
   fontFamily: "Google Sans Flex, Noto Sans JP, Noto Color Emoji, sans-serif",
   spacing: {
-    xs: "0.25rem",
+    xs: "0.5rem",
   },
 })
 

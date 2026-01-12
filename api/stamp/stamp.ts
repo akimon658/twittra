@@ -146,3 +146,123 @@ export function useGetStampByIdSuspense<
 
   return query
 }
+
+export type getStampImageResponse401 = {
+  data: void
+  status: 401
+}
+
+export type getStampImageResponse500 = {
+  data: void
+  status: 500
+}
+export type getStampImageResponseError =
+  & (getStampImageResponse401 | getStampImageResponse500)
+  & {
+    headers: Headers
+  }
+
+export type getStampImageResponse = getStampImageResponseError
+
+export const getGetStampImageUrl = (stampId: string) => {
+  return `/api/v1/stamps/${stampId}/image`
+}
+
+export const getStampImage = async (
+  stampId: string,
+  options?: RequestInit,
+): Promise<getStampImageResponse> => {
+  const res = await fetch(getGetStampImageUrl(stampId), {
+    ...options,
+    method: "GET",
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getStampImageResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: getStampImageResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: getStampImageResponse["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getStampImageResponse
+}
+
+export const getGetStampImageQueryKey = (stampId?: string) => {
+  return [
+    `/api/v1/stamps/${stampId}/image`,
+  ] as const
+}
+
+export const getGetStampImageSuspenseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStampImage>>,
+  TError = void,
+>(
+  stampId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getStampImage>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getGetStampImageQueryKey(stampId)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStampImage>>> = (
+    { signal },
+  ) => getStampImage(stampId, { signal, ...fetchOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as
+    & UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getStampImage>>,
+      TError,
+      TData
+    >
+    & { queryKey: QueryKey }
+}
+
+export type GetStampImageSuspenseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStampImage>>
+>
+export type GetStampImageSuspenseQueryError = void
+
+export function useGetStampImageSuspense<
+  TData = Awaited<ReturnType<typeof getStampImage>>,
+  TError = void,
+>(
+  stampId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getStampImage>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+): UseSuspenseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStampImageSuspenseQueryOptions(stampId, options)
+
+  const query = useSuspenseQuery(queryOptions) as
+    & UseSuspenseQueryResult<TData, TError>
+    & { queryKey: QueryKey }
+
+  query.queryKey = queryOptions.queryKey
+
+  return query
+}

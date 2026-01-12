@@ -282,11 +282,6 @@ export function useGetUserByIdSuspense<
 /**
  * @summary Get a user's icon by user ID.
  */
-export type getUserIconResponse200 = {
-  data: number[]
-  status: 200
-}
-
 export type getUserIconResponse401 = {
   data: void
   status: 401
@@ -296,15 +291,13 @@ export type getUserIconResponse500 = {
   data: void
   status: 500
 }
-
-export type getUserIconResponseSuccess = (getUserIconResponse200) & {
-  headers: Headers
-}
 export type getUserIconResponseError =
   & (getUserIconResponse401 | getUserIconResponse500)
   & {
     headers: Headers
   }
+
+export type getUserIconResponse = getUserIconResponseError
 
 export const getGetUserIconUrl = (userId: string) => {
   return `/api/v1/users/${userId}/icon`
@@ -313,7 +306,7 @@ export const getGetUserIconUrl = (userId: string) => {
 export const getUserIcon = async (
   userId: string,
   options?: RequestInit,
-): Promise<getUserIconResponseSuccess> => {
+): Promise<getUserIconResponse> => {
   const res = await fetch(getGetUserIconUrl(userId), {
     ...options,
     method: "GET",
@@ -332,14 +325,14 @@ export const getUserIcon = async (
     err.status = res.status
     throw err
   }
-  const data: getUserIconResponseSuccess["data"] = body
+  const data: getUserIconResponse["data"] = body
     ? JSON.parse(body, customReviver)
     : {}
   return {
     data,
     status: res.status,
     headers: res.headers,
-  } as getUserIconResponseSuccess
+  } as getUserIconResponse
 }
 
 export const getGetUserIconQueryKey = (userId?: string) => {

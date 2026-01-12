@@ -77,6 +77,20 @@ impl TraqService {
         Ok(icon)
     }
 
+    pub async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
+        let token = match self.repo.user.find_random_valid_token().await? {
+            Some(token) => token,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "no valid token found to fetch stamp image from traQ"
+                ));
+            }
+        };
+        let image = self.traq_client.get_stamp_image(&token, stamp_id).await?;
+
+        Ok(image)
+    }
+
     pub async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp> {
         let stamp = match self.repo.stamp.find_by_id(stamp_id).await? {
             Some(stamp) => stamp,
