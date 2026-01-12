@@ -54,6 +54,8 @@ services:
     expose:
       - 80
 
+  # Elasticsearch is required for traQ's message search API.
+  # The crawler uses the search API (without keywords) to fetch recent messages.
   es:
     image: ghcr.io/traptitech/es-with-sudachi:8.8.1-3.1.0
     restart: unless-stopped
