@@ -61,4 +61,18 @@ impl UserService {
 
         Ok(user)
     }
+
+    pub async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String)> {
+        let token = match self.repo.user.find_random_valid_token().await? {
+            Some(token) => token,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "no valid token found to fetch user icon from traQ"
+                ));
+            }
+        };
+        let icon = self.traq_client.get_user_icon(&token, user_id).await?;
+
+        Ok(icon)
+    }
 }

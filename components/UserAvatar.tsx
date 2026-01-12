@@ -2,15 +2,13 @@ import { Avatar, Skeleton } from "@mantine/core"
 import { useState } from "react"
 
 interface UserAvatarProps {
+  userId: string
   username: string
 }
 
-export const UserAvatar = ({ username }: UserAvatarProps) => {
+export const UserAvatar = ({ userId, username }: UserAvatarProps) => {
   const [isLoading, setIsLoading] = useState(true)
-  // image-proxy.trap.jp doesn't encode special characters, so we need to double encode them
-  const src = `https://image-proxy.trap.jp/icon/${
-    encodeURIComponent(encodeURIComponent(username))
-  }?width=128`
+  const src = `/api/v1/users/${userId}/icon`
 
   return (
     <>
