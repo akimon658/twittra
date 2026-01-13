@@ -25,6 +25,8 @@ pub trait MessageRepository: Debug + Send + Sync {
         stamp_id: &Uuid,
         user_id: &Uuid,
     ) -> Result<()>;
+    /// Saves a message to the repository.
+    async fn save(&self, message: &Message) -> Result<()>;
     /// Saves a batch of messages to the repository.
     /// It does nothing if `messages` is empty.
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;

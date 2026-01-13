@@ -4,6 +4,7 @@ use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDet
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[derive(Clone, Debug)]
 pub struct Message {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -49,7 +50,7 @@ pub struct MessageListItem {
     pub reactions: Vec<Reaction>,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Reaction {
     pub stamp_id: Uuid,

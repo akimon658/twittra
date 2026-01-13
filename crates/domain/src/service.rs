@@ -162,7 +162,7 @@ impl TraqService {
         let message = self.traq_client.get_message(&token, message_id).await?;
 
         // 3. Update local DB
-        self.repo.message.save_batch(&[message]).await?;
+        self.repo.message.save(&message).await?;
 
         Ok(())
     }

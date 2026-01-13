@@ -5,7 +5,7 @@ use domain::{
     model::{Message, MessageListItem, Reaction, User},
     repository::MessageRepository,
 };
-use sqlx::{MySqlPool, QueryBuilder, prelude::FromRow};
+use sqlx::{MySql, MySqlPool, QueryBuilder, Transaction, prelude::FromRow};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -17,6 +17,34 @@ pub struct MariaDbMessageRepository {
 impl MariaDbMessageRepository {
     pub fn new(pool: MySqlPool) -> Self {
         Self { pool }
+    }
+
+    async fn save_reactions(
+        &self,
+        tx: &mut Transaction<'_, MySql>,
+        reactions: &[(Uuid, Reaction)],
+    ) -> Result<()> {
+        if reactions.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = QueryBuilder::new(
+            "INSERT INTO reactions (message_id, stamp_id, user_id, stamp_count) ",
+        );
+
+        query_builder.push_values(reactions, |mut separated, (msg_id, reaction)| {
+            separated
+                .push_bind(msg_id)
+                .push_bind(reaction.stamp_id)
+                .push_bind(reaction.user_id)
+                .push_bind(reaction.stamp_count);
+        });
+
+        query_builder.push(" ON DUPLICATE KEY UPDATE stamp_count=VALUE(stamp_count)");
+
+        query_builder.build().execute(&mut **tx).await?;
+
+        Ok(())
     }
 }
 
@@ -191,6 +219,38 @@ impl MessageRepository for MariaDbMessageRepository {
         Ok(())
     }
 
+    async fn save(&self, message: &Message) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)
+            "#,
+            message.id,
+            message.user_id,
+            message.channel_id,
+            message.content,
+            message.created_at,
+            message.updated_at
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        let reactions_data: Vec<_> = message
+            .reactions
+            .iter()
+            .map(|r| (message.id, r.clone()))
+            .collect();
+
+        self.save_reactions(&mut tx, &reactions_data).await?;
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
     async fn save_batch(&self, messages: &[Message]) -> Result<()> {
         if messages.is_empty() {
             return Ok(());
@@ -214,33 +274,17 @@ impl MessageRepository for MariaDbMessageRepository {
             .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)");
         query_builder.build().execute(&mut *tx).await?;
 
-        let reactions_with_message_ids = messages
+        let reactions_data = messages
             .iter()
-            .flat_map(|msg| msg.reactions.iter().map(move |reaction| (msg.id, reaction)))
+            .flat_map(|msg| {
+                msg.reactions
+                    .iter()
+                    .map(move |reaction| (msg.id, reaction.clone()))
+            })
             .collect::<Vec<_>>();
 
-        if reactions_with_message_ids.is_empty() {
-            tx.commit().await?;
+        self.save_reactions(&mut tx, &reactions_data).await?;
 
-            return Ok(());
-        }
-
-        let mut query_builder = QueryBuilder::new(
-            "INSERT INTO reactions (message_id, stamp_id, user_id, stamp_count) ",
-        );
-
-        query_builder.push_values(
-            reactions_with_message_ids,
-            |mut separated, (message_id, reaction)| {
-                separated
-                    .push_bind(message_id)
-                    .push_bind(reaction.stamp_id)
-                    .push_bind(reaction.user_id)
-                    .push_bind(reaction.stamp_count);
-            },
-        );
-        query_builder.push(" ON DUPLICATE KEY UPDATE stamp_count=VALUE(stamp_count)");
-        query_builder.build().execute(&mut *tx).await?;
         tx.commit().await?;
 
         Ok(())
