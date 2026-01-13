@@ -115,4 +115,40 @@ impl TraqClient for TraqClientImpl {
         let bytes = response.bytes().await?.to_vec();
         Ok((bytes, content_type))
     }
+
+    async fn add_message_stamp(
+        &self,
+        token: &str,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        count: i32,
+    ) -> Result<()> {
+        let config = Configuration {
+            base_path: self.base_url.clone(),
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let post_message_stamp_request = traq::models::PostMessageStampRequest { count };
+        message_api::add_message_stamp(
+            &config,
+            &message_id.to_string(),
+            &stamp_id.to_string(),
+            Some(post_message_stamp_request),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn get_message(&self, token: &str, message_id: &Uuid) -> Result<Message> {
+        let config = Configuration {
+            base_path: self.base_url.clone(),
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let message = message_api::get_message(&config, &message_id.to_string()).await?;
+        let message = message.try_into()?;
+
+        Ok(message)
+    }
 }

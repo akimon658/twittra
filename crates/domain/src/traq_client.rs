@@ -17,4 +17,12 @@ pub trait TraqClient: Debug + Send + Sync {
     async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User>;
 
     async fn get_user_icon(&self, token: &str, user_id: &Uuid) -> Result<(Vec<u8>, String)>;
+    async fn add_message_stamp(
+        &self,
+        token: &str,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        count: i32,
+    ) -> Result<()>;
+    async fn get_message(&self, token: &str, message_id: &Uuid) -> Result<Message>;
 }

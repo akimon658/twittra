@@ -6,6 +6,7 @@ use domain::{
 use std::sync::Arc;
 
 pub mod auth;
+pub mod message;
 pub mod stamp;
 pub mod timeline;
 pub mod user;

@@ -32,6 +32,7 @@ pub trait StampRepository: Debug + Send + Sync {
 pub trait UserRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>>;
     async fn find_random_valid_token(&self) -> Result<Option<String>>;
+    async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>>;
     async fn save(&self, user: &User) -> Result<()>;
     async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()>;
 }

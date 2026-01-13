@@ -66,6 +66,26 @@ impl UserRepository for MariaDbUserRepository {
         Ok(Some(record.access_token))
     }
 
+    async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>> {
+        let record = match sqlx::query!(
+            r#"
+            SELECT access_token
+            FROM user_tokens
+            WHERE user_id = ?
+            "#,
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await
+        {
+            Ok(record) => Some(record),
+            Err(sqlx::Error::RowNotFound) => None,
+            Err(e) => return Err(e.into()),
+        };
+
+        Ok(record.map(|r| r.access_token))
+    }
+
     async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()> {
         sqlx::query!(
             r#"

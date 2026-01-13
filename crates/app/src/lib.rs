@@ -22,7 +22,7 @@ use crate::{
     handler::{
         AppState,
         auth::{self},
-        stamp, timeline, user,
+        message, stamp, timeline, user,
     },
     session::Backend,
 };
@@ -48,6 +48,7 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
     let openapi_router = OpenApiRouter::with_openapi(openapi)
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
+        .routes(utoipa_axum::routes!(message::add_message_stamp))
         .routes(utoipa_axum::routes!(stamp::get_stamp_by_id))
         .routes(utoipa_axum::routes!(stamp::get_stamp_image))
         .routes(utoipa_axum::routes!(timeline::get_timeline))

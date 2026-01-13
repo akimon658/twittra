@@ -113,4 +113,35 @@ impl TraqService {
 
         Ok(stamp)
     }
+
+    pub async fn add_message_stamp(
+        &self,
+        user_id: &Uuid,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        count: i32,
+    ) -> Result<()> {
+        let token = match self.repo.user.find_token_by_user_id(user_id).await? {
+            Some(token) => token,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "no valid token found for user {}",
+                    user_id
+                ));
+            }
+        };
+
+        // 1. Add stamp to traQ
+        self.traq_client
+            .add_message_stamp(&token, message_id, stamp_id, count)
+            .await?;
+
+        // 2. Fetch updated message from traQ (to get latest reactions)
+        let message = self.traq_client.get_message(&token, message_id).await?;
+
+        // 3. Update local DB
+        self.repo.message.save_batch(&[message]).await?;
+
+        Ok(())
+    }
 }
