@@ -8,8 +8,11 @@ import {
   Text,
 } from "@mantine/core"
 import { IconPlus } from "@tabler/icons-react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
+import { useAddMessageStamp } from "../../api/message/message.ts"
 import { getGetStampImageUrl } from "../../api/stamp/stamp.ts"
+import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
 
 interface StampProps {
@@ -39,11 +42,12 @@ type MessageFooterPillProps = Omit<PillProps, "bg" | "size">
 /**
  * A pill with custom styles for message footer reactions.
  */
-const MessageFooterPill = ({ children }: MessageFooterPillProps) => {
+const MessageFooterPill = ({ children, ...props }: MessageFooterPillProps) => {
   return (
     <Pill
       bg="light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))"
       size="lg"
+      {...props}
     >
       {children}
     </Pill>
@@ -51,10 +55,24 @@ const MessageFooterPill = ({ children }: MessageFooterPillProps) => {
 }
 
 interface MessageFooterProps {
+  messageId: string
   reactions: Reaction[]
 }
 
-export const MessageFooter = ({ reactions }: MessageFooterProps) => {
+export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
+  const queryClient = useQueryClient()
+  const { mutate: addStamp } = useAddMessageStamp({
+    mutation: {
+      onSuccess: () => {
+        // Refetch timeline to update the UI
+        queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+      },
+      onError: (error) => {
+        console.error("Failed to add stamp:", error)
+      },
+    },
+  })
+
   const stampCountMap = new Map<string, number>()
 
   for (const r of reactions) {
@@ -71,10 +89,18 @@ export const MessageFooter = ({ reactions }: MessageFooterProps) => {
     count,
   }))
 
+  const handleStampClick = (stampId: string) => {
+    addStamp({ messageId, stampId })
+  }
+
   return (
     <Group gap="xs">
       {groupedReactions.map(({ stampId, count }) => (
-        <MessageFooterPill key={stampId}>
+        <MessageFooterPill
+          key={stampId}
+          style={{ cursor: "pointer" }}
+          onClick={() => handleStampClick(stampId)}
+        >
           <Group align="center" gap="xs" h="100%" wrap="nowrap">
             <Stamp stampId={stampId} />
 

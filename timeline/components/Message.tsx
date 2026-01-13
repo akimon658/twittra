@@ -42,7 +42,7 @@ export const MessageItem = ({ message }: MessageProps) => {
             </Typography>
           </Spoiler>
 
-          <MessageFooter reactions={message.reactions} />
+          <MessageFooter messageId={message.id} reactions={message.reactions} />
         </Stack>
       </Group>
     </Paper>
