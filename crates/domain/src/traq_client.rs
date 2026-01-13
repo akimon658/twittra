@@ -24,5 +24,11 @@ pub trait TraqClient: Debug + Send + Sync {
         stamp_id: &Uuid,
         count: i32,
     ) -> Result<()>;
+    async fn remove_message_stamp(
+        &self,
+        token: &str,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+    ) -> Result<()>;
     async fn get_message(&self, token: &str, message_id: &Uuid) -> Result<Message>;
 }

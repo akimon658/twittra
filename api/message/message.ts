@@ -143,3 +143,134 @@ export const useAddMessageStamp = <TError = void, TContext = unknown>(
 
   return useMutation(mutationOptions)
 }
+export type removeMessageStampResponse204 = {
+  data: void
+  status: 204
+}
+
+export type removeMessageStampResponse401 = {
+  data: void
+  status: 401
+}
+
+export type removeMessageStampResponse500 = {
+  data: void
+  status: 500
+}
+
+export type removeMessageStampResponseSuccess =
+  & (removeMessageStampResponse204)
+  & {
+    headers: Headers
+  }
+export type removeMessageStampResponseError =
+  & (removeMessageStampResponse401 | removeMessageStampResponse500)
+  & {
+    headers: Headers
+  }
+
+export const getRemoveMessageStampUrl = (
+  messageId: string,
+  stampId: string,
+) => {
+  return `/api/v1/messages/${messageId}/stamps/${stampId}`
+}
+
+export const removeMessageStamp = async (
+  messageId: string,
+  stampId: string,
+  options?: RequestInit,
+): Promise<removeMessageStampResponseSuccess> => {
+  const res = await fetch(getRemoveMessageStampUrl(messageId, stampId), {
+    ...options,
+    method: "DELETE",
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: removeMessageStampResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: removeMessageStampResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: removeMessageStampResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as removeMessageStampResponseSuccess
+}
+
+export const getRemoveMessageStampMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof removeMessageStamp>>,
+      TError,
+      { messageId: string; stampId: string },
+      TContext
+    >
+    fetch?: RequestInit
+  },
+): UseMutationOptions<
+  Awaited<ReturnType<typeof removeMessageStamp>>,
+  TError,
+  { messageId: string; stampId: string },
+  TContext
+> => {
+  const mutationKey = ["removeMessageStamp"]
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeMessageStamp>>,
+    { messageId: string; stampId: string }
+  > = (props) => {
+    const { messageId, stampId } = props ?? {}
+
+    return removeMessageStamp(messageId, stampId, fetchOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type RemoveMessageStampMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeMessageStamp>>
+>
+
+export type RemoveMessageStampMutationError = void
+
+export const useRemoveMessageStamp = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof removeMessageStamp>>,
+      TError,
+      { messageId: string; stampId: string },
+      TContext
+    >
+    fetch?: RequestInit
+  },
+): UseMutationResult<
+  Awaited<ReturnType<typeof removeMessageStamp>>,
+  TError,
+  { messageId: string; stampId: string },
+  TContext
+> => {
+  const mutationOptions = getRemoveMessageStampMutationOptions(options)
+
+  return useMutation(mutationOptions)
+}

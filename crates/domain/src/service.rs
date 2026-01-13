@@ -144,4 +144,35 @@ impl TraqService {
 
         Ok(())
     }
+
+    pub async fn remove_message_stamp(
+        &self,
+        user_id: &Uuid,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+    ) -> Result<()> {
+        let token = match self.repo.user.find_token_by_user_id(user_id).await? {
+            Some(token) => token,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "no valid token found for user {}",
+                    user_id
+                ));
+            }
+        };
+
+        // 1. Remove stamp from traQ
+        self.traq_client
+            .remove_message_stamp(&token, message_id, stamp_id)
+            .await?;
+
+        // 2. Optimistically update local DB by directly removing the reaction
+        //    This avoids race conditions with traQ's eventual consistency
+        self.repo
+            .message
+            .remove_reaction(message_id, stamp_id, user_id)
+            .await?;
+
+        Ok(())
+    }
 }

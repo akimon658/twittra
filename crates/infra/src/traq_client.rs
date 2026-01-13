@@ -140,6 +140,27 @@ impl TraqClient for TraqClientImpl {
         Ok(())
     }
 
+    async fn remove_message_stamp(
+        &self,
+        token: &str,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+    ) -> Result<()> {
+        let config = Configuration {
+            base_path: self.base_url.clone(),
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        message_api::remove_message_stamp(
+            &config,
+            &message_id.to_string(),
+            &stamp_id.to_string(),
+        )
+        .await?;
+
+        Ok(())
+    }
+
     async fn get_message(&self, token: &str, message_id: &Uuid) -> Result<Message> {
         let config = Configuration {
             base_path: self.base_url.clone(),

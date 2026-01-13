@@ -170,6 +170,27 @@ impl MessageRepository for MariaDbMessageRepository {
         Ok(messages)
     }
 
+    async fn remove_reaction(
+        &self,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        user_id: &Uuid,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"
+            DELETE FROM reactions
+            WHERE message_id = ? AND stamp_id = ? AND user_id = ?
+            "#,
+            message_id,
+            stamp_id,
+            user_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn save_batch(&self, messages: &[Message]) -> Result<()> {
         if messages.is_empty() {
             return Ok(());

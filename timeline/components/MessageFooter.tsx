@@ -11,7 +11,7 @@ import { IconPlus } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { useUser } from "../../auth/hooks/useUser.ts"
-import { useAddMessageStamp } from "../../api/message/message.ts"
+import { useAddMessageStamp, useRemoveMessageStamp } from "../../api/message/message.ts"
 import { getGetStampImageUrl } from "../../api/stamp/stamp.ts"
 import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
@@ -94,6 +94,18 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
     },
   })
 
+  const { mutate: removeStamp } = useRemoveMessageStamp({
+    mutation: {
+      onSuccess: () => {
+        // Refetch timeline to update the UI
+        queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+      },
+      onError: (error) => {
+        console.error("Failed to remove stamp:", error)
+      },
+    },
+  })
+
   const stampCountMap = new Map<string, number>()
   const userStampSet = new Set<string>()
 
@@ -116,8 +128,14 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
     isUserReacted: userStampSet.has(stampId),
   }))
 
-  const handleStampClick = (stampId: string) => {
-    addStamp({ messageId, stampId })
+  const handleStampClick = (stampId: string, isUserReacted: boolean) => {
+    if (isUserReacted) {
+      // User already reacted, so remove the stamp
+      removeStamp({ messageId, stampId })
+    } else {
+      // User hasn't reacted, so add the stamp
+      addStamp({ messageId, stampId })
+    }
   }
 
   return (
@@ -126,7 +144,7 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
         <MessageFooterPill
           key={stampId}
           isUserReacted={isUserReacted}
-          onClick={() => handleStampClick(stampId)}
+          onClick={() => handleStampClick(stampId, isUserReacted)}
         >
           <Group align="center" gap="xs" h="100%" wrap="nowrap">
             <Stamp stampId={stampId} />

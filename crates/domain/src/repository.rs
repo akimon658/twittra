@@ -17,6 +17,14 @@ pub struct Repository {
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>>;
     async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>>;
+    /// Removes a reaction from a message.
+    /// This is used for optimistic updates when deleting a stamp.
+    async fn remove_reaction(
+        &self,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        user_id: &Uuid,
+    ) -> Result<()>;
     /// Saves a batch of messages to the repository.
     /// It does nothing if `messages` is empty.
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
