@@ -133,6 +133,15 @@ impl TraqService {
         Ok(stamps)
     }
 
+    pub async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>> {
+        let stamps = self.get_stamps().await?;
+        let filtered = stamps
+            .into_iter()
+            .filter(|s| s.name.contains(name))
+            .collect();
+        Ok(filtered)
+    }
+
     pub async fn add_message_stamp(
         &self,
         user_id: &Uuid,

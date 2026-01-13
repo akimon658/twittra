@@ -46,3 +46,10 @@ export type OauthCallbackParams = {
    */
   state: string
 }
+
+export type GetStampsParams = {
+  /**
+   * Filter stamps by name
+   */
+  name?: string
+}

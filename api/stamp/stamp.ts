@@ -12,7 +12,7 @@ import type {
   UseSuspenseQueryResult,
 } from "@tanstack/react-query"
 
-import type { Stamp } from "../twittra.schemas"
+import type { GetStampsParams, Stamp } from "../twittra.schemas"
 
 import { customReviver } from ".././reviver"
 
@@ -44,14 +44,27 @@ export type getStampsResponseError =
     headers: Headers
   }
 
-export const getGetStampsUrl = () => {
-  return `/api/v1/stamps`
+export const getGetStampsUrl = (params?: GetStampsParams) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString())
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/stamps?${stringifiedParams}`
+    : `/api/v1/stamps`
 }
 
 export const getStamps = async (
+  params?: GetStampsParams,
   options?: RequestInit,
 ): Promise<getStampsResponseSuccess> => {
-  const res = await fetch(getGetStampsUrl(), {
+  const res = await fetch(getGetStampsUrl(params), {
     ...options,
     method: "GET",
   })
@@ -79,9 +92,10 @@ export const getStamps = async (
   } as getStampsResponseSuccess
 }
 
-export const getGetStampsQueryKey = () => {
+export const getGetStampsQueryKey = (params?: GetStampsParams) => {
   return [
     `/api/v1/stamps`,
+    ...(params ? [params] : []),
   ] as const
 }
 
@@ -89,6 +103,7 @@ export const getGetStampsSuspenseQueryOptions = <
   TData = Awaited<ReturnType<typeof getStamps>>,
   TError = void,
 >(
+  params?: GetStampsParams,
   options?: {
     query?: UseSuspenseQueryOptions<
       Awaited<ReturnType<typeof getStamps>>,
@@ -100,11 +115,11 @@ export const getGetStampsSuspenseQueryOptions = <
 ) => {
   const { query: queryOptions, fetch: fetchOptions } = options ?? {}
 
-  const queryKey = queryOptions?.queryKey ?? getGetStampsQueryKey()
+  const queryKey = queryOptions?.queryKey ?? getGetStampsQueryKey(params)
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getStamps>>> = (
     { signal },
-  ) => getStamps({ signal, ...fetchOptions })
+  ) => getStamps(params, { signal, ...fetchOptions })
 
   return { queryKey, queryFn, ...queryOptions } as
     & UseSuspenseQueryOptions<
@@ -124,6 +139,7 @@ export function useGetStampsSuspense<
   TData = Awaited<ReturnType<typeof getStamps>>,
   TError = void,
 >(
+  params?: GetStampsParams,
   options?: {
     query?: UseSuspenseQueryOptions<
       Awaited<ReturnType<typeof getStamps>>,
@@ -133,7 +149,7 @@ export function useGetStampsSuspense<
     fetch?: RequestInit
   },
 ): UseSuspenseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetStampsSuspenseQueryOptions(options)
+  const queryOptions = getGetStampsSuspenseQueryOptions(params, options)
 
   const query = useSuspenseQuery(queryOptions) as
     & UseSuspenseQueryResult<TData, TError>

@@ -12,10 +12,9 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { useUser } from "../../auth/hooks/useUser.ts"
 import { useAddMessageStamp, useRemoveMessageStamp } from "../../api/message/message.ts"
-import { getGetStampImageUrl } from "../../api/stamp/stamp.ts"
+import { getGetStampImageUrl, getStamps } from "../../api/stamp/stamp.ts"
 import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
-import { useStampSearch } from "../hooks/useStampSearch.ts"
 
 interface StampProps {
   stampId: string
@@ -83,7 +82,6 @@ interface MessageFooterProps {
 export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
   const user = useUser()
   const queryClient = useQueryClient()
-  const { findStampByName } = useStampSearch()
   const { mutate: addStamp } = useAddMessageStamp({
     mutation: {
       onSuccess: () => {
@@ -135,12 +133,12 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
       // User already reacted, so remove the stamp
       removeStamp({ messageId, stampId })
     } else {
-      // User hasn't reacted, so add the stamp
+      // User haven't reacted, so add the stamp
       addStamp({ messageId, stampId })
     }
   }
 
-  const handleAddStampClick = () => {
+  const handleAddStampClick = async () => {
     const stampName = window.prompt("スタンプ名を入力してください (例: eyes, thumbsup, heart)")
 
     if (!stampName) {
@@ -154,7 +152,11 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
       return
     }
 
-    const stamp = findStampByName(trimmedStampName)
+    // Use server-side search directly
+    const { data: stamps } = await getStamps({ name: trimmedStampName })
+    // Find exact match from the search results
+    const stamp = stamps.find((s) => s.name === trimmedStampName)
+
     if (!stamp) {
       alert(`スタンプ "${trimmedStampName}" が見つかりませんでした。`)
       return

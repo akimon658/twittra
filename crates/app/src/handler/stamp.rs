@@ -1,13 +1,20 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, State, Query},
     response::IntoResponse,
 };
 use domain::model::Stamp;
 use http::StatusCode;
+use serde::Deserialize;
+use utoipa::IntoParams;
 use uuid::Uuid;
 
 use crate::{handler::AppState, session::AuthSession};
+
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct StampSearchQuery {
+    pub name: Option<String>,
+}
 
 #[utoipa::path(
     get,
@@ -97,6 +104,9 @@ pub async fn get_stamp_image(
 #[utoipa::path(
     get,
     path = "/stamps",
+    params(
+        ("name" = Option<String>, Query, description = "Filter stamps by name"),
+    ),
     responses(
         (status = StatusCode::OK, body = Vec<Stamp>),
         (status = StatusCode::UNAUTHORIZED),
@@ -111,17 +121,29 @@ pub async fn get_stamp_image(
 pub async fn get_stamps(
     auth_session: AuthSession,
     State(state): State<AppState>,
+    Query(query): Query<StampSearchQuery>,
 ) -> impl IntoResponse {
     if auth_session.user.is_none() {
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    let stamps = match state.traq_service.get_stamps().await {
-        Ok(stamps) => stamps,
-        Err(e) => {
-            tracing::error!("{:?}", e);
+    let stamps = if let Some(name) = query.name {
+        match state.traq_service.search_stamps(&name).await {
+            Ok(stamps) => stamps,
+            Err(e) => {
+                tracing::error!("{:?}", e);
 
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        }
+    } else {
+        match state.traq_service.get_stamps().await {
+            Ok(stamps) => stamps,
+            Err(e) => {
+                tracing::error!("{:?}", e);
+
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
         }
     };
 
