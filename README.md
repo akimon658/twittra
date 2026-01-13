@@ -73,8 +73,6 @@ The timeline is constructed by merging 4 buckets:
 
 ## Development Setup
 
-### Local traQ Environment
-
 This project uses a local instance of traQ for development to ensure a
 consistent environment and avoid impacting the production server.
 
@@ -99,3 +97,10 @@ consistent environment and avoid impacting the production server.
    ```bash
    cargo run -p app
    ```
+1. Run the Frontend:
+   ```bash
+   deno task dev
+   ```
+1. Access the Application: Open your browser and navigate to
+   `http://localhost:5173` to view the application. If traQ username and
+   password are required, use `traq` for both.
