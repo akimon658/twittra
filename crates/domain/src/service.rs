@@ -114,6 +114,25 @@ impl TraqService {
         Ok(stamp)
     }
 
+    pub async fn get_stamps(&self) -> Result<Vec<Stamp>> {
+        let token = match self.repo.user.find_random_valid_token().await? {
+            Some(token) => token,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "no valid token found to fetch stamps from traQ"
+                ));
+            }
+        };
+        let stamps = self.traq_client.get_stamps(&token).await?;
+
+        // Cache all stamps
+        for stamp in &stamps {
+            self.repo.stamp.save(stamp).await?;
+        }
+
+        Ok(stamps)
+    }
+
     pub async fn add_message_stamp(
         &self,
         user_id: &Uuid,

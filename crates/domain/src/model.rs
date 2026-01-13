@@ -1,6 +1,6 @@
 use serde::Serialize;
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
-use traq::models::{self, MessageStamp, MyUserDetail, UserDetail};
+use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -77,6 +77,15 @@ pub struct Stamp {
 
 impl From<models::Stamp> for Stamp {
     fn from(value: models::Stamp) -> Self {
+        Stamp {
+            id: value.id,
+            name: value.name,
+        }
+    }
+}
+
+impl From<StampWithThumbnail> for Stamp {
+    fn from(value: StampWithThumbnail) -> Self {
         Stamp {
             id: value.id,
             name: value.name,

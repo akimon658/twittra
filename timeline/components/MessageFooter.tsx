@@ -15,6 +15,7 @@ import { useAddMessageStamp, useRemoveMessageStamp } from "../../api/message/mes
 import { getGetStampImageUrl } from "../../api/stamp/stamp.ts"
 import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
+import { useStampSearch } from "../hooks/useStampSearch.ts"
 
 interface StampProps {
   stampId: string
@@ -82,6 +83,7 @@ interface MessageFooterProps {
 export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
   const user = useUser()
   const queryClient = useQueryClient()
+  const { findStampByName } = useStampSearch()
   const { mutate: addStamp } = useAddMessageStamp({
     mutation: {
       onSuccess: () => {
@@ -138,6 +140,30 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
     }
   }
 
+  const handleAddStampClick = () => {
+    const stampName = window.prompt("スタンプ名を入力してください (例: eyes, thumbsup, heart)")
+
+    if (!stampName) {
+      // User cancelled or entered nothing
+      return
+    }
+
+    const trimmedStampName = stampName.trim()
+    if (trimmedStampName === "") {
+      // Empty string after trimming
+      return
+    }
+
+    const stamp = findStampByName(trimmedStampName)
+    if (!stamp) {
+      alert(`スタンプ "${trimmedStampName}" が見つかりませんでした。`)
+      return
+    }
+
+    // Add the stamp
+    addStamp({ messageId, stampId: stamp.id })
+  }
+
   return (
     <Group gap="xs">
       {groupedReactions.map(({ stampId, count, isUserReacted }) => (
@@ -154,7 +180,7 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
         </MessageFooterPill>
       ))}
 
-      <MessageFooterPill>
+      <MessageFooterPill onClick={handleAddStampClick}>
         <Flex align="center" h="100%">
           <IconPlus size={16} />
         </Flex>

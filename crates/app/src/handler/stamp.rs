@@ -93,3 +93,37 @@ pub async fn get_stamp_image(
 
     ([(http::header::CONTENT_TYPE, content_type)], image).into_response()
 }
+
+#[utoipa::path(
+    get,
+    path = "/stamps",
+    responses(
+        (status = StatusCode::OK, body = Vec<Stamp>),
+        (status = StatusCode::UNAUTHORIZED),
+        (status = StatusCode::INTERNAL_SERVER_ERROR),
+    ),
+    security(
+        ("cookieAuth" = []),
+    ),
+    tag = "stamp",
+)]
+#[tracing::instrument(skip(auth_session, state))]
+pub async fn get_stamps(
+    auth_session: AuthSession,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if auth_session.user.is_none() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    let stamps = match state.traq_service.get_stamps().await {
+        Ok(stamps) => stamps,
+        Err(e) => {
+            tracing::error!("{:?}", e);
+
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    Json(stamps).into_response()
+}

@@ -20,6 +20,130 @@ type AwaitedInput<T> = PromiseLike<T> | T
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
 
+export type getStampsResponse200 = {
+  data: Stamp[]
+  status: 200
+}
+
+export type getStampsResponse401 = {
+  data: void
+  status: 401
+}
+
+export type getStampsResponse500 = {
+  data: void
+  status: 500
+}
+
+export type getStampsResponseSuccess = (getStampsResponse200) & {
+  headers: Headers
+}
+export type getStampsResponseError =
+  & (getStampsResponse401 | getStampsResponse500)
+  & {
+    headers: Headers
+  }
+
+export const getGetStampsUrl = () => {
+  return `/api/v1/stamps`
+}
+
+export const getStamps = async (
+  options?: RequestInit,
+): Promise<getStampsResponseSuccess> => {
+  const res = await fetch(getGetStampsUrl(), {
+    ...options,
+    method: "GET",
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getStampsResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: getStampsResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: getStampsResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getStampsResponseSuccess
+}
+
+export const getGetStampsQueryKey = () => {
+  return [
+    `/api/v1/stamps`,
+  ] as const
+}
+
+export const getGetStampsSuspenseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStamps>>,
+  TError = void,
+>(
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getStamps>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getGetStampsQueryKey()
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStamps>>> = (
+    { signal },
+  ) => getStamps({ signal, ...fetchOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as
+    & UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getStamps>>,
+      TError,
+      TData
+    >
+    & { queryKey: QueryKey }
+}
+
+export type GetStampsSuspenseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStamps>>
+>
+export type GetStampsSuspenseQueryError = void
+
+export function useGetStampsSuspense<
+  TData = Awaited<ReturnType<typeof getStamps>>,
+  TError = void,
+>(
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getStamps>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+): UseSuspenseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStampsSuspenseQueryOptions(options)
+
+  const query = useSuspenseQuery(queryOptions) as
+    & UseSuspenseQueryResult<TData, TError>
+    & { queryKey: QueryKey }
+
+  query.queryKey = queryOptions.queryKey
+
+  return query
+}
+
 export type getStampByIdResponse200 = {
   data: Stamp
   status: 200

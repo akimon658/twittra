@@ -70,6 +70,18 @@ impl TraqClient for TraqClientImpl {
         Ok(stamp)
     }
 
+    async fn get_stamps(&self, token: &str) -> Result<Vec<domain::model::Stamp>> {
+        let config = Configuration {
+            base_path: self.base_url.clone(),
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let traq_stamps = traq::apis::stamp_api::get_stamps(&config, None, None).await?;
+        let stamps = traq_stamps.into_iter().map(|s| s.into()).collect();
+
+        Ok(stamps)
+    }
+
     async fn get_stamp_image(&self, token: &str, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
         let config = Configuration {
             base_path: self.base_url.clone(),

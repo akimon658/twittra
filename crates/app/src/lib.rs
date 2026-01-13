@@ -51,6 +51,7 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .routes(utoipa_axum::routes!(message::add_message_stamp))
         .routes(utoipa_axum::routes!(message::remove_message_stamp))
         .routes(utoipa_axum::routes!(stamp::get_stamp_by_id))
+        .routes(utoipa_axum::routes!(stamp::get_stamps))
         .routes(utoipa_axum::routes!(stamp::get_stamp_image))
         .routes(utoipa_axum::routes!(timeline::get_timeline))
         .routes(utoipa_axum::routes!(user::get_me))
