@@ -4,7 +4,10 @@ use domain::{
     traq_client::TraqClient,
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
-use traq::apis::{configuration::Configuration, message_api, user_api};
+use traq::{
+    apis::{configuration::Configuration, message_api, stamp_api, user_api},
+    models::PostMessageStampRequest,
+};
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -64,7 +67,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_stamp = traq::apis::stamp_api::get_stamp(&config, &stamp_id.to_string()).await?;
+        let traq_stamp = stamp_api::get_stamp(&config, &stamp_id.to_string()).await?;
         let stamp = traq_stamp.into();
 
         Ok(stamp)
@@ -76,7 +79,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_stamps = traq::apis::stamp_api::get_stamps(&config, None, None).await?;
+        let traq_stamps = stamp_api::get_stamps(&config, None, None).await?;
         let stamps = traq_stamps.into_iter().map(|s| s.into()).collect();
 
         Ok(stamps)
@@ -88,7 +91,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let response = traq::apis::stamp_api::get_stamp_image(&config, &stamp_id.to_string()).await?;
+        let response = stamp_api::get_stamp_image(&config, &stamp_id.to_string()).await?;
         let content_type = response
             .headers()
             .get("content-type")
@@ -140,7 +143,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let post_message_stamp_request = traq::models::PostMessageStampRequest { count };
+        let post_message_stamp_request = PostMessageStampRequest { count };
         message_api::add_message_stamp(
             &config,
             &message_id.to_string(),
@@ -163,12 +166,8 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        message_api::remove_message_stamp(
-            &config,
-            &message_id.to_string(),
-            &stamp_id.to_string(),
-        )
-        .await?;
+        message_api::remove_message_stamp(&config, &message_id.to_string(), &stamp_id.to_string())
+            .await?;
 
         Ok(())
     }
