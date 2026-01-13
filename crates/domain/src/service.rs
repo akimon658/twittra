@@ -125,10 +125,7 @@ impl TraqService {
         };
         let stamps = self.traq_client.get_stamps(&token).await?;
 
-        // Cache all stamps
-        for stamp in &stamps {
-            self.repo.stamp.save(stamp).await?;
-        }
+        self.repo.stamp.save_batch(&stamps).await?;
 
         Ok(stamps)
     }

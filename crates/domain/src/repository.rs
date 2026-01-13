@@ -34,6 +34,7 @@ pub trait MessageRepository: Debug + Send + Sync {
 pub trait StampRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<Stamp>>;
     async fn save(&self, stamp: &Stamp) -> Result<()>;
+    async fn save_batch(&self, stamps: &[Stamp]) -> Result<()>;
 }
 
 #[async_trait::async_trait]

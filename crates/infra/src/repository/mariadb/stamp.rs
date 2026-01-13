@@ -52,4 +52,22 @@ impl StampRepository for MariaDbStampRepository {
 
         Ok(())
     }
+
+    async fn save_batch(&self, stamps: &[Stamp]) -> Result<()> {
+        if stamps.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = sqlx::QueryBuilder::new("INSERT INTO stamps (id, name) ");
+
+        query_builder.push_values(stamps, |mut separated, stamp| {
+            separated.push_bind(stamp.id).push_bind(&stamp.name);
+        });
+
+        query_builder.push(" ON DUPLICATE KEY UPDATE name = VALUE(name)");
+
+        query_builder.build().execute(&self.pool).await?;
+
+        Ok(())
+    }
 }
