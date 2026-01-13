@@ -152,10 +152,7 @@ impl TraqService {
         let token = match self.repo.user.find_token_by_user_id(user_id).await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!(
-                    "no valid token found for user {}",
-                    user_id
-                ));
+                return Err(anyhow::anyhow!("no valid token found for user {}", user_id));
             }
         };
 
@@ -182,10 +179,7 @@ impl TraqService {
         let token = match self.repo.user.find_token_by_user_id(user_id).await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!(
-                    "no valid token found for user {}",
-                    user_id
-                ));
+                return Err(anyhow::anyhow!("no valid token found for user {}", user_id));
             }
         };
 
@@ -195,7 +189,8 @@ impl TraqService {
             .await?;
 
         // 2. Optimistically update local DB by directly removing the reaction
-        //    This avoids race conditions with traQ's eventual consistency
+        //    traQ does not immediately reflect the removal in subsequent fetches,
+        //    so we directly update the local cache here.
         self.repo
             .message
             .remove_reaction(message_id, stamp_id, user_id)
