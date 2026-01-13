@@ -10,6 +10,7 @@ import {
 import { IconPlus } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
+import { useUser } from "../../auth/hooks/useUser.ts"
 import { useAddMessageStamp } from "../../api/message/message.ts"
 import { getGetStampImageUrl } from "../../api/stamp/stamp.ts"
 import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
@@ -37,16 +38,35 @@ const Stamp = ({ stampId }: StampProps) => {
   )
 }
 
-type MessageFooterPillProps = Omit<PillProps, "bg" | "size">
+interface MessageFooterPillProps extends Omit<PillProps, "size"> {
+  isUserReacted?: boolean
+}
 
 /**
  * A pill with custom styles for message footer reactions.
  */
-const MessageFooterPill = ({ children, ...props }: MessageFooterPillProps) => {
+const MessageFooterPill = ({ children, isUserReacted = false, ...props }: MessageFooterPillProps) => {
+  const defaultBg = "light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))"
+  const activeBg = "blue.1"
+  const hoverBg = "light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5))"
+
   return (
     <Pill
-      bg="light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))"
+      bg={isUserReacted ? activeBg : defaultBg}
       size="lg"
+      style={{
+        cursor: "pointer",
+        transition: "background-color 0.2s ease",
+        ...props.style,
+      }}
+      styles={{
+        root: {
+          "&:hover": {
+            backgroundColor: isUserReacted ? undefined : hoverBg,
+          },
+        },
+        ...props.styles,
+      }}
       {...props}
     >
       {children}
@@ -60,6 +80,7 @@ interface MessageFooterProps {
 }
 
 export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
+  const user = useUser()
   const queryClient = useQueryClient()
   const { mutate: addStamp } = useAddMessageStamp({
     mutation: {
@@ -74,12 +95,17 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
   })
 
   const stampCountMap = new Map<string, number>()
+  const userStampSet = new Set<string>()
 
   for (const r of reactions) {
     stampCountMap.set(
       r.stampId,
       (stampCountMap.get(r.stampId) || 0) + r.stampCount,
     )
+    // Track if current user has reacted with this stamp
+    if (r.userId === user.id) {
+      userStampSet.add(r.stampId)
+    }
   }
 
   const groupedReactions = Array.from(stampCountMap.entries()).map((
@@ -87,6 +113,7 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
   ) => ({
     stampId,
     count,
+    isUserReacted: userStampSet.has(stampId),
   }))
 
   const handleStampClick = (stampId: string) => {
@@ -95,10 +122,10 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
 
   return (
     <Group gap="xs">
-      {groupedReactions.map(({ stampId, count }) => (
+      {groupedReactions.map(({ stampId, count, isUserReacted }) => (
         <MessageFooterPill
           key={stampId}
-          style={{ cursor: "pointer" }}
+          isUserReacted={isUserReacted}
           onClick={() => handleStampClick(stampId)}
         >
           <Group align="center" gap="xs" h="100%" wrap="nowrap">
