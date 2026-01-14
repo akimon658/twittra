@@ -176,12 +176,10 @@ impl MessageRepository for MariaDbMessageRepository {
             .await
             .with_context(|| "could not fetch reactions")?;
 
-        let mut messaage_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
+        let mut message_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
 
         for reaction in reactions {
-            let entry = messaage_reaction_map
-                .entry(reaction.message_id)
-                .or_default();
+            let entry = message_reaction_map.entry(reaction.message_id).or_default();
 
             entry.push(reaction);
         }
@@ -189,7 +187,7 @@ impl MessageRepository for MariaDbMessageRepository {
         let messages = messages
             .into_iter()
             .map(|msg| {
-                let reactions = messaage_reaction_map.remove(&msg.id).unwrap_or_default();
+                let reactions = message_reaction_map.remove(&msg.id).unwrap_or_default();
 
                 MessageListItem::from(MessageRowWithReactions(msg, reactions))
             })
