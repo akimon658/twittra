@@ -119,3 +119,109 @@ impl UserRepository for MariaDbUserRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::get_test_infra;
+
+    async fn create_test_repo() -> Result<MariaDbUserRepository> {
+        let infra = get_test_infra().await?;
+        let pool = infra.create_test_database("user_repository").await?;
+        Ok(MariaDbUserRepository::new(pool))
+    }
+
+    #[tokio::test]
+    async fn test_save_and_find_user() {
+        let repo = create_test_repo().await.unwrap();
+
+        let user = User {
+            id: Uuid::new_v4(),
+            handle: "test_user".to_string(),
+            display_name: "Test User".to_string(),
+        };
+
+        // Save user
+        repo.save(&user).await.unwrap();
+
+        // Find user
+        let found = repo.find_by_id(&user.id).await.unwrap();
+
+        assert!(found.is_some());
+        let found = found.unwrap();
+        assert_eq!(found.id, user.id);
+        assert_eq!(found.handle, user.handle);
+        assert_eq!(found.display_name, user.display_name);
+    }
+
+    #[tokio::test]
+    async fn test_find_nonexistent_user() {
+        let repo = create_test_repo().await.unwrap();
+
+        let result = repo.find_by_id(&Uuid::new_v4()).await.unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_save_and_find_token() {
+        let repo = create_test_repo().await.unwrap();
+
+        let user_id = Uuid::new_v4();
+        let token = "test_access_token_12345";
+
+        // Save token
+        repo.save_token(&user_id, token).await.unwrap();
+
+        // Find token
+        let found = repo.find_token_by_user_id(&user_id).await.unwrap();
+
+        assert!(found.is_some());
+        assert_eq!(found.unwrap(), token);
+    }
+
+    #[tokio::test]
+    async fn test_update_token() {
+        let repo = create_test_repo().await.unwrap();
+
+        let user_id = Uuid::new_v4();
+        let token1 = "token_v1";
+        let token2 = "token_v2";
+
+        // Save original token
+        repo.save_token(&user_id, token1).await.unwrap();
+
+        // Update token
+        repo.save_token(&user_id, token2).await.unwrap();
+
+        // Verify update
+        let found = repo.find_token_by_user_id(&user_id).await.unwrap();
+        assert_eq!(found.unwrap(), token2);
+    }
+
+    #[tokio::test]
+    async fn test_find_random_valid_token_empty() {
+        let repo = create_test_repo().await.unwrap();
+
+        let result = repo.find_random_valid_token().await.unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_random_valid_token() {
+        let repo = create_test_repo().await.unwrap();
+
+        // Save some tokens
+        repo.save_token(&Uuid::new_v4(), "token1").await.unwrap();
+        repo.save_token(&Uuid::new_v4(), "token2").await.unwrap();
+        repo.save_token(&Uuid::new_v4(), "token3").await.unwrap();
+
+        // Find random token
+        let result = repo.find_random_valid_token().await.unwrap();
+
+        assert!(result.is_some());
+        let token = result.unwrap();
+        assert!(["token1", "token2", "token3"].contains(&token.as_str()));
+    }
+}
