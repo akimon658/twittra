@@ -19,6 +19,7 @@
     "@traptitech/traq-markdown-it": "npm:@traptitech/traq-markdown-it@^7.0.2",
     "@types/react": "npm:@types/react@^19.2.7",
     "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^5.1.2",
+    "babel-plugin-react-compiler": "npm:babel-plugin-react-compiler@^1.0.0",
     "orval": "npm:orval@^7.17.2",
     "react": "npm:react@^19.2.3",
     "react-dom": "npm:react-dom@^19.2.3",

@@ -18,7 +18,7 @@ const CSRF_STATE_KEY: &str = "oauth.csrf_state";
     ),
     tag = "auth",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn login(auth_session: AuthSession) -> impl IntoResponse {
     let (authorize_url, csrf_state) = auth_session.backend.authorize_url();
 

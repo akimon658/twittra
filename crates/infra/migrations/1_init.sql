@@ -26,3 +26,19 @@ CREATE TABLE messages (
 
   INDEX idx_created_at (created_at DESC)
 );
+
+CREATE TABLE reactions (
+  message_id BINARY(16) NOT NULL, -- UUID
+  stamp_id BINARY(16) NOT NULL, -- UUID
+  user_id BINARY(16) NOT NULL, -- UUID
+  stamp_count INT NOT NULL,
+
+  PRIMARY KEY (message_id, stamp_id, user_id),
+  CONSTRAINT fk_reactions_message FOREIGN KEY (message_id)
+    REFERENCES messages(id) ON DELETE CASCADE
+);
+
+CREATE TABLE stamps (
+  id BINARY(16) NOT NULL PRIMARY KEY, -- UUID
+  name VARCHAR(32) NOT NULL
+);

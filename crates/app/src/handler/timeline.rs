@@ -18,7 +18,7 @@ use crate::{handler::AppState, session::AuthSession};
     ),
     tag = "timeline",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn get_timeline(
     auth_session: AuthSession,
     State(state): State<AppState>,

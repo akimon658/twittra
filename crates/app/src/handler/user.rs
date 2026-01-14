@@ -24,13 +24,13 @@ use crate::{handler::AppState, session::AuthSession};
     ),
     tag = "user",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) -> impl IntoResponse {
     let user_id = match auth_session.user {
         Some(user) => user.id,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-    let user = match state.user_service.get_user_by_id(&user_id).await {
+    let user = match state.traq_service.get_user_by_id(&user_id).await {
         Ok(user) => user,
         Err(e) => {
             tracing::error!("{:?}", e);
@@ -59,7 +59,7 @@ pub async fn get_me(auth_session: AuthSession, State(state): State<AppState>) ->
     ),
     tag = "user",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip(auth_session, state))]
 pub async fn get_user_by_id(
     auth_session: AuthSession,
     State(state): State<AppState>,
@@ -69,7 +69,7 @@ pub async fn get_user_by_id(
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    let user = match state.user_service.get_user_by_id(&user_id).await {
+    let user = match state.traq_service.get_user_by_id(&user_id).await {
         Ok(user) => user,
         Err(e) => {
             tracing::error!("{:?}", e);
@@ -116,7 +116,7 @@ pub async fn get_user_icon(
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    let (icon, content_type) = match state.user_service.get_user_icon(&user_id).await {
+    let (icon, content_type) = match state.traq_service.get_user_icon(&user_id).await {
         Ok(icon) => icon,
         Err(e) => {
             tracing::error!("{:?}", e);

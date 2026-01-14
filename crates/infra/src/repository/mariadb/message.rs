@@ -1,9 +1,11 @@
-use anyhow::Result;
+use std::collections::HashMap;
+
+use anyhow::{Context, Result};
 use domain::{
-    model::{Message, MessageListItem, User},
+    model::{Message, MessageListItem, Reaction, User},
     repository::MessageRepository,
 };
-use sqlx::{MySqlPool, QueryBuilder};
+use sqlx::{MySql, MySqlPool, QueryBuilder, Transaction, prelude::FromRow};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -15,6 +17,34 @@ pub struct MariaDbMessageRepository {
 impl MariaDbMessageRepository {
     pub fn new(pool: MySqlPool) -> Self {
         Self { pool }
+    }
+
+    async fn save_reactions(
+        &self,
+        tx: &mut Transaction<'_, MySql>,
+        reactions: &[(Uuid, Reaction)],
+    ) -> Result<()> {
+        if reactions.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = QueryBuilder::new(
+            "INSERT INTO reactions (message_id, stamp_id, user_id, stamp_count) ",
+        );
+
+        query_builder.push_values(reactions, |mut separated, (msg_id, reaction)| {
+            separated
+                .push_bind(msg_id)
+                .push_bind(reaction.stamp_id)
+                .push_bind(reaction.user_id)
+                .push_bind(reaction.stamp_count);
+        });
+
+        query_builder.push(" ON DUPLICATE KEY UPDATE stamp_count=VALUE(stamp_count)");
+
+        query_builder.build().execute(&mut **tx).await?;
+
+        Ok(())
     }
 }
 
@@ -30,25 +60,46 @@ struct MessageRow {
     user_display_name: Option<String>,
 }
 
-impl From<MessageRow> for MessageListItem {
-    fn from(row: MessageRow) -> Self {
-        let user = match (row.user_handle, row.user_display_name) {
-            (Some(handle), Some(display_name)) => Some(User {
-                id: row.user_id,
-                handle,
-                display_name,
-            }),
-            _ => None,
-        };
+#[derive(FromRow)]
+struct ReactionRow {
+    message_id: Uuid,
+    stamp_id: Uuid,
+    user_id: Uuid,
+    stamp_count: i32,
+}
+
+impl From<ReactionRow> for Reaction {
+    fn from(row: ReactionRow) -> Self {
+        Reaction {
+            stamp_id: row.stamp_id,
+            user_id: row.user_id,
+            stamp_count: row.stamp_count,
+        }
+    }
+}
+
+struct MessageRowWithReactions(MessageRow, Vec<ReactionRow>);
+
+impl From<MessageRowWithReactions> for MessageListItem {
+    fn from(value: MessageRowWithReactions) -> Self {
+        let (row, reactions) = (value.0, value.1);
 
         MessageListItem {
             id: row.id,
             user_id: row.user_id,
-            user,
+            user: match (row.user_handle, row.user_display_name) {
+                (Some(handle), Some(display_name)) => Some(User {
+                    id: row.user_id,
+                    handle,
+                    display_name,
+                }),
+                _ => None,
+            },
             channel_id: row.channel_id,
             content: row.content,
             created_at: row.created_at,
             updated_at: row.updated_at,
+            reactions: reactions.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -93,10 +144,109 @@ impl MessageRepository for MariaDbMessageRepository {
             "#
         )
         .fetch_all(&self.pool)
-        .await?;
-        let messages = messages.into_iter().map(MessageListItem::from).collect();
+        .await
+        .with_context(|| "could not fetch recent messages")?;
+
+        if messages.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut query_builder = QueryBuilder::new(
+            r#"
+            SELECT
+                message_id,
+                stamp_id,
+                user_id,
+                stamp_count
+            FROM reactions
+            WHERE message_id IN (
+            "#,
+        );
+        let mut separated = query_builder.separated(", ");
+
+        for msg in &messages {
+            separated.push_bind(msg.id);
+        }
+
+        query_builder.push(")");
+
+        let reactions = query_builder
+            .build_query_as::<ReactionRow>()
+            .fetch_all(&self.pool)
+            .await
+            .with_context(|| "could not fetch reactions")?;
+
+        let mut message_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
+
+        for reaction in reactions {
+            let entry = message_reaction_map.entry(reaction.message_id).or_default();
+
+            entry.push(reaction);
+        }
+
+        let messages = messages
+            .into_iter()
+            .map(|msg| {
+                let reactions = message_reaction_map.remove(&msg.id).unwrap_or_default();
+
+                MessageListItem::from(MessageRowWithReactions(msg, reactions))
+            })
+            .collect();
 
         Ok(messages)
+    }
+
+    async fn remove_reaction(
+        &self,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        user_id: &Uuid,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"
+            DELETE FROM reactions
+            WHERE message_id = ? AND stamp_id = ? AND user_id = ?
+            "#,
+            message_id,
+            stamp_id,
+            user_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn save(&self, message: &Message) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)
+            "#,
+            message.id,
+            message.user_id,
+            message.channel_id,
+            message.content,
+            message.created_at,
+            message.updated_at
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        let reactions_data: Vec<_> = message
+            .reactions
+            .iter()
+            .map(|r| (message.id, r.clone()))
+            .collect();
+
+        self.save_reactions(&mut tx, &reactions_data).await?;
+
+        tx.commit().await?;
+
+        Ok(())
     }
 
     async fn save_batch(&self, messages: &[Message]) -> Result<()> {
@@ -104,6 +254,7 @@ impl MessageRepository for MariaDbMessageRepository {
             return Ok(());
         }
 
+        let mut tx = self.pool.begin().await?;
         let mut query_builder = QueryBuilder::new(
             "INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at) ",
         );
@@ -119,7 +270,20 @@ impl MessageRepository for MariaDbMessageRepository {
         });
         query_builder
             .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)");
-        query_builder.build().execute(&self.pool).await?;
+        query_builder.build().execute(&mut *tx).await?;
+
+        let reactions_data = messages
+            .iter()
+            .flat_map(|msg| {
+                msg.reactions
+                    .iter()
+                    .map(move |reaction| (msg.id, reaction.clone()))
+            })
+            .collect::<Vec<_>>();
+
+        self.save_reactions(&mut tx, &reactions_data).await?;
+
+        tx.commit().await?;
 
         Ok(())
     }

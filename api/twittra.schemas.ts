@@ -9,6 +9,7 @@ export interface MessageListItem {
   content: string
   createdAt: Date
   id: string
+  reactions: Reaction[]
   updatedAt: Date
   /** The user who posted the message.
 Omitted if the server hasn't cached the user info. */
@@ -16,8 +17,21 @@ Omitted if the server hasn't cached the user info. */
   userId: string
 }
 
+export interface Reaction {
+  stampCount: number
+  stampId: string
+  userId: string
+}
+
+export interface Stamp {
+  id: string
+  /** @maxLength 32 */
+  name: string
+}
+
 export interface User {
   displayName: string
+  /** @maxLength 32 */
   handle: string
   id: string
 }
@@ -31,4 +45,11 @@ export type OauthCallbackParams = {
    * The CSRF state returned by the OAuth2 provider.
    */
   state: string
+}
+
+export type GetStampsParams = {
+  /**
+   * Filter stamps by name
+   */
+  name?: string
 }

@@ -1,9 +1,10 @@
 use serde::Serialize;
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
-use traq::models::{self, MyUserDetail, UserDetail};
+use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[derive(Clone, Debug)]
 pub struct Message {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -11,6 +12,7 @@ pub struct Message {
     pub content: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub reactions: Vec<Reaction>,
 }
 
 impl TryFrom<models::Message> for Message {
@@ -24,6 +26,7 @@ impl TryFrom<models::Message> for Message {
             content: value.content,
             created_at: OffsetDateTime::parse(&value.created_at, &Rfc3339)?,
             updated_at: OffsetDateTime::parse(&value.updated_at, &Rfc3339)?,
+            reactions: value.stamps.into_iter().map(Reaction::from).collect(),
         })
     }
 }
@@ -44,12 +47,58 @@ pub struct MessageListItem {
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
+    pub reactions: Vec<Reaction>,
+}
+
+#[derive(Clone, Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Reaction {
+    pub stamp_id: Uuid,
+    pub user_id: Uuid,
+    pub stamp_count: i32,
+}
+
+impl From<MessageStamp> for Reaction {
+    fn from(value: MessageStamp) -> Self {
+        Reaction {
+            stamp_id: value.stamp_id,
+            user_id: value.user_id,
+            stamp_count: value.count,
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Stamp {
+    pub id: Uuid,
+    #[schema(max_length = 32)]
+    pub name: String,
+}
+
+impl From<models::Stamp> for Stamp {
+    fn from(value: models::Stamp) -> Self {
+        Stamp {
+            id: value.id,
+            name: value.name,
+        }
+    }
+}
+
+impl From<StampWithThumbnail> for Stamp {
+    fn from(value: StampWithThumbnail) -> Self {
+        Stamp {
+            id: value.id,
+            name: value.name,
+        }
+    }
 }
 
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,
+    #[schema(max_length = 32)]
     pub handle: String,
     pub display_name: String,
 }

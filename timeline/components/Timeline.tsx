@@ -1,5 +1,18 @@
-import { Group, Paper, Skeleton, Stack } from "@mantine/core"
+import {
+  Alert,
+  Button,
+  Center,
+  Container,
+  Group,
+  Paper,
+  Skeleton,
+  Stack,
+  Text,
+} from "@mantine/core"
+import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
+import { QueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
+import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { useGetTimelineSuspense } from "../../api/timeline/timeline.ts"
 import { MessageItem } from "./Message.tsx"
 
@@ -13,7 +26,7 @@ const TimelineContent = () => {
   )
 }
 
-const TimelineFallback = () => {
+const LoadingFallback = () => {
   return (
     <Stack
       h="calc(100dvh - var(--mantine-spacing-md))"
@@ -42,10 +55,43 @@ const TimelineFallback = () => {
   )
 }
 
+const ErrorFallback = ({ resetErrorBoundary }: FallbackProps) => {
+  return (
+    <Container>
+      <Center>
+        <Alert
+          color="red"
+          icon={<IconExclamationCircle />}
+          title="エラー"
+        >
+          <Stack>
+            <Text>
+              タイムラインの読み込みに失敗しました。
+            </Text>
+
+            <Button
+              leftSection={<IconReload size={20} />}
+              onClick={resetErrorBoundary}
+            >
+              再読み込み
+            </Button>
+          </Stack>
+        </Alert>
+      </Center>
+    </Container>
+  )
+}
+
 export const Timeline = () => {
   return (
-    <Suspense fallback={<TimelineFallback />}>
-      <TimelineContent />
-    </Suspense>
+    <QueryErrorResetBoundary>
+      {({ reset }) => (
+        <ErrorBoundary fallbackRender={ErrorFallback} onReset={reset}>
+          <Suspense fallback={<LoadingFallback />}>
+            <TimelineContent />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+    </QueryErrorResetBoundary>
   )
 }
