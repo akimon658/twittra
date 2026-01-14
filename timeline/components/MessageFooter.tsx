@@ -141,7 +141,7 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
       // User already reacted, so remove the stamp
       removeStamp({ messageId, stampId })
     } else {
-      // User haven't reacted, so add the stamp
+      // User hasn't reacted, so add the stamp
       addStamp({ messageId, stampId })
     }
   }
