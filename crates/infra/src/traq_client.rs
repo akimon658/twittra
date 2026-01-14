@@ -64,6 +64,7 @@ impl TraqClient for TraqClientImpl {
 
     async fn get_stamp(&self, token: &str, stamp_id: &Uuid) -> Result<domain::model::Stamp> {
         let config = Configuration {
+            base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
