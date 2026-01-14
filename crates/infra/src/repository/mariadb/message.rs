@@ -288,3 +288,146 @@ impl MessageRepository for MariaDbMessageRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::get_test_infra;
+    use domain::model::Message;
+    use time::OffsetDateTime;
+
+    async fn create_test_repo() -> Result<MariaDbMessageRepository> {
+        let infra = get_test_infra().await?;
+        let pool = infra.create_test_database("message_repository").await?;
+        Ok(MariaDbMessageRepository::new(pool))
+    }
+
+    #[tokio::test]
+    async fn test_save_and_find_message() {
+        let repo = create_test_repo().await.unwrap();
+
+        // Create a test message
+        let message = Message {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            channel_id: Uuid::new_v4(),
+            content: "Test message".to_string(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
+            reactions: vec![],
+        };
+
+        // Save the message
+        repo.save(&message).await.unwrap();
+
+        // Find recent messages
+        let messages = repo.find_recent_messages().await.unwrap();
+
+        // Verify
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, message.id);
+        assert_eq!(messages[0].content, message.content);
+    }
+
+    #[tokio::test]
+    async fn test_save_message_with_reactions() {
+        let repo = create_test_repo().await.unwrap();
+
+        let reaction = Reaction {
+            stamp_id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            stamp_count: 1,
+        };
+
+        let message = Message {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            channel_id: Uuid::new_v4(),
+            content: "Message with reaction".to_string(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
+            reactions: vec![reaction.clone()],
+        };
+
+        repo.save(&message).await.unwrap();
+
+        let messages = repo.find_recent_messages().await.unwrap();
+
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].reactions.len(), 1);
+        assert_eq!(messages[0].reactions[0].stamp_id, reaction.stamp_id);
+        assert_eq!(messages[0].reactions[0].stamp_count, reaction.stamp_count);
+    }
+
+    #[tokio::test]
+    async fn test_remove_reaction() {
+        let repo = create_test_repo().await.unwrap();
+
+        let message_id = Uuid::new_v4();
+        let stamp_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+
+        let reaction = Reaction {
+            stamp_id,
+            user_id,
+            stamp_count: 1,
+        };
+
+        let message = Message {
+            id: message_id,
+            user_id: Uuid::new_v4(),
+            channel_id: Uuid::new_v4(),
+            content: "Message with reaction".to_string(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
+            reactions: vec![reaction],
+        };
+
+        // Save with reaction
+        repo.save(&message).await.unwrap();
+
+        // Verify reaction exists
+        let messages = repo.find_recent_messages().await.unwrap();
+        assert_eq!(messages[0].reactions.len(), 1);
+
+        // Remove reaction
+        repo.remove_reaction(&message_id, &stamp_id, &user_id)
+            .await
+            .unwrap();
+
+        // Verify reaction is removed
+        let messages = repo.find_recent_messages().await.unwrap();
+        assert_eq!(messages[0].reactions.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_save_batch() {
+        let repo = create_test_repo().await.unwrap();
+
+        let messages = vec![
+            Message {
+                id: Uuid::new_v4(),
+                user_id: Uuid::new_v4(),
+                channel_id: Uuid::new_v4(),
+                content: "Message 1".to_string(),
+                created_at: OffsetDateTime::now_utc(),
+                updated_at: OffsetDateTime::now_utc(),
+                reactions: vec![],
+            },
+            Message {
+                id: Uuid::new_v4(),
+                user_id: Uuid::new_v4(),
+                channel_id: Uuid::new_v4(),
+                content: "Message 2".to_string(),
+                created_at: OffsetDateTime::now_utc(),
+                updated_at: OffsetDateTime::now_utc(),
+                reactions: vec![],
+            },
+        ];
+
+        repo.save_batch(&messages).await.unwrap();
+
+        let saved_messages = repo.find_recent_messages().await.unwrap();
+        assert_eq!(saved_messages.len(), 2);
+    }
+}

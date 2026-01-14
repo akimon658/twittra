@@ -10,5 +10,9 @@ domain = { path = "../domain" }
 fastrand = { workspace = true }
 sqlx = { workspace = true }
 time = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 traq = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+testcontainers = { workspace = true, features = ["docker-compose"] }

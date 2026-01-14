@@ -28,5 +28,11 @@ utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", default-features = false, features = ["axum", "vendored"] }
 uuid = { version = "1.19.0", features = ["serde"] }
 
+# Test dependencies
+mockall = "0.14.0"
+testcontainers = "0.26.3"
+httpmock = "0.8.2"
+tower = "0.5.3"
+
 [patch.crates-io]
 traq = { git = "https://github.com/akimon658/rust-traq.git", branch = "patch/stamp-recommend-and-delete-webhook-messages" }
