@@ -79,7 +79,7 @@ pub async fn get_stamp_by_id(
     ),
     tag = "stamp",
 )]
-#[tracing::instrument]
+#[tracing::instrument(skip(auth_session, state))]
 pub async fn get_stamp_image(
     auth_session: AuthSession,
     State(state): State<AppState>,
