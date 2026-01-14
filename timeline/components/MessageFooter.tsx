@@ -10,11 +10,14 @@ import {
 import { IconPlus } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { useUser } from "../../auth/hooks/useUser.ts"
-import { useAddMessageStamp, useRemoveMessageStamp } from "../../api/message/message.ts"
+import {
+  useAddMessageStamp,
+  useRemoveMessageStamp,
+} from "../../api/message/message.ts"
 import { getGetStampImageUrl, getStamps } from "../../api/stamp/stamp.ts"
 import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
+import { useUser } from "../../auth/hooks/useUser.ts"
 
 interface StampProps {
   stampId: string
@@ -45,10 +48,15 @@ interface MessageFooterPillProps extends Omit<PillProps, "size"> {
 /**
  * A pill with custom styles for message footer reactions.
  */
-const MessageFooterPill = ({ children, isUserReacted = false, ...props }: MessageFooterPillProps) => {
-  const defaultBg = "light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))"
-  const activeBg = "light-dark(var(--mantine-color-blue-1), var(--mantine-color-blue-9))"
-  const hoverBg = "light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5))"
+const MessageFooterPill = (
+  { children, isUserReacted = false, ...props }: MessageFooterPillProps,
+) => {
+  const defaultBg =
+    "light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))"
+  const activeBg =
+    "light-dark(var(--mantine-color-blue-1), var(--mantine-color-blue-9))"
+  const hoverBg =
+    "light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5))"
 
   return (
     <Pill
@@ -139,7 +147,9 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
   }
 
   const handleAddStampClick = async () => {
-    const stampName = window.prompt("スタンプ名を入力してください (例: eyes, thumbsup, heart)")
+    const stampName = globalThis.prompt(
+      "スタンプ名を入力してください (例: eyes, thumbsup, heart)",
+    )
 
     if (!stampName) {
       // User cancelled or entered nothing

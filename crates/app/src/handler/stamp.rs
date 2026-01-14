@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State, Query},
+    extract::{Path, Query, State},
     response::IntoResponse,
 };
 use domain::model::Stamp;
