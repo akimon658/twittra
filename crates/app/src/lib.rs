@@ -31,6 +31,8 @@ mod handler;
 #[cfg(test)]
 pub mod mocks;
 mod session;
+#[cfg(test)]
+pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
 

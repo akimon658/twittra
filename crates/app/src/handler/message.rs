@@ -92,14 +92,12 @@ mod tests {
     use super::*;
     use crate::handler::AppState;
     use crate::mocks::{MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository};
-    use crate::session::{AuthSession, Backend, UserSession};
+    use crate::session::{AuthSession, UserSession};
+    use crate::test_helpers::create_test_backend;
     use axum::{Router, body::Body, http::Request};
     use domain::{
         model::User,
         repository::Repository,
-    };
-    use oauth2::{
-        basic::BasicClient, AuthUrl, ClientId, ClientSecret, TokenUrl,
     };
     use std::sync::Arc;
     use tower::ServiceExt;
@@ -119,16 +117,7 @@ mod tests {
         let traq_client = Arc::new(mock_traq_client);
         let state = AppState::new(repo, traq_client);
 
-        let client_id = ClientId::new("dummy_id".to_string());
-        let client_secret = Some(ClientSecret::new("dummy_secret".to_string()));
-        let auth_url = AuthUrl::new("http://dummy".to_string()).unwrap();
-        let token_url = Some(TokenUrl::new("http://dummy".to_string()).unwrap());
-
-        let oauth_client = BasicClient::new(client_id)
-            .set_client_secret(client_secret.unwrap())
-            .set_auth_uri(auth_url)
-            .set_token_uri(token_url.unwrap());
-        let backend = Backend::new(oauth_client, "http://dummy".to_string(), mock_user_repo_arc);
+        let backend = create_test_backend(mock_user_repo_arc);
 
         let session_layer = tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
         let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();

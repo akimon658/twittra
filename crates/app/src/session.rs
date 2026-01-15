@@ -45,7 +45,7 @@ impl AuthUser for UserSession {
     }
 }
 
-type BasicClientSet =
+pub type BasicClientSet =
     BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 
 #[derive(Clone, Debug)]
