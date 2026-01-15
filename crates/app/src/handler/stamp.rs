@@ -206,33 +206,17 @@ mod tests {
         let mut mock_traq_client = MockTraqClient::new();
         let mut mock_user_repo = MockUserRepository::new();
         
-        let stamps = vec![
-            Stamp { id: Uuid::now_v7(), name: "stamp1".to_string() },
-        ];
+        let stamp = crate::test_factories::create_stamp();
+        let stamps = vec![stamp.clone()];
         
         // Service::get_stamps needs a token
         mock_user_repo.expect_find_random_valid_token().returning(|| Ok(Some("token".into())));
-        
-        // Service::get_stamps checks repo first then API (Wait, TraqService gets token FIRST then API. It doesn't check stamp repo for ALL stamps? 
-        // Logic: `self.traq_client.get_stamps(&token).await?;` then `save_batch`.
-        // It does NOT check `repo.find_all()` or similar.
-        // Wait, `TraqService::get_stamps` implementation I read earlier:
-        /*
-        pub async fn get_stamps(&self) -> Result<Vec<Stamp>> {
-            let token = ...;
-            let stamps = self.traq_client.get_stamps(&token).await?;
-            self.repo.stamp.save_batch(&stamps).await?;
-            Ok(stamps)
-        }
-        */
-        // So `mock_stamp_repo.expect_find_all()` is NOT needed and will fail!
-        // Good catch. Removing expect_find_all.
         
         let stamps_clone = stamps.clone();
         mock_traq_client.expect_get_stamps().returning(move |_| Ok(stamps_clone.clone()));
         mock_stamp_repo.expect_save_batch().returning(|_| Ok(()));
 
-        let user = User { id: Uuid::now_v7(), handle: "me".to_string(), display_name: "Me".to_string() };
+        let user = crate::test_factories::create_user();
         let app = create_app(mock_stamp_repo, mock_traq_client, mock_user_repo, Some(user.clone()));
 
         // Login

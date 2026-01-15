@@ -143,7 +143,8 @@ mod tests {
         let mut mock_traq_client = MockTraqClient::new();
         let mut mock_message_repo = MockMessageRepository::new();
         
-        let user_id = Uuid::now_v7();
+        let user = crate::test_factories::create_user();
+        let user_id = user.id;
         let message_id = Uuid::now_v7();
         let stamp_id = Uuid::now_v7();
 
@@ -179,7 +180,6 @@ mod tests {
             .times(1)
             .returning(|_, _, _, _| Ok(()));
 
-        let user = User { id: user_id, handle: "test".to_string(), display_name: "Test".to_string() };
         let app = create_app(mock_message_repo, mock_user_repo, mock_traq_client, Some(user.clone()));
 
         // Login

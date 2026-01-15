@@ -33,6 +33,8 @@ pub mod mocks;
 mod session;
 #[cfg(test)]
 pub mod test_helpers;
+#[cfg(test)]
+pub mod test_factories;
 
 const API_ROOT: &str = "/api/v1";
 

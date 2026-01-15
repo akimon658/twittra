@@ -35,3 +35,5 @@ uuid = { workspace = true }
 httpmock = { workspace = true }
 mockall = "0.14.0"
 tower = { workspace = true }
+fake = { workspace = true, features = ["uuid", "chrono"] }
+rand = { workspace = true }

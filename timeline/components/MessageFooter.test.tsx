@@ -1,21 +1,31 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, beforeEach } from "vitest"
 import { MessageFooter } from "./MessageFooter"
 import { renderWithProviders, screen, userEvent, waitFor } from "../../test/utils"
 import type { Reaction } from "../../api/twittra.schemas"
+import { createMockReaction } from "../../test/factories"
 
 describe("MessageFooter", () => {
-    const mockReactions: Reaction[] = [
-        { stampId: "stamp1", userId: "user1", stampCount: 5 },
-        { stampId: "stamp2", userId: "user2", stampCount: 2 },
-    ]
+    let mockReactions: Reaction[]
+    let reaction1Count: number
+    let reaction2Count: number
+
+    beforeEach(() => {
+        // Generate fresh random data for each test
+        reaction1Count = 5
+        reaction2Count = 2
+        mockReactions = [
+            createMockReaction({ stampCount: reaction1Count }),
+            createMockReaction({ stampCount: reaction2Count }),
+        ]
+    })
 
     it("displays existing reactions correctly", () => {
         renderWithProviders(
             <MessageFooter messageId="msg1" reactions={mockReactions} />,
         )
 
-        expect(screen.getByText("5")).toBeInTheDocument()
-        expect(screen.getByText("2")).toBeInTheDocument()
+        expect(screen.getByText(reaction1Count.toString())).toBeInTheDocument()
+        expect(screen.getByText(reaction2Count.toString())).toBeInTheDocument()
     })
 
     it("renders with no reactions", () => {
@@ -42,22 +52,26 @@ describe("MessageFooter", () => {
 
             // Verify the component is still rendered
             await waitFor(() => {
-                expect(screen.getByText("5")).toBeInTheDocument()
+                expect(screen.getByText(reaction1Count.toString())).toBeInTheDocument()
             })
         }
     })
 
     it("groups reactions by stamp", () => {
+        const count1 = 3
+        const count2 = 2
+        const sameStampId = "same-stamp-id"
         const duplicateReactions: Reaction[] = [
-            { stampId: "stamp1", userId: "user1", stampCount: 3 },
-            { stampId: "stamp1", userId: "user2", stampCount: 2 },
+            createMockReaction({ stampId: sameStampId, stampCount: count1 }),
+            createMockReaction({ stampId: sameStampId, stampCount: count2 }),
         ]
 
         renderWithProviders(
             <MessageFooter messageId="msg1" reactions={duplicateReactions} />,
         )
 
-        // Reactions with same stampId are grouped and counts are summed (3 + 2 = 5)
-        expect(screen.getByText("5")).toBeInTheDocument()
+        // Reactions with same stampId are grouped and counts are summed
+        const totalCount = count1 + count2
+        expect(screen.getByText(totalCount.toString())).toBeInTheDocument()
     })
 })

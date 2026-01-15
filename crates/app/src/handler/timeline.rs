@@ -97,11 +97,7 @@ mod tests {
             .times(1)
             .returning(|| Ok(vec![]));
 
-        let user = User {
-            id: Uuid::now_v7(),
-            handle: "test".to_string(),
-            display_name: "Test".to_string(),
-        };
+        let user = crate::test_factories::create_user();
 
         let app = create_app(mock_message_repo, Some(user.clone()));
 

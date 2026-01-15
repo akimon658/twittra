@@ -6,18 +6,12 @@ import { worker } from "./setup"
 import { http, HttpResponse } from "msw"
 import { UserContext } from "../auth/context/user"
 import type { User } from "../api/twittra.schemas"
-
-// Default mock user for tests
-const defaultMockUser: User = {
-    id: "test-user-id",
-    handle: "testuser",
-    displayName: "Test User",
-}
+import { createMockUser } from "./factories"
 
 // Custom render with all providers
 export function renderWithProviders(
     ui: ReactElement,
-    { user = defaultMockUser }: { user?: User } = {},
+    { user = createMockUser() }: { user?: User } = {},
 ) {
     const queryClient = new QueryClient({
         defaultOptions: {

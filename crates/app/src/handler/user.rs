@@ -179,12 +179,8 @@ mod tests {
     #[tokio::test]
     async fn test_get_me_success() {
         let mut mock_user_repo = MockUserRepository::new();
-        let user_id = Uuid::now_v7();
-        let user = User {
-            id: user_id,
-            handle: "me".to_string(),
-            display_name: "Me".to_string(),
-        };
+        let user = crate::test_factories::create_user();
+        let user_id = user.id;
 
         // get_me calls get_user_by_id in service
         // Service first checks cache (user repo)
