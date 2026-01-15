@@ -13,3 +13,11 @@ time = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 traq = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+testcontainers = { version = "0.26", features = ["docker-compose"] }
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+serde_json = "1.0"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+oauth2 = { workspace = true }
+url = "2.5"
