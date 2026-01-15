@@ -75,96 +75,97 @@ impl StampRepository for MariaDbStampRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::get_test_infra;
 
-    async fn create_test_repo() -> Result<MariaDbStampRepository> {
-        let infra = get_test_infra().await?;
-        let pool = infra.create_test_database("stamp_repository").await?;
-        Ok(MariaDbStampRepository::new(pool))
-    }
-
-    #[tokio::test]
-    async fn test_save_and_find_stamp() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_save_and_find_stamp(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbStampRepository::new(pool);
 
         let stamp = Stamp {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             name: "test_stamp".to_string(),
         };
 
         // Save stamp
-        repo.save(&stamp).await.unwrap();
+        repo.save(&stamp).await?;
 
         // Find stamp
-        let found = repo.find_by_id(&stamp.id).await.unwrap();
+        let found = repo.find_by_id(&stamp.id).await?;
 
         assert!(found.is_some());
         let found = found.unwrap();
         assert_eq!(found.id, stamp.id);
         assert_eq!(found.name, stamp.name);
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_find_nonexistent_stamp() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_find_nonexistent_stamp(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbStampRepository::new(pool);
 
-        let result = repo.find_by_id(&Uuid::new_v4()).await.unwrap();
+        let result = repo.find_by_id(&Uuid::now_v7()).await?;
 
         assert!(result.is_none());
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_save_batch() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_save_batch(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbStampRepository::new(pool);
 
         let stamps = vec![
             Stamp {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 name: "stamp1".to_string(),
             },
             Stamp {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 name: "stamp2".to_string(),
             },
             Stamp {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 name: "stamp3".to_string(),
             },
         ];
 
         // Save batch
-        repo.save_batch(&stamps).await.unwrap();
+        repo.save_batch(&stamps).await?;
 
         // Verify all stamps were saved
         for stamp in &stamps {
-            let found = repo.find_by_id(&stamp.id).await.unwrap();
+            let found = repo.find_by_id(&stamp.id).await?;
             assert!(found.is_some());
             assert_eq!(found.unwrap().name, stamp.name);
         }
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_update_stamp() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_update_stamp(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbStampRepository::new(pool);
 
-        let stamp_id = Uuid::new_v4();
+        let stamp_id = Uuid::now_v7();
         let stamp_v1 = Stamp {
             id: stamp_id,
             name: "original_name".to_string(),
         };
 
         // Save original
-        repo.save(&stamp_v1).await.unwrap();
+        repo.save(&stamp_v1).await?;
 
         // Update
         let stamp_v2 = Stamp {
             id: stamp_id,
             name: "updated_name".to_string(),
         };
-        repo.save(&stamp_v2).await.unwrap();
+        repo.save(&stamp_v2).await?;
 
         // Verify update
-        let found = repo.find_by_id(&stamp_id).await.unwrap().unwrap();
+        let found = repo.find_by_id(&stamp_id).await?.unwrap();
         assert_eq!(found.name, "updated_name");
+        
+        Ok(())
     }
 }

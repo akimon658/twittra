@@ -123,105 +123,137 @@ impl UserRepository for MariaDbUserRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::get_test_infra;
 
-    async fn create_test_repo() -> Result<MariaDbUserRepository> {
-        let infra = get_test_infra().await?;
-        let pool = infra.create_test_database("user_repository").await?;
-        Ok(MariaDbUserRepository::new(pool))
-    }
-
-    #[tokio::test]
-    async fn test_save_and_find_user() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_save_and_find_user(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbUserRepository::new(pool);
 
         let user = User {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             handle: "test_user".to_string(),
             display_name: "Test User".to_string(),
         };
 
         // Save user
-        repo.save(&user).await.unwrap();
+        repo.save(&user).await?;
 
         // Find user
-        let found = repo.find_by_id(&user.id).await.unwrap();
+        let found = repo.find_by_id(&user.id).await?;
 
         assert!(found.is_some());
         let found = found.unwrap();
         assert_eq!(found.id, user.id);
         assert_eq!(found.handle, user.handle);
         assert_eq!(found.display_name, user.display_name);
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_find_nonexistent_user() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_find_nonexistent_user(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbUserRepository::new(pool);
 
-        let result = repo.find_by_id(&Uuid::new_v4()).await.unwrap();
+        let result = repo.find_by_id(&Uuid::now_v7()).await?;
 
         assert!(result.is_none());
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_save_and_find_token() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_save_and_find_token(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbUserRepository::new(pool);
 
-        let user_id = Uuid::new_v4();
+        let user_id = Uuid::now_v7();
         let token = "test_access_token_12345";
 
+        // Create user first (FK constraint)
+        let user = User {
+            id: user_id,
+            handle: "test_user".to_string(),
+            display_name: "Test User".to_string(),
+        };
+        repo.save(&user).await?;
+
         // Save token
-        repo.save_token(&user_id, token).await.unwrap();
+        repo.save_token(&user_id, token).await?;
 
         // Find token
-        let found = repo.find_token_by_user_id(&user_id).await.unwrap();
+        let found = repo.find_token_by_user_id(&user_id).await?;
 
         assert!(found.is_some());
         assert_eq!(found.unwrap(), token);
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_update_token() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_update_token(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbUserRepository::new(pool);
 
-        let user_id = Uuid::new_v4();
+        let user_id = Uuid::now_v7();
         let token1 = "token_v1";
         let token2 = "token_v2";
 
+        // Create user first (FK constraint)
+        let user = User {
+            id: user_id,
+            handle: "test_user".to_string(),
+            display_name: "Test User".to_string(),
+        };
+        repo.save(&user).await?;
+
         // Save original token
-        repo.save_token(&user_id, token1).await.unwrap();
+        repo.save_token(&user_id, token1).await?;
 
         // Update token
-        repo.save_token(&user_id, token2).await.unwrap();
+        repo.save_token(&user_id, token2).await?;
 
         // Verify update
-        let found = repo.find_token_by_user_id(&user_id).await.unwrap();
+        let found = repo.find_token_by_user_id(&user_id).await?;
         assert_eq!(found.unwrap(), token2);
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_find_random_valid_token_empty() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_find_random_valid_token_empty(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbUserRepository::new(pool);
 
-        let result = repo.find_random_valid_token().await.unwrap();
+        let result = repo.find_random_valid_token().await?;
 
         assert!(result.is_none());
+        
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_find_random_valid_token() {
-        let repo = create_test_repo().await.unwrap();
+    #[sqlx::test]
+    async fn test_find_random_valid_token(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+        let repo = MariaDbUserRepository::new(pool);
+
+        // Create users first (FK constraint)
+        let user_ids = vec![Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7()];
+        for (i, user_id) in user_ids.iter().enumerate() {
+            let user = User {
+                id: *user_id,
+                handle: format!("test_user_{}", i),
+                display_name: format!("Test User {}", i),
+            };
+            repo.save(&user).await?;
+        }
 
         // Save some tokens
-        repo.save_token(&Uuid::new_v4(), "token1").await.unwrap();
-        repo.save_token(&Uuid::new_v4(), "token2").await.unwrap();
-        repo.save_token(&Uuid::new_v4(), "token3").await.unwrap();
+        repo.save_token(&user_ids[0], "token1").await?;
+        repo.save_token(&user_ids[1], "token2").await?;
+        repo.save_token(&user_ids[2], "token3").await?;
 
         // Find random token
-        let result = repo.find_random_valid_token().await.unwrap();
+        let result = repo.find_random_valid_token().await?;
 
         assert!(result.is_some());
         let token = result.unwrap();
         assert!(["token1", "token2", "token3"].contains(&token.as_str()));
+        
+        Ok(())
     }
 }
