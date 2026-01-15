@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 import { MessageFooter } from "./MessageFooter"
 import { renderWithProviders, screen, userEvent, waitFor } from "../../test/utils"
 import type { Reaction } from "../../api/twittra.schemas"
@@ -19,28 +19,30 @@ describe("MessageFooter", () => {
     })
 
     it("renders with no reactions", () => {
-        renderWithProviders(<MessageFooter messageId="msg1" reactions={[]} />)
+        const { container } = renderWithProviders(
+            <MessageFooter messageId="msg1" reactions={[]} />,
+        )
 
         // Should render the component without errors
-        const footer = screen.getByRole("group")
-        expect(footer).toBeInTheDocument()
+        // Check for the add reaction button (plus icon)
+        const addButton = container.querySelector('[data-variant="default"]')
+        expect(addButton).toBeInTheDocument()
     })
 
     it("handles reaction click", async () => {
         const user = userEvent.setup()
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <MessageFooter messageId="msg1" reactions={mockReactions} />,
         )
 
-        // Find and click a reaction pill
-        const reactionPills = screen.getAllByRole("button")
+        // Find reaction pills (they have cursor: pointer style)
+        const reactionPills = container.querySelectorAll('[style*="cursor: pointer"]')
         if (reactionPills.length > 0) {
-            await user.click(reactionPills[0])
+            await user.click(reactionPills[0] as Element)
 
-            // Verify the click was handled (mutation should be triggered)
+            // Verify the component is still rendered
             await waitFor(() => {
-                // The component should still be rendered
-                expect(screen.getByRole("group")).toBeInTheDocument()
+                expect(screen.getByText("5")).toBeInTheDocument()
             })
         }
     })
@@ -55,8 +57,7 @@ describe("MessageFooter", () => {
             <MessageFooter messageId="msg1" reactions={duplicateReactions} />,
         )
 
-        // Should display combined count
-        expect(screen.getByText("3")).toBeInTheDocument()
-        expect(screen.getByText("2")).toBeInTheDocument()
+        // Reactions with same stampId are grouped and counts are summed (3 + 2 = 5)
+        expect(screen.getByText("5")).toBeInTheDocument()
     })
 })

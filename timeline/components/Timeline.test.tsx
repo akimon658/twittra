@@ -19,10 +19,10 @@ describe("Timeline", () => {
     })
 
     it("shows loading state initially", () => {
-        renderWithProviders(<Timeline />)
+        const { container } = renderWithProviders(<Timeline />)
 
-        // Should show skeleton loaders
-        const skeletons = screen.getAllByRole("group")
+        // Should show skeleton loaders (they have data-visible="true")
+        const skeletons = container.querySelectorAll('[data-visible="true"]')
         expect(skeletons.length).toBeGreaterThan(0)
     })
 
@@ -30,13 +30,13 @@ describe("Timeline", () => {
         // Override default mock to return error
         mockApiError("/api/v1/timeline", 500)
 
-        renderWithProviders(<Timeline />)
+        const { container } = renderWithProviders(<Timeline />)
 
         await waitFor(
             () => {
-                // Check for error message or empty state
-                const container = screen.getByRole("main")
-                expect(container).toBeInTheDocument()
+                // Check for error alert (Mantine Alert component)
+                const alert = container.querySelector('[class*="Alert"]')
+                expect(alert).toBeInTheDocument()
             },
             { timeout: 3000 },
         )
