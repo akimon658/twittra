@@ -1,9 +1,7 @@
 import { faker } from "@faker-js/faker"
 import type { User, Reaction, MessageListItem } from "../api/twittra.schemas"
 
-/**
- * Create a mock user with random data
- */
+/** Creates a mock user for testing */
 export function createMockUser(overrides?: Partial<User>): User {
     return {
         id: faker.string.uuid(),
@@ -13,9 +11,7 @@ export function createMockUser(overrides?: Partial<User>): User {
     }
 }
 
-/**
- * Create a mock reaction with random data
- */
+/** Creates a mock reaction for testing */
 export function createMockReaction(overrides?: Partial<Reaction>): Reaction {
     return {
         stampId: faker.string.uuid(),
@@ -25,9 +21,7 @@ export function createMockReaction(overrides?: Partial<Reaction>): Reaction {
     }
 }
 
-/**
- * Create a mock message with random data
- */
+/** Creates a mock message for testing */
 export function createMockMessage(
     overrides?: Partial<MessageListItem>,
 ): MessageListItem {
