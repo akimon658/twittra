@@ -125,5 +125,102 @@ pub async fn get_user_icon(
         }
     };
 
+    
     ([(http::header::CONTENT_TYPE, content_type)], icon).into_response()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::handler::AppState;
+    use crate::mocks::{MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository};
+    use crate::session::{AuthSession, Backend, UserSession};
+    use axum::{Router, body::Body, http::Request};
+    use domain::repository::Repository;
+    use oauth2::{
+        basic::BasicClient, AuthUrl, ClientId, ClientSecret, TokenUrl,
+    };
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    fn create_app(
+        mock_user_repo: MockUserRepository,
+        mock_traq_client: MockTraqClient,
+        user: Option<User>,
+    ) -> Router {
+        let mock_user_repo_arc = Arc::new(mock_user_repo);
+        let repo = Repository {
+            message: Arc::new(MockMessageRepository::new()),
+            stamp: Arc::new(MockStampRepository::new()),
+            user: mock_user_repo_arc.clone(),
+        };
+        let traq_client = Arc::new(mock_traq_client);
+        let state = AppState::new(repo, traq_client);
+
+        let client_id = ClientId::new("dummy_id".to_string());
+        let client_secret = Some(ClientSecret::new("dummy_secret".to_string()));
+        let auth_url = AuthUrl::new("http://dummy".to_string()).unwrap();
+        let token_url = Some(TokenUrl::new("http://dummy".to_string()).unwrap());
+
+        let oauth_client = BasicClient::new(client_id)
+            .set_client_secret(client_secret.unwrap())
+            .set_auth_uri(auth_url)
+            .set_token_uri(token_url.unwrap());
+        let backend = Backend::new(oauth_client, "http://dummy".to_string(), mock_user_repo_arc);
+
+        let session_layer = tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
+        let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
+
+        Router::new()
+            .route("/me", axum::routing::get(get_me))
+            .route("/users/{userId}", axum::routing::get(get_user_by_id))
+            .route("/users/{userId}/icon", axum::routing::get(get_user_icon))
+            .route("/login", axum::routing::post(|mut auth: AuthSession| async move {
+                 if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
+                     auth.login(&user_session).await.unwrap();
+                     StatusCode::OK
+                 } else {
+                     StatusCode::UNAUTHORIZED
+                 }
+            }))
+            .layer(auth_layer)
+            .with_state(state)
+    }
+
+    #[tokio::test]
+    async fn test_get_me_success() {
+        let mut mock_user_repo = MockUserRepository::new();
+        let user_id = Uuid::now_v7();
+        let user = User {
+            id: user_id,
+            handle: "me".to_string(),
+            display_name: "Me".to_string(),
+        };
+
+        // get_me calls get_user_by_id in service
+        // Service first checks cache (user repo)
+        let user_clone = user.clone();
+        mock_user_repo
+            .expect_find_by_id()
+            .with(mockall::predicate::eq(user_id))
+            .times(1)
+            .returning(move |_| Ok(Some(user_clone.clone())));
+
+        let app = create_app(mock_user_repo, MockTraqClient::new(), Some(user.clone()));
+
+        // Login
+        let login_req = Request::builder().uri("/login").method("POST").body(Body::empty()).unwrap();
+        let login_res = app.clone().oneshot(login_req).await.unwrap();
+        let cookie = login_res.headers().get(http::header::SET_COOKIE).unwrap().clone();
+
+        // Get Me
+        let req = Request::builder()
+            .uri("/me")
+            .header(http::header::COOKIE, cookie)
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+}
+

@@ -228,6 +228,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     fn test_stamp(id: Uuid) -> Stamp {
         Stamp {
             id,

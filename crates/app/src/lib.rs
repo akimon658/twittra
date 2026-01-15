@@ -28,6 +28,8 @@ use crate::{
 };
 
 mod handler;
+#[cfg(test)]
+pub mod mocks;
 mod session;
 
 const API_ROOT: &str = "/api/v1";
