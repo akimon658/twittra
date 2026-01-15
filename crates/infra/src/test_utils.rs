@@ -70,15 +70,11 @@ impl TestInfra {
     pub async fn create_test_database(&self, test_name: &str) -> Result<Pool<MySql>> {
         // Generate unique database name
         let db_name = format!("test_{}_{}", test_name, fastrand::u64(..));
-        
-        println!("[DEBUG] Creating test database: {}", db_name);
 
         // Create a SINGLE-USE connection specifically for CREATE DATABASE
         // This avoids the connection pool deadlock issue described in sqlx #3953
         // https://github.com/launchbadge/sqlx/issues/3953
         let mut admin_conn = sqlx::MySqlConnection::connect(&self.admin_connection_string).await?;
-        
-        println!("[DEBUG] Connected to mysql database for CREATE");
 
         // Create database using the single-use connection
         sqlx::query(&format!("CREATE DATABASE `{}`", db_name))
@@ -87,8 +83,6 @@ impl TestInfra {
         
         // Explicitly close the admin connection
         admin_conn.close().await?;
-        
-        println!("[DEBUG] Database {} created, admin connection closed", db_name);
 
         // Connect to new database with explicit pool configuration
         let connection_string = format!(
@@ -96,24 +90,17 @@ impl TestInfra {
             self.db_host, self.db_port, db_name
         );
 
-        println!("[DEBUG] Connecting to {} with max_connections=10", db_name);
-        
         let pool = sqlx::mysql::MySqlPoolOptions::new()
-            .max_connections(10) // Increased: migrations may need multiple connections
-            .min_connections(0) // Lazy initialization to avoid connection exhaustion
+            .max_connections(10)
+            .min_connections(0)
             .acquire_timeout(std::time::Duration::from_secs(30))
             .connect(&connection_string)
             .await?;
-        
-        println!("[DEBUG] Pool connection ESTABLISHED for {}", db_name);
-        println!("[DEBUG] Pool created for {}, running migrations...", db_name);
 
         // Run migrations
         sqlx::migrate!("./migrations")
             .run(&pool)
             .await?;
-        
-        println!("[DEBUG] Migrations complete for {}", db_name);
 
         Ok(pool)
     }
