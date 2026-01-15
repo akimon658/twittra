@@ -4,9 +4,21 @@ import { MantineProvider } from "@mantine/core"
 import type { ReactElement } from "react"
 import { worker } from "./setup"
 import { http, HttpResponse } from "msw"
+import { UserContext } from "../auth/context/user"
+import type { User } from "../api/twittra.schemas"
+
+// Default mock user for tests
+const defaultMockUser: User = {
+    id: "test-user-id",
+    handle: "testuser",
+    displayName: "Test User",
+}
 
 // Custom render with all providers
-export function renderWithProviders(ui: ReactElement) {
+export function renderWithProviders(
+    ui: ReactElement,
+    { user = defaultMockUser }: { user?: User } = {},
+) {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: {
@@ -18,9 +30,11 @@ export function renderWithProviders(ui: ReactElement) {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <MantineProvider>
-                {ui}
-            </MantineProvider>
+            <UserContext value={user}>
+                <MantineProvider>
+                    {ui}
+                </MantineProvider>
+            </UserContext>
         </QueryClientProvider>,
     )
 }
@@ -29,7 +43,7 @@ export function renderWithProviders(ui: ReactElement) {
 export function mockApiResponse(endpoint: string, response: unknown) {
     worker.use(
         http.get(endpoint, () => {
-            return HttpResponse.json(response)
+            return HttpResponse.json(response as any)
         }),
     )
 }
