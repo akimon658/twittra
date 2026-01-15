@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::model::{Message, Stamp, User};
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait TraqClient: Debug + Send + Sync {
     async fn fetch_messages_since(

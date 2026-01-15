@@ -13,6 +13,7 @@ pub struct Repository {
     pub user: Arc<dyn UserRepository>,
 }
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>>;
@@ -32,6 +33,7 @@ pub trait MessageRepository: Debug + Send + Sync {
     async fn save_batch(&self, messages: &[Message]) -> Result<()>;
 }
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait StampRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<Stamp>>;
@@ -39,6 +41,7 @@ pub trait StampRepository: Debug + Send + Sync {
     async fn save_batch(&self, stamps: &[Stamp]) -> Result<()>;
 }
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait UserRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>>;
