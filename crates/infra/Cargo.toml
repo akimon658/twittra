@@ -15,4 +15,5 @@ traq = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+scopeguard = "1.2.0"
 testcontainers = { workspace = true, features = ["docker-compose"] }

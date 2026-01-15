@@ -293,8 +293,9 @@ impl MessageRepository for MariaDbMessageRepository {
 mod tests {
     use super::*;
     use crate::test_utils::get_test_infra;
-    use domain::model::Message;
+    use domain::model::{Message, Reaction};
     use time::OffsetDateTime;
+    use scopeguard::defer;
 
     async fn create_test_repo() -> Result<MariaDbMessageRepository> {
         let infra = get_test_infra().await?;
@@ -302,9 +303,10 @@ mod tests {
         Ok(MariaDbMessageRepository::new(pool))
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_save_and_find_message() {
         let repo = create_test_repo().await.unwrap();
+        // REMOVED defer! to test if block_in_place is causing deadlock
 
         // Create a test message
         let message = Message {
@@ -327,11 +329,23 @@ mod tests {
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].id, message.id);
         assert_eq!(messages[0].content, message.content);
+        
+        println!("[DEBUG] Test ending - repo.pool size={}, idle={}", 
+            repo.pool.size(), repo.pool.num_idle());
+        // Test ends here - repo and pool will be dropped
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_save_message_with_reactions() {
         let repo = create_test_repo().await.unwrap();
+        let pool = repo.pool.clone();
+        defer! {
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    pool.close().await;
+                });
+            });
+        }
 
         let reaction = Reaction {
             stamp_id: Uuid::new_v4(),
@@ -359,9 +373,17 @@ mod tests {
         assert_eq!(messages[0].reactions[0].stamp_count, reaction.stamp_count);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_remove_reaction() {
         let repo = create_test_repo().await.unwrap();
+        let pool = repo.pool.clone();
+        defer! {
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    pool.close().await;
+                });
+            });
+        }
 
         let message_id = Uuid::new_v4();
         let stamp_id = Uuid::new_v4();
@@ -400,9 +422,17 @@ mod tests {
         assert_eq!(messages[0].reactions.len(), 0);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_save_batch() {
         let repo = create_test_repo().await.unwrap();
+        let pool = repo.pool.clone();
+        defer! {
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    pool.close().await;
+                });
+            });
+        }
 
         let messages = vec![
             Message {

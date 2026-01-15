@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{MySql, MySqlPool, Pool};
+use sqlx::{Connection, MySql, Pool};
 use std::sync::Arc;
 use testcontainers::compose::DockerCompose;
 use testcontainers::core::IntoContainerPort;
@@ -9,12 +9,12 @@ use testcontainers::core::IntoContainerPort;
 pub struct TestInfra {
     /// Docker Compose instance (contains db, traq_server, etc.)
     _compose: DockerCompose,
-    /// Base database pool (for creating test databases)
-    admin_pool: Pool<MySql>,
     /// DB host
     db_host: String,
     /// DB port
     db_port: u16,
+    /// Admin connection string for CREATE DATABASE operations
+    admin_connection_string: String,
 }
 
 impl TestInfra {
@@ -50,19 +50,18 @@ impl TestInfra {
         // Wait for MariaDB to be ready
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-        // Create admin pool for database management
-        let connection_string = format!(
+        // Create admin connection string (not a pool!)
+        // Avoiding shared pool to prevent deadlock described in sqlx #3953
+        let admin_connection_string = format!(
             "mysql://root:password@{}:{}/mysql",
             db_host, db_port
         );
 
-        let admin_pool = MySqlPool::connect(&connection_string).await?;
-
         Ok(Self {
             _compose: compose,
-            admin_pool,
             db_host,
             db_port,
+            admin_connection_string,
         })
     }
 
@@ -71,24 +70,50 @@ impl TestInfra {
     pub async fn create_test_database(&self, test_name: &str) -> Result<Pool<MySql>> {
         // Generate unique database name
         let db_name = format!("test_{}_{}", test_name, fastrand::u64(..));
+        
+        println!("[DEBUG] Creating test database: {}", db_name);
 
-        // Create database
+        // Create a SINGLE-USE connection specifically for CREATE DATABASE
+        // This avoids the connection pool deadlock issue described in sqlx #3953
+        // https://github.com/launchbadge/sqlx/issues/3953
+        let mut admin_conn = sqlx::MySqlConnection::connect(&self.admin_connection_string).await?;
+        
+        println!("[DEBUG] Connected to mysql database for CREATE");
+
+        // Create database using the single-use connection
         sqlx::query(&format!("CREATE DATABASE `{}`", db_name))
-            .execute(&self.admin_pool)
+            .execute(&mut admin_conn)
             .await?;
+        
+        // Explicitly close the admin connection
+        admin_conn.close().await?;
+        
+        println!("[DEBUG] Database {} created, admin connection closed", db_name);
 
-        // Connect to new database
+        // Connect to new database with explicit pool configuration
         let connection_string = format!(
             "mysql://root:password@{}:{}/{}",
             self.db_host, self.db_port, db_name
         );
 
-        let pool = MySqlPool::connect(&connection_string).await?;
+        println!("[DEBUG] Connecting to {} with max_connections=10", db_name);
+        
+        let pool = sqlx::mysql::MySqlPoolOptions::new()
+            .max_connections(10) // Increased: migrations may need multiple connections
+            .min_connections(0) // Lazy initialization to avoid connection exhaustion
+            .acquire_timeout(std::time::Duration::from_secs(30))
+            .connect(&connection_string)
+            .await?;
+        
+        println!("[DEBUG] Pool connection ESTABLISHED for {}", db_name);
+        println!("[DEBUG] Pool created for {}, running migrations...", db_name);
 
         // Run migrations
         sqlx::migrate!("./migrations")
             .run(&pool)
             .await?;
+        
+        println!("[DEBUG] Migrations complete for {}", db_name);
 
         Ok(pool)
     }

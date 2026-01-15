@@ -1554,6 +1554,7 @@ dependencies = [
  "async-trait",
  "domain",
  "fastrand",
+ "scopeguard",
  "sqlx",
  "testcontainers",
  "time",
