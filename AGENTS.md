@@ -30,4 +30,4 @@ issues where user input is the best solution.
 ## Verification & Testing
 
 - **Proactive Verification:** Whenever tools or commands are available, verify
-  code changes yourself to ensure correctness.
+  code changes yourself to ensure correctness and code quality.
