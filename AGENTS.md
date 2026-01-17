@@ -25,7 +25,7 @@ issues where user input is the best solution.
 - **Self-Resolution First:** Make a meaningful attempt to resolve the issue
   independently using available tools before asking.
 - **Efficiency:** If solving the problem independently would be excessively
-  complex or time-consuming, prioritize asking the user.
+  complex, prioritize asking the user.
 
 ## Verification & Testing
 
