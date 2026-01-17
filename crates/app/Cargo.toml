@@ -32,8 +32,6 @@ utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-httpmock = { workspace = true }
-mockall = "0.14.0"
+fake = { workspace = true }
+mockall = { workspace = true }
 tower = { workspace = true }
-fake = { workspace = true, features = ["uuid", "chrono"] }
-rand = { workspace = true }
