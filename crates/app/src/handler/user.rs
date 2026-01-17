@@ -173,5 +173,14 @@ mod tests {
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
+
+        // Validate response body
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_user: User = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response_user.id, user.id);
+        assert_eq!(response_user.handle, user.handle);
+        assert_eq!(response_user.display_name, user.display_name);
     }
 }

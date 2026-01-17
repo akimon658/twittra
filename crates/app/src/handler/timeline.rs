@@ -50,11 +50,14 @@ mod tests {
     async fn test_get_timeline_success() {
         let mut mock_timeline_service = MockTimelineService::new();
 
-        // Mock the service call
+        let message = crate::test_factories::create_message_list_item();
+        let messages = vec![message.clone()];
+        let messages_clone = messages.clone();
+
         mock_timeline_service
             .expect_get_recommended_messages()
             .times(1)
-            .returning(|| Ok(vec![]));
+            .returning(move || Ok(messages_clone.clone()));
 
         let user = crate::test_factories::create_user();
 
@@ -88,6 +91,16 @@ mod tests {
 
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
+
+        // Validate response body
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_messages: Vec<MessageListItem> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response_messages.len(), 1);
+        assert_eq!(response_messages[0].id, message.id);
+        assert_eq!(response_messages[0].content, message.content);
+        assert_eq!(response_messages[0].user_id, message.user_id);
     }
 
     #[tokio::test]

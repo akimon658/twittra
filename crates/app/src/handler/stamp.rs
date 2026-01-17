@@ -196,5 +196,14 @@ mod tests {
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
+
+        // Validate response body
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_stamps: Vec<Stamp> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response_stamps.len(), 1);
+        assert_eq!(response_stamps[0].id, stamp.id);
+        assert_eq!(response_stamps[0].name, stamp.name);
     }
 }
