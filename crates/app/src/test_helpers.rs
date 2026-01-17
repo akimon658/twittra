@@ -7,7 +7,7 @@ use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use std::sync::Arc;
 
 /// Creates a dummy OAuth client for testing purposes
-pub fn create_dummy_oauth_client() -> BasicClientSet {
+fn create_dummy_oauth_client() -> BasicClientSet {
     let client_id = ClientId::new("dummy_id".to_string());
     let client_secret = ClientSecret::new("dummy_secret".to_string());
     let auth_url = AuthUrl::new("http://dummy".to_string()).unwrap();
@@ -22,10 +22,7 @@ pub fn create_dummy_oauth_client() -> BasicClientSet {
 }
 
 /// Creates a test Backend with dummy OAuth configuration
-pub fn create_test_backend<R>(user_repo: Arc<R>) -> Backend
-where
-    R: UserRepository + Send + Sync + 'static,
-{
+pub fn create_test_backend(user_repo: Arc<dyn UserRepository>) -> Backend {
     Backend::new(
         create_dummy_oauth_client(),
         "http://dummy".to_string(),
