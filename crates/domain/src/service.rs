@@ -1,27 +1,58 @@
-use anyhow::Result;
-use std::sync::Arc;
-use uuid::Uuid;
-
 use crate::{
     model::{MessageListItem, Stamp, User},
     repository::Repository,
     traq_client::TraqClient,
 };
+use anyhow::Result;
+use std::{fmt::Debug, sync::Arc};
+use uuid::Uuid;
+
+#[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
+#[async_trait::async_trait]
+pub trait TimelineService: Debug + Send + Sync {
+    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>>;
+}
+
+#[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
+#[async_trait::async_trait]
+pub trait TraqService: Debug + Send + Sync {
+    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User>;
+    async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String)>;
+    async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp>;
+    async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String)>;
+    async fn get_stamps(&self) -> Result<Vec<Stamp>>;
+    async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>>;
+    async fn add_message_stamp(
+        &self,
+        user_id: &Uuid,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+        count: i32,
+    ) -> Result<()>;
+    async fn remove_message_stamp(
+        &self,
+        user_id: &Uuid,
+        message_id: &Uuid,
+        stamp_id: &Uuid,
+    ) -> Result<()>;
+}
 
 /// Service for timeline-related operations.
 #[derive(Clone, Debug)]
-pub struct TimelineService {
+pub struct TimelineServiceImpl {
     repo: Repository,
 }
 
-impl TimelineService {
+impl TimelineServiceImpl {
     pub fn new(repo: Repository) -> Self {
         Self { repo }
     }
+}
 
-    pub async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>> {
+#[async_trait::async_trait]
+impl TimelineService for TimelineServiceImpl {
+    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>> {
         let messages = self.repo.message.find_recent_messages().await?;
-
         Ok(messages)
     }
 }
@@ -30,17 +61,20 @@ impl TimelineService {
 /// It utilizes the repository as a cache and fetches data from traQ only when necessary.
 /// Twittra's unique features such as recommendations are not handled here.
 #[derive(Clone, Debug)]
-pub struct TraqService {
+pub struct TraqServiceImpl {
     repo: Repository,
     traq_client: Arc<dyn TraqClient>,
 }
 
-impl TraqService {
+impl TraqServiceImpl {
     pub fn new(repo: Repository, traq_client: Arc<dyn TraqClient>) -> Self {
         Self { repo, traq_client }
     }
+}
 
-    pub async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User> {
+#[async_trait::async_trait]
+impl TraqService for TraqServiceImpl {
+    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User> {
         let user = match self.repo.user.find_by_id(user_id).await? {
             Some(user) => user,
             None => {
@@ -53,17 +87,14 @@ impl TraqService {
                     }
                 };
                 let user = self.traq_client.get_user(&token, user_id).await?;
-
                 self.repo.user.save(&user).await?;
-
                 user
             }
         };
-
         Ok(user)
     }
 
-    pub async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String)> {
+    async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String)> {
         let token = match self.repo.user.find_random_valid_token().await? {
             Some(token) => token,
             None => {
@@ -73,25 +104,10 @@ impl TraqService {
             }
         };
         let icon = self.traq_client.get_user_icon(&token, user_id).await?;
-
         Ok(icon)
     }
 
-    pub async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
-        let token = match self.repo.user.find_random_valid_token().await? {
-            Some(token) => token,
-            None => {
-                return Err(anyhow::anyhow!(
-                    "no valid token found to fetch stamp image from traQ"
-                ));
-            }
-        };
-        let image = self.traq_client.get_stamp_image(&token, stamp_id).await?;
-
-        Ok(image)
-    }
-
-    pub async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp> {
+    async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp> {
         let stamp = match self.repo.stamp.find_by_id(stamp_id).await? {
             Some(stamp) => stamp,
             None => {
@@ -104,17 +120,27 @@ impl TraqService {
                     }
                 };
                 let stamp = self.traq_client.get_stamp(&token, stamp_id).await?;
-
                 self.repo.stamp.save(&stamp).await?;
-
                 stamp
             }
         };
-
         Ok(stamp)
     }
 
-    pub async fn get_stamps(&self) -> Result<Vec<Stamp>> {
+    async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
+        let token = match self.repo.user.find_random_valid_token().await? {
+            Some(token) => token,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "no valid token found to fetch stamp image from traQ"
+                ));
+            }
+        };
+        let image = self.traq_client.get_stamp_image(&token, stamp_id).await?;
+        Ok(image)
+    }
+
+    async fn get_stamps(&self) -> Result<Vec<Stamp>> {
         let token = match self.repo.user.find_random_valid_token().await? {
             Some(token) => token,
             None => {
@@ -124,14 +150,12 @@ impl TraqService {
             }
         };
         let stamps = self.traq_client.get_stamps(&token).await?;
-
         self.repo.stamp.save_batch(&stamps).await?;
-
         Ok(stamps)
     }
 
-    pub async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>> {
-        let stamps = self.get_stamps().await?;
+    async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>> {
+        let stamps = TraqService::get_stamps(self).await?;
         let filtered = stamps
             .into_iter()
             .filter(|s| s.name.contains(name))
@@ -139,7 +163,7 @@ impl TraqService {
         Ok(filtered)
     }
 
-    pub async fn add_message_stamp(
+    async fn add_message_stamp(
         &self,
         user_id: &Uuid,
         message_id: &Uuid,
@@ -167,7 +191,7 @@ impl TraqService {
         Ok(())
     }
 
-    pub async fn remove_message_stamp(
+    async fn remove_message_stamp(
         &self,
         user_id: &Uuid,
         message_id: &Uuid,
@@ -200,11 +224,9 @@ impl TraqService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{MessageListItem, Stamp, User};
     use crate::repository::{MockMessageRepository, MockStampRepository, MockUserRepository};
     use crate::traq_client::MockTraqClient;
     use time::OffsetDateTime;
-    use uuid::Uuid;
 
     // Helper to create test MessageListItem
     fn test_message_list_item() -> MessageListItem {
@@ -257,7 +279,7 @@ mod tests {
             user: Arc::new(MockUserRepository::new()),
         };
 
-        let service = TimelineService::new(repo);
+        let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages().await.unwrap();
 
         assert_eq!(result.len(), 1);
@@ -279,7 +301,7 @@ mod tests {
             user: Arc::new(MockUserRepository::new()),
         };
 
-        let service = TimelineService::new(repo);
+        let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages().await.unwrap();
 
         assert!(result.is_empty());
@@ -300,7 +322,7 @@ mod tests {
             user: Arc::new(MockUserRepository::new()),
         };
 
-        let service = TimelineService::new(repo);
+        let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages().await;
 
         assert!(result.is_err());
@@ -331,7 +353,7 @@ mod tests {
         };
 
         let mock_client = MockTraqClient::new();
-        let service = TraqService::new(repo, Arc::new(mock_client));
+        let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
 
         let result = service.get_user_by_id(&user_id).await.unwrap();
 
@@ -378,7 +400,7 @@ mod tests {
             user: Arc::new(mock_user_repo),
         };
 
-        let service = TraqService::new(repo, Arc::new(mock_client));
+        let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
         let result = service.get_user_by_id(&user_id).await.unwrap();
 
         assert_eq!(result.id, user_id);
@@ -406,7 +428,7 @@ mod tests {
         };
 
         let mock_client = MockTraqClient::new();
-        let service = TraqService::new(repo, Arc::new(mock_client));
+        let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
 
         let result = service.get_user_by_id(&user_id).await;
 
@@ -462,7 +484,7 @@ mod tests {
             user: Arc::new(mock_user_repo),
         };
 
-        let service = TraqService::new(repo, Arc::new(mock_client));
+        let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
         let result = service.search_stamps("go").await.unwrap();
 
         // Should return "golang" and "go_fast" but not "rust"

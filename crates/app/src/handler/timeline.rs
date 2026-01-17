@@ -1,8 +1,7 @@
+use crate::{handler::AppState, session::AuthSession};
 use axum::{Json, extract::State, response::IntoResponse};
 use domain::model::MessageListItem;
 use http::StatusCode;
-
-use crate::{handler::AppState, session::AuthSession};
 
 /// Get messages for the timeline.
 #[utoipa::path(
@@ -42,23 +41,25 @@ pub async fn get_timeline(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mocks::MockMessageRepository;
     use crate::test_helpers::TestAppBuilder;
     use axum::{body::Body, http::Request};
+    use domain::service::MockTimelineService;
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_get_timeline_success() {
-        let mut mock_message_repo = MockMessageRepository::new();
-        mock_message_repo
-            .expect_find_recent_messages()
+        let mut mock_timeline_service = MockTimelineService::new();
+
+        // Mock the service call
+        mock_timeline_service
+            .expect_get_recommended_messages()
             .times(1)
             .returning(|| Ok(vec![]));
 
         let user = crate::test_factories::create_user();
 
         let app = TestAppBuilder::new()
-            .with_message_repo(mock_message_repo)
+            .with_timeline_service(mock_timeline_service)
             .with_user(user.clone())
             .build();
 
@@ -91,14 +92,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_timeline_unauthorized() {
-        let mock_message_repo = MockMessageRepository::new();
-        // No user => logic shouldn't even check repo if unauthorized
-        // checking repo times(0) is default
-
-        let app = TestAppBuilder::new()
-            .with_message_repo(mock_message_repo)
-            .build();
-
+        let app = TestAppBuilder::new().build();
         let req = Request::builder()
             .uri("/api/v1/timeline")
             .body(Body::empty())

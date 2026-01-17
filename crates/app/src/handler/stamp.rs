@@ -1,3 +1,4 @@
+use crate::{handler::AppState, session::AuthSession};
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -8,8 +9,6 @@ use http::StatusCode;
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
-
-use crate::{handler::AppState, session::AuthSession};
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct StampSearchQuery {
@@ -153,36 +152,26 @@ pub async fn get_stamps(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mocks::{MockStampRepository, MockTraqClient, MockUserRepository};
     use crate::test_helpers::TestAppBuilder;
     use axum::{body::Body, http::Request};
+    use domain::service::MockTraqService;
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_get_stamps_all() {
-        let mut mock_stamp_repo = MockStampRepository::new();
-        let mut mock_traq_client = MockTraqClient::new();
-        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_traq_service = MockTraqService::new();
 
         let stamp = crate::test_factories::create_stamp();
         let stamps = vec![stamp.clone()];
-
-        // Service::get_stamps needs a token
-        mock_user_repo
-            .expect_find_random_valid_token()
-            .returning(|| Ok(Some("token".into())));
-
         let stamps_clone = stamps.clone();
-        mock_traq_client
+
+        mock_traq_service
             .expect_get_stamps()
-            .returning(move |_| Ok(stamps_clone.clone()));
-        mock_stamp_repo.expect_save_batch().returning(|_| Ok(()));
+            .returning(move || Ok(stamps_clone.clone()));
 
         let user = crate::test_factories::create_user();
         let app = TestAppBuilder::new()
-            .with_stamp_repo(mock_stamp_repo)
-            .with_traq_client(mock_traq_client)
-            .with_user_repo(mock_user_repo)
+            .with_traq_service(mock_traq_service)
             .with_user(user.clone())
             .build();
 

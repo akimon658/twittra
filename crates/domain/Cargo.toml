@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+mockall = { workspace = true, optional = true }
 serde = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
@@ -15,5 +16,8 @@ utoipa = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
 
 [dev-dependencies]
-mockall.workspace = true
+mockall = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
+
+[features]
+test-utils = ["dep:mockall"]

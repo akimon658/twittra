@@ -32,6 +32,8 @@ utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+# domain exports mock models with the "test-utils" feature
+domain = { path = "../domain", features = ["test-utils"] }
 fake = { workspace = true }
 mockall = { workspace = true }
 tower = { workspace = true }

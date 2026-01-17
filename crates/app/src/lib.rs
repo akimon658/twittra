@@ -1,12 +1,22 @@
-use std::{env, sync::Arc, time::Duration};
-
+use crate::{
+    handler::{
+        AppState,
+        auth::{self},
+        message, stamp, timeline, user,
+    },
+    session::Backend,
+};
 use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
-use domain::crawler::MessageCrawler;
+use domain::{
+    crawler::MessageCrawler,
+    service::{TimelineServiceImpl, TraqServiceImpl},
+};
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use sqlx::MySqlPool;
+use std::{env, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task};
 use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
 use tower_sessions_sqlx_store::MySqlStore;
@@ -18,18 +28,7 @@ use utoipa::openapi::{
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::{
-    handler::{
-        AppState,
-        auth::{self},
-        message, stamp, timeline, user,
-    },
-    session::Backend,
-};
-
 mod handler;
-#[cfg(test)]
-pub mod mocks;
 mod session;
 #[cfg(test)]
 pub mod test_factories;
@@ -115,7 +114,9 @@ pub async fn serve() -> Result<()> {
     });
 
     let backend = Backend::new(client, traq_api_base_url, repository.user.clone());
-    let app_state = AppState::new(repository, Arc::new(traq_client));
+    let traq_service = TraqServiceImpl::new(repository.clone(), Arc::new(traq_client));
+    let timeline_service = TimelineServiceImpl::new(repository);
+    let app_state = AppState::new(Arc::new(traq_service), Arc::new(timeline_service));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes()?;
     let router = axum::Router::new()

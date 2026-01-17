@@ -1,14 +1,12 @@
-use domain::model::User;
-
+use crate::{handler::AppState, session::AuthSession};
 use axum::{
     Json,
     extract::{Path, State},
     response::IntoResponse,
 };
+use domain::model::User;
 use http::StatusCode;
 use uuid::Uuid;
-
-use crate::{handler::AppState, session::AuthSession};
 
 /// Get the current authenticated user's information.
 #[utoipa::path(
@@ -131,28 +129,26 @@ pub async fn get_user_icon(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mocks::MockUserRepository;
     use crate::test_helpers::TestAppBuilder;
     use axum::{body::Body, http::Request};
+    use domain::service::MockTraqService;
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_get_me_success() {
-        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_traq_service = MockTraqService::new();
         let user = crate::test_factories::create_user();
         let user_id = user.id;
-
-        // get_me calls get_user_by_id in service
-        // Service first checks cache (user repo)
         let user_clone = user.clone();
-        mock_user_repo
-            .expect_find_by_id()
+
+        mock_traq_service
+            .expect_get_user_by_id()
             .with(mockall::predicate::eq(user_id))
             .times(1)
-            .returning(move |_| Ok(Some(user_clone.clone())));
+            .returning(move |_| Ok(user_clone.clone()));
 
         let app = TestAppBuilder::new()
-            .with_user_repo(mock_user_repo)
+            .with_traq_service(mock_traq_service)
             .with_user(user.clone())
             .build();
 

@@ -1,10 +1,35 @@
 //! Shared test utilities for app crate tests
 
+use crate::handler::AppState;
 use crate::session::{AuthSession, Backend, BasicClientSet, UserSession};
+use anyhow::Result;
 use axum::http::StatusCode;
-use domain::{model::User, repository::UserRepository};
+use axum_login::AuthManagerLayerBuilder;
+use domain::service::{MockTimelineService, MockTraqService};
+use domain::{
+    model::User,
+    repository::UserRepository,
+    service::{TimelineService, TraqService},
+};
 use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use std::sync::Arc;
+use tower_sessions::{MemoryStore, SessionManagerLayer};
+use uuid::Uuid;
+
+// For auth backend, we need a minimal UserRepository mock
+mockall::mock! {
+    #[derive(Debug)]
+    UserRepo {}
+
+    #[async_trait::async_trait]
+    impl UserRepository for UserRepo {
+        async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>>;
+        async fn find_random_valid_token(&self) -> Result<Option<String>>;
+        async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>>;
+        async fn save(&self, user: &User) -> Result<()>;
+        async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()>;
+    }
+}
 
 /// Creates a dummy OAuth client for testing purposes
 fn create_dummy_oauth_client() -> BasicClientSet {
@@ -21,81 +46,44 @@ fn create_dummy_oauth_client() -> BasicClientSet {
         .set_redirect_uri(redirect_url)
 }
 
-/// Creates a test Backend with dummy OAuth configuration
-fn create_test_backend(user_repo: Arc<dyn UserRepository>) -> Backend {
-    Backend::new(
-        create_dummy_oauth_client(),
-        "http://dummy".to_string(),
-        user_repo,
-    )
-}
-
-/// Builder for creating test applications that reuse production route definitions
+/// Builder for creating test applications that use service mocks
 ///
 /// This builder provides a fluent API for configuring test applications with custom
-/// mock repositories. Any repository not explicitly set will use a default mock.
+/// mock services. Any service not explicitly set will use a default mock.
 ///
 /// # Example
 ///
 /// ```rust
 /// let app = TestAppBuilder::new()
-///     .with_stamp_repo(mock_stamp_repo)
+///     .with_traq_service(mock_traq_service)
 ///     .with_user(user)
 ///     .build();
 /// ```
 pub struct TestAppBuilder {
-    message_repo: Option<Arc<dyn domain::repository::MessageRepository>>,
-    stamp_repo: Option<Arc<dyn domain::repository::StampRepository>>,
-    user_repo: Option<Arc<dyn domain::repository::UserRepository>>,
-    traq_client: Option<Arc<dyn domain::traq_client::TraqClient>>,
+    traq_service: Option<Arc<dyn TraqService>>,
+    timeline_service: Option<Arc<dyn TimelineService>>,
     user: Option<User>,
 }
 
 impl TestAppBuilder {
-    /// Create a new builder with all repositories unset (will use defaults)
+    /// Create a new builder with all services unset (will use defaults)
     pub fn new() -> Self {
         Self {
-            message_repo: None,
-            stamp_repo: None,
-            user_repo: None,
-            traq_client: None,
+            traq_service: None,
+            timeline_service: None,
             user: None,
         }
     }
 
-    /// Set a custom message repository (default: MockMessageRepository::new())
-    pub fn with_message_repo<T: domain::repository::MessageRepository + 'static>(
-        mut self,
-        repo: T,
-    ) -> Self {
-        self.message_repo = Some(Arc::new(repo));
+    /// Set a custom TraqService (default: MockTraqService::new())
+    pub fn with_traq_service<T: TraqService + 'static>(mut self, service: T) -> Self {
+        self.traq_service = Some(Arc::new(service));
         self
     }
 
-    /// Set a custom stamp repository (default: MockStampRepository::new())
-    pub fn with_stamp_repo<T: domain::repository::StampRepository + 'static>(
-        mut self,
-        repo: T,
-    ) -> Self {
-        self.stamp_repo = Some(Arc::new(repo));
-        self
-    }
-
-    /// Set a custom user repository (default: MockUserRepository::new())
-    pub fn with_user_repo<T: domain::repository::UserRepository + 'static>(
-        mut self,
-        repo: T,
-    ) -> Self {
-        self.user_repo = Some(Arc::new(repo));
-        self
-    }
-
-    /// Set a custom TraqClient (default: MockTraqClient::new())
-    pub fn with_traq_client<T: domain::traq_client::TraqClient + 'static>(
-        mut self,
-        client: T,
-    ) -> Self {
-        self.traq_client = Some(Arc::new(client));
+    /// Set a custom TimelineService (default: MockTimelineService::new())
+    pub fn with_timeline_service<T: TimelineService + 'static>(mut self, service: T) -> Self {
+        self.timeline_service = Some(Arc::new(service));
         self
     }
 
@@ -107,42 +95,27 @@ impl TestAppBuilder {
 
     /// Build the test app using production route definitions
     pub fn build(self) -> axum::Router {
-        use crate::handler::AppState;
-        use crate::mocks::{
-            MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
-        };
-        use axum_login::AuthManagerLayerBuilder;
-        use domain::repository::Repository;
-        use tower_sessions::{MemoryStore, SessionManagerLayer};
+        // Use provided services or create default mocks
+        let traq_service = self
+            .traq_service
+            .unwrap_or_else(|| Arc::new(MockTraqService::new()));
+        let timeline_service = self
+            .timeline_service
+            .unwrap_or_else(|| Arc::new(MockTimelineService::new()));
 
-        // Use provided repositories or create default mocks
-        let message_repo = self
-            .message_repo
-            .unwrap_or_else(|| Arc::new(MockMessageRepository::new()));
-        let stamp_repo = self
-            .stamp_repo
-            .unwrap_or_else(|| Arc::new(MockStampRepository::new()));
-        let user_repo = self
-            .user_repo
-            .unwrap_or_else(|| Arc::new(MockUserRepository::new()));
-        let traq_client = self
-            .traq_client
-            .unwrap_or_else(|| Arc::new(MockTraqClient::new()));
-
-        let repo = Repository {
-            message: message_repo,
-            stamp: stamp_repo,
-            user: user_repo.clone(),
-        };
-
-        let state = AppState::new(repo, traq_client);
+        let state = AppState::new(traq_service, timeline_service);
 
         // Use production route setup
         let (router, _openapi) =
             crate::setup_openapi_routes().expect("Failed to setup OpenAPI routes");
 
         // Create test-specific auth and session layers
-        let backend = create_test_backend(user_repo);
+        let mock_user_repo = Arc::new(MockUserRepo::new());
+        let backend = Backend::new(
+            create_dummy_oauth_client(),
+            "http://dummy".to_string(),
+            mock_user_repo,
+        );
         let session_layer = SessionManagerLayer::new(MemoryStore::default());
         let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
 
