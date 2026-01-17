@@ -1,54 +1,45 @@
-import { render } from "@testing-library/react"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MantineProvider } from "@mantine/core"
-import type { ReactElement } from "react"
-import { worker } from "./setup"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { render } from "@testing-library/react"
 import { http, HttpResponse } from "msw"
-import { UserContext } from "../auth/context/user"
-import type { User } from "../api/twittra.schemas"
-import { createMockUser } from "./factories"
+import type { ReactElement } from "react"
+import type { User } from "../api/twittra.schemas.ts"
+import { UserContext } from "../auth/context/user.ts"
+import { createMockUser } from "./factories.ts"
+import { worker } from "./setup.ts"
 
 // Custom render with all providers
 export function renderWithProviders(
-    ui: ReactElement,
-    { user = createMockUser() }: { user?: User } = {},
+  ui: ReactElement,
+  { user = createMockUser() }: { user?: User } = {},
 ) {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-                gcTime: 0,
-            },
-        },
-    })
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  })
 
-    return render(
-        <QueryClientProvider client={queryClient}>
-            <UserContext value={user}>
-                <MantineProvider>
-                    {ui}
-                </MantineProvider>
-            </UserContext>
-        </QueryClientProvider>,
-    )
-}
-
-// Helper to override MSW responses per test
-export function mockApiResponse(endpoint: string, response: unknown) {
-    worker.use(
-        http.get(endpoint, () => {
-            return HttpResponse.json(response as any)
-        }),
-    )
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <UserContext value={user}>
+        <MantineProvider>
+          {ui}
+        </MantineProvider>
+      </UserContext>
+    </QueryClientProvider>,
+  )
 }
 
 // Helper to simulate API errors
 export function mockApiError(endpoint: string, status = 500) {
-    worker.use(
-        http.get(endpoint, () => {
-            return new HttpResponse(null, { status })
-        }),
-    )
+  worker.use(
+    http.get(endpoint, () => {
+      return new HttpResponse(null, { status })
+    }),
+  )
 }
 
 // Export commonly used testing utilities

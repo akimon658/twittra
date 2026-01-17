@@ -363,10 +363,7 @@ mod tests {
             .returning(|| Ok(Some("test_token".to_string())));
 
         // Save fetched user
-        mock_user_repo
-            .expect_save()
-            .times(1)
-            .returning(|_| Ok(()));
+        mock_user_repo.expect_save().times(1).returning(|_| Ok(()));
 
         // Fetch from traQ
         mock_client
@@ -414,10 +411,12 @@ mod tests {
         let result = service.get_user_by_id(&user_id).await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("no valid token found"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("no valid token found")
+        );
     }
 
     #[tokio::test]

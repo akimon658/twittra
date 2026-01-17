@@ -95,7 +95,7 @@ mod tests {
         let found = found.unwrap();
         assert_eq!(found.id, stamp.id);
         assert_eq!(found.name, stamp.name);
-        
+
         Ok(())
     }
 
@@ -106,7 +106,7 @@ mod tests {
         let result = repo.find_by_id(&Uuid::now_v7()).await?;
 
         assert!(result.is_none());
-        
+
         Ok(())
     }
 
@@ -138,7 +138,7 @@ mod tests {
             assert!(found.is_some());
             assert_eq!(found.unwrap().name, stamp.name);
         }
-        
+
         Ok(())
     }
 
@@ -165,7 +165,7 @@ mod tests {
         // Verify update
         let found = repo.find_by_id(&stamp_id).await?.unwrap();
         assert_eq!(found.name, "updated_name");
-        
+
         Ok(())
     }
 }

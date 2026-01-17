@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(found.id, user.id);
         assert_eq!(found.handle, user.handle);
         assert_eq!(found.display_name, user.display_name);
-        
+
         Ok(())
     }
 
@@ -156,7 +156,7 @@ mod tests {
         let result = repo.find_by_id(&Uuid::now_v7()).await?;
 
         assert!(result.is_none());
-        
+
         Ok(())
     }
 
@@ -183,7 +183,7 @@ mod tests {
 
         assert!(found.is_some());
         assert_eq!(found.unwrap(), token);
-        
+
         Ok(())
     }
 
@@ -212,7 +212,7 @@ mod tests {
         // Verify update
         let found = repo.find_token_by_user_id(&user_id).await?;
         assert_eq!(found.unwrap(), token2);
-        
+
         Ok(())
     }
 
@@ -223,7 +223,7 @@ mod tests {
         let result = repo.find_random_valid_token().await?;
 
         assert!(result.is_none());
-        
+
         Ok(())
     }
 
@@ -253,7 +253,7 @@ mod tests {
         assert!(result.is_some());
         let token = result.unwrap();
         assert!(["token1", "token2", "token3"].contains(&token.as_str()));
-        
+
         Ok(())
     }
 }

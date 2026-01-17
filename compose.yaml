@@ -37,7 +37,7 @@ services:
         source: traq_storage
         target: /app/storage
     ports:
-      - "${TRAQ_SERVER_PORT:-3000}:3000"  # Default 3000, override with env var
+      - "${TRAQ_SERVER_PORT:-3000}:3000" # Default 3000, override with env var
     depends_on:
       db:
         condition: service_healthy

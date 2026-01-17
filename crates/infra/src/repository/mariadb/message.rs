@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].id, message.id);
         assert_eq!(messages[0].content, message.content);
-        
+
         Ok(())
     }
 
@@ -353,7 +353,7 @@ mod tests {
         assert_eq!(messages[0].reactions.len(), 1);
         assert_eq!(messages[0].reactions[0].stamp_id, reaction.stamp_id);
         assert_eq!(messages[0].reactions[0].stamp_count, reaction.stamp_count);
-        
+
         Ok(())
     }
 
@@ -389,12 +389,13 @@ mod tests {
         assert_eq!(messages[0].reactions.len(), 1);
 
         // Remove reaction
-        repo.remove_reaction(&message_id, &stamp_id, &user_id).await?;
+        repo.remove_reaction(&message_id, &stamp_id, &user_id)
+            .await?;
 
         // Verify reaction is removed
         let messages = repo.find_recent_messages().await?;
         assert_eq!(messages[0].reactions.len(), 0);
-        
+
         Ok(())
     }
 
@@ -428,7 +429,7 @@ mod tests {
 
         let saved_messages = repo.find_recent_messages().await?;
         assert!(saved_messages.len() >= 2); // At least our 2 messages
-        
+
         Ok(())
     }
 }

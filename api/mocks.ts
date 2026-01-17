@@ -5,8 +5,8 @@ import { getStampMock } from "./stamp/stamp.msw"
 import { getMessageMock } from "./message/message.msw"
 
 export const handlers = [
-    ...getTimelineMock(),
-    ...getUserMock(),
-    ...getStampMock(),
-    ...getMessageMock(),
+  ...getTimelineMock(),
+  ...getUserMock(),
+  ...getStampMock(),
+  ...getMessageMock(),
 ]

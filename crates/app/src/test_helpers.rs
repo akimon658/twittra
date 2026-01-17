@@ -37,9 +37,9 @@ where
 pub fn create_test_login_handler(
     user: Option<User>,
 ) -> impl Fn(AuthSession) -> std::pin::Pin<Box<dyn std::future::Future<Output = StatusCode> + Send>>
-       + Clone
-       + Send
-       + 'static {
++ Clone
++ Send
++ 'static {
     move |mut auth: AuthSession| {
         let user = user.clone();
         Box::pin(async move {

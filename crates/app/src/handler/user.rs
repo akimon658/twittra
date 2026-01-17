@@ -125,7 +125,6 @@ pub async fn get_user_icon(
         }
     };
 
-    
     ([(http::header::CONTENT_TYPE, content_type)], icon).into_response()
 }
 
@@ -133,7 +132,9 @@ pub async fn get_user_icon(
 mod tests {
     use super::*;
     use crate::handler::AppState;
-    use crate::mocks::{MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository};
+    use crate::mocks::{
+        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
+    };
     use crate::session::{AuthSession, UserSession};
     use crate::test_helpers::create_test_backend;
     use axum::{Router, body::Body, http::Request};
@@ -157,21 +158,25 @@ mod tests {
 
         let backend = create_test_backend(mock_user_repo_arc);
 
-        let session_layer = tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
+        let session_layer =
+            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
         let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
 
         Router::new()
             .route("/me", axum::routing::get(get_me))
             .route("/users/{userId}", axum::routing::get(get_user_by_id))
             .route("/users/{userId}/icon", axum::routing::get(get_user_icon))
-            .route("/login", axum::routing::post(|mut auth: AuthSession| async move {
-                 if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                     auth.login(&user_session).await.unwrap();
-                     StatusCode::OK
-                 } else {
-                     StatusCode::UNAUTHORIZED
-                 }
-            }))
+            .route(
+                "/login",
+                axum::routing::post(|mut auth: AuthSession| async move {
+                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
+                        auth.login(&user_session).await.unwrap();
+                        StatusCode::OK
+                    } else {
+                        StatusCode::UNAUTHORIZED
+                    }
+                }),
+            )
             .layer(auth_layer)
             .with_state(state)
     }
@@ -194,9 +199,17 @@ mod tests {
         let app = create_app(mock_user_repo, MockTraqClient::new(), Some(user.clone()));
 
         // Login
-        let login_req = Request::builder().uri("/login").method("POST").body(Body::empty()).unwrap();
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
         let login_res = app.clone().oneshot(login_req).await.unwrap();
-        let cookie = login_res.headers().get(http::header::SET_COOKIE).unwrap().clone();
+        let cookie = login_res
+            .headers()
+            .get(http::header::SET_COOKIE)
+            .unwrap()
+            .clone();
 
         // Get Me
         let req = Request::builder()
@@ -208,4 +221,3 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
     }
 }
-

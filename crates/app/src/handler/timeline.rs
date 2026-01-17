@@ -36,7 +36,6 @@ pub async fn get_timeline(
         }
     };
 
-
     Json(messages).into_response()
 }
 
@@ -44,22 +43,18 @@ pub async fn get_timeline(
 mod tests {
     use super::*;
     use crate::handler::AppState;
-    use crate::mocks::{MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository};
+    use crate::mocks::{
+        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
+    };
     use crate::session::{AuthSession, UserSession};
     use crate::test_helpers::create_test_backend;
     use axum::{Router, body::Body, http::Request};
-    use domain::{
-        model::User,
-        repository::Repository,
-    };
+    use domain::{model::User, repository::Repository};
     use std::sync::Arc;
     use tower::ServiceExt;
     use uuid::Uuid;
 
-    fn create_app(
-        mock_message_repo: MockMessageRepository,
-        user: Option<User>,
-    ) -> Router {
+    fn create_app(mock_message_repo: MockMessageRepository, user: Option<User>) -> Router {
         let mock_user_repo = Arc::new(MockUserRepository::new());
         let repo = Repository {
             message: Arc::new(mock_message_repo),
@@ -71,20 +66,24 @@ mod tests {
 
         let backend = create_test_backend(mock_user_repo);
 
-        let session_layer = tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
+        let session_layer =
+            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
         let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
 
         Router::new()
             .route("/timeline", axum::routing::get(get_timeline))
             // Test-only login route to establish session
-            .route("/login", axum::routing::post(|mut auth: AuthSession| async move {
-                 if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                     auth.login(&user_session).await.unwrap();
-                     StatusCode::OK
-                 } else {
-                     StatusCode::UNAUTHORIZED
-                 }
-            }))
+            .route(
+                "/login",
+                axum::routing::post(|mut auth: AuthSession| async move {
+                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
+                        auth.login(&user_session).await.unwrap();
+                        StatusCode::OK
+                    } else {
+                        StatusCode::UNAUTHORIZED
+                    }
+                }),
+            )
             .layer(auth_layer)
             .with_state(state)
     }
@@ -107,11 +106,15 @@ mod tests {
             .method("POST")
             .body(Body::empty())
             .unwrap();
-        
+
         let login_res = app.clone().oneshot(login_req).await.unwrap();
         assert_eq!(login_res.status(), StatusCode::OK);
-        
-        let cookie = login_res.headers().get(http::header::SET_COOKIE).unwrap().clone();
+
+        let cookie = login_res
+            .headers()
+            .get(http::header::SET_COOKIE)
+            .unwrap()
+            .clone();
 
         // 2. Access timeline with cookie
         let req = Request::builder()

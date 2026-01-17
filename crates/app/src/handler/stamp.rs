@@ -154,14 +154,13 @@ pub async fn get_stamps(
 mod tests {
     use super::*;
     use crate::handler::AppState;
-    use crate::mocks::{MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository};
+    use crate::mocks::{
+        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
+    };
     use crate::session::{AuthSession, UserSession};
     use crate::test_helpers::create_test_backend;
     use axum::{Router, body::Body, http::Request};
-    use domain::{
-        model::User,
-        repository::Repository,
-    };
+    use domain::{model::User, repository::Repository};
     use std::sync::Arc;
     use tower::ServiceExt;
 
@@ -182,20 +181,24 @@ mod tests {
 
         let backend = create_test_backend(mock_user_repo_arc);
 
-        let session_layer = tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
+        let session_layer =
+            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
         let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
 
         Router::new()
             .route("/stamps", axum::routing::get(get_stamps))
             .route("/stamps/{stampId}", axum::routing::get(get_stamp_by_id))
-            .route("/login", axum::routing::post(|mut auth: AuthSession| async move {
-                 if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                     auth.login(&user_session).await.unwrap();
-                     StatusCode::OK
-                 } else {
-                     StatusCode::UNAUTHORIZED
-                 }
-            }))
+            .route(
+                "/login",
+                axum::routing::post(|mut auth: AuthSession| async move {
+                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
+                        auth.login(&user_session).await.unwrap();
+                        StatusCode::OK
+                    } else {
+                        StatusCode::UNAUTHORIZED
+                    }
+                }),
+            )
             .layer(auth_layer)
             .with_state(state)
     }
@@ -205,24 +208,41 @@ mod tests {
         let mut mock_stamp_repo = MockStampRepository::new();
         let mut mock_traq_client = MockTraqClient::new();
         let mut mock_user_repo = MockUserRepository::new();
-        
+
         let stamp = crate::test_factories::create_stamp();
         let stamps = vec![stamp.clone()];
-        
+
         // Service::get_stamps needs a token
-        mock_user_repo.expect_find_random_valid_token().returning(|| Ok(Some("token".into())));
-        
+        mock_user_repo
+            .expect_find_random_valid_token()
+            .returning(|| Ok(Some("token".into())));
+
         let stamps_clone = stamps.clone();
-        mock_traq_client.expect_get_stamps().returning(move |_| Ok(stamps_clone.clone()));
+        mock_traq_client
+            .expect_get_stamps()
+            .returning(move |_| Ok(stamps_clone.clone()));
         mock_stamp_repo.expect_save_batch().returning(|_| Ok(()));
 
         let user = crate::test_factories::create_user();
-        let app = create_app(mock_stamp_repo, mock_traq_client, mock_user_repo, Some(user.clone()));
+        let app = create_app(
+            mock_stamp_repo,
+            mock_traq_client,
+            mock_user_repo,
+            Some(user.clone()),
+        );
 
         // Login
-        let login_req = Request::builder().uri("/login").method("POST").body(Body::empty()).unwrap();
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
         let login_res = app.clone().oneshot(login_req).await.unwrap();
-        let cookie = login_res.headers().get(http::header::SET_COOKIE).unwrap().clone();
+        let cookie = login_res
+            .headers()
+            .get(http::header::SET_COOKIE)
+            .unwrap()
+            .clone();
 
         // Get Stamps
         let req = Request::builder()
@@ -234,4 +254,3 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
     }
 }
-
