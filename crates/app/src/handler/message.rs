@@ -90,57 +90,10 @@ pub async fn remove_message_stamp(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::AppState;
-    use crate::mocks::{
-        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
-    };
-    use crate::session::{AuthSession, UserSession};
-    use crate::test_helpers::create_test_backend;
-    use axum::{Router, body::Body, http::Request};
-    use domain::{model::User, repository::Repository};
-    use std::sync::Arc;
+    use crate::mocks::{MockMessageRepository, MockTraqClient, MockUserRepository};
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{body::Body, http::Request};
     use tower::ServiceExt;
-
-    fn create_app(
-        mock_message_repo: MockMessageRepository,
-        mock_user_repo: MockUserRepository,
-        mock_traq_client: MockTraqClient,
-        user: Option<User>,
-    ) -> Router {
-        let mock_user_repo_arc = Arc::new(mock_user_repo);
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: mock_user_repo_arc.clone(),
-        };
-        let traq_client = Arc::new(mock_traq_client);
-        let state = AppState::new(repo, traq_client);
-
-        let backend = create_test_backend(mock_user_repo_arc);
-
-        let session_layer =
-            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
-        let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
-
-        Router::new()
-            .route(
-                "/messages/{messageId}/stamps/{stampId}",
-                axum::routing::post(add_message_stamp).delete(remove_message_stamp),
-            )
-            .route(
-                "/login",
-                axum::routing::post(|mut auth: AuthSession| async move {
-                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                        auth.login(&user_session).await.unwrap();
-                        StatusCode::OK
-                    } else {
-                        StatusCode::UNAUTHORIZED
-                    }
-                }),
-            )
-            .layer(auth_layer)
-            .with_state(state)
-    }
 
     #[tokio::test]
     async fn test_add_message_stamp_success() {
@@ -192,12 +145,12 @@ mod tests {
             .times(1)
             .returning(|_, _, _, _| Ok(()));
 
-        let app = create_app(
-            mock_message_repo,
-            mock_user_repo,
-            mock_traq_client,
-            Some(user.clone()),
-        );
+        let app = TestAppBuilder::new()
+            .with_message_repo(mock_message_repo)
+            .with_user_repo(mock_user_repo)
+            .with_traq_client(mock_traq_client)
+            .with_user(user.clone())
+            .build();
 
         // Login
         let login_req = Request::builder()
@@ -214,7 +167,10 @@ mod tests {
 
         // Add Stamp
         let req = Request::builder()
-            .uri(&format!("/messages/{}/stamps/{}", message_id, stamp_id))
+            .uri(&format!(
+                "/api/v1/messages/{}/stamps/{}",
+                message_id, stamp_id
+            ))
             .method("POST")
             .header(http::header::COOKIE, cookie)
             .body(Body::empty())

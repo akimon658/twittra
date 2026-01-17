@@ -131,55 +131,10 @@ pub async fn get_user_icon(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::AppState;
-    use crate::mocks::{
-        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
-    };
-    use crate::session::{AuthSession, UserSession};
-    use crate::test_helpers::create_test_backend;
-    use axum::{Router, body::Body, http::Request};
-    use domain::repository::Repository;
-    use std::sync::Arc;
+    use crate::mocks::MockUserRepository;
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{body::Body, http::Request};
     use tower::ServiceExt;
-
-    fn create_app(
-        mock_user_repo: MockUserRepository,
-        mock_traq_client: MockTraqClient,
-        user: Option<User>,
-    ) -> Router {
-        let mock_user_repo_arc = Arc::new(mock_user_repo);
-        let repo = Repository {
-            message: Arc::new(MockMessageRepository::new()),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: mock_user_repo_arc.clone(),
-        };
-        let traq_client = Arc::new(mock_traq_client);
-        let state = AppState::new(repo, traq_client);
-
-        let backend = create_test_backend(mock_user_repo_arc);
-
-        let session_layer =
-            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
-        let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
-
-        Router::new()
-            .route("/me", axum::routing::get(get_me))
-            .route("/users/{userId}", axum::routing::get(get_user_by_id))
-            .route("/users/{userId}/icon", axum::routing::get(get_user_icon))
-            .route(
-                "/login",
-                axum::routing::post(|mut auth: AuthSession| async move {
-                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                        auth.login(&user_session).await.unwrap();
-                        StatusCode::OK
-                    } else {
-                        StatusCode::UNAUTHORIZED
-                    }
-                }),
-            )
-            .layer(auth_layer)
-            .with_state(state)
-    }
 
     #[tokio::test]
     async fn test_get_me_success() {
@@ -196,7 +151,10 @@ mod tests {
             .times(1)
             .returning(move |_| Ok(Some(user_clone.clone())));
 
-        let app = create_app(mock_user_repo, MockTraqClient::new(), Some(user.clone()));
+        let app = TestAppBuilder::new()
+            .with_user_repo(mock_user_repo)
+            .with_user(user.clone())
+            .build();
 
         // Login
         let login_req = Request::builder()
@@ -213,7 +171,7 @@ mod tests {
 
         // Get Me
         let req = Request::builder()
-            .uri("/me")
+            .uri("/api/v1/me")
             .header(http::header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();

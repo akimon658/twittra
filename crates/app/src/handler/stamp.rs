@@ -153,55 +153,10 @@ pub async fn get_stamps(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::AppState;
-    use crate::mocks::{
-        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
-    };
-    use crate::session::{AuthSession, UserSession};
-    use crate::test_helpers::create_test_backend;
-    use axum::{Router, body::Body, http::Request};
-    use domain::{model::User, repository::Repository};
-    use std::sync::Arc;
+    use crate::mocks::{MockStampRepository, MockTraqClient, MockUserRepository};
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{body::Body, http::Request};
     use tower::ServiceExt;
-
-    fn create_app(
-        mock_stamp_repo: MockStampRepository,
-        mock_traq_client: MockTraqClient,
-        mock_user_repo: MockUserRepository,
-        user: Option<User>,
-    ) -> Router {
-        let mock_user_repo_arc = Arc::new(mock_user_repo);
-        let repo = Repository {
-            message: Arc::new(MockMessageRepository::new()),
-            stamp: Arc::new(mock_stamp_repo),
-            user: mock_user_repo_arc.clone(),
-        };
-        let traq_client = Arc::new(mock_traq_client);
-        let state = AppState::new(repo, traq_client);
-
-        let backend = create_test_backend(mock_user_repo_arc);
-
-        let session_layer =
-            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
-        let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
-
-        Router::new()
-            .route("/stamps", axum::routing::get(get_stamps))
-            .route("/stamps/{stampId}", axum::routing::get(get_stamp_by_id))
-            .route(
-                "/login",
-                axum::routing::post(|mut auth: AuthSession| async move {
-                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                        auth.login(&user_session).await.unwrap();
-                        StatusCode::OK
-                    } else {
-                        StatusCode::UNAUTHORIZED
-                    }
-                }),
-            )
-            .layer(auth_layer)
-            .with_state(state)
-    }
 
     #[tokio::test]
     async fn test_get_stamps_all() {
@@ -224,12 +179,12 @@ mod tests {
         mock_stamp_repo.expect_save_batch().returning(|_| Ok(()));
 
         let user = crate::test_factories::create_user();
-        let app = create_app(
-            mock_stamp_repo,
-            mock_traq_client,
-            mock_user_repo,
-            Some(user.clone()),
-        );
+        let app = TestAppBuilder::new()
+            .with_stamp_repo(mock_stamp_repo)
+            .with_traq_client(mock_traq_client)
+            .with_user_repo(mock_user_repo)
+            .with_user(user.clone())
+            .build();
 
         // Login
         let login_req = Request::builder()
@@ -246,7 +201,7 @@ mod tests {
 
         // Get Stamps
         let req = Request::builder()
-            .uri("/stamps")
+            .uri("/api/v1/stamps")
             .header(http::header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();

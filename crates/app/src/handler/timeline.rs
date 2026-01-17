@@ -42,51 +42,10 @@ pub async fn get_timeline(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::AppState;
-    use crate::mocks::{
-        MockMessageRepository, MockStampRepository, MockTraqClient, MockUserRepository,
-    };
-    use crate::session::{AuthSession, UserSession};
-    use crate::test_helpers::create_test_backend;
-    use axum::{Router, body::Body, http::Request};
-    use domain::{model::User, repository::Repository};
-    use std::sync::Arc;
+    use crate::mocks::MockMessageRepository;
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{body::Body, http::Request};
     use tower::ServiceExt;
-    use uuid::Uuid;
-
-    fn create_app(mock_message_repo: MockMessageRepository, user: Option<User>) -> Router {
-        let mock_user_repo = Arc::new(MockUserRepository::new());
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: mock_user_repo.clone(),
-        };
-        let traq_client = Arc::new(MockTraqClient::new());
-        let state = AppState::new(repo, traq_client);
-
-        let backend = create_test_backend(mock_user_repo);
-
-        let session_layer =
-            tower_sessions::SessionManagerLayer::new(tower_sessions::MemoryStore::default());
-        let auth_layer = axum_login::AuthManagerLayerBuilder::new(backend, session_layer).build();
-
-        Router::new()
-            .route("/timeline", axum::routing::get(get_timeline))
-            // Test-only login route to establish session
-            .route(
-                "/login",
-                axum::routing::post(|mut auth: AuthSession| async move {
-                    if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
-                        auth.login(&user_session).await.unwrap();
-                        StatusCode::OK
-                    } else {
-                        StatusCode::UNAUTHORIZED
-                    }
-                }),
-            )
-            .layer(auth_layer)
-            .with_state(state)
-    }
 
     #[tokio::test]
     async fn test_get_timeline_success() {
@@ -98,7 +57,10 @@ mod tests {
 
         let user = crate::test_factories::create_user();
 
-        let app = create_app(mock_message_repo, Some(user.clone()));
+        let app = TestAppBuilder::new()
+            .with_message_repo(mock_message_repo)
+            .with_user(user.clone())
+            .build();
 
         // 1. Login to get session cookie
         let login_req = Request::builder()
@@ -118,7 +80,7 @@ mod tests {
 
         // 2. Access timeline with cookie
         let req = Request::builder()
-            .uri("/timeline")
+            .uri("/api/v1/timeline")
             .header(http::header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();
@@ -133,10 +95,12 @@ mod tests {
         // No user => logic shouldn't even check repo if unauthorized
         // checking repo times(0) is default
 
-        let app = create_app(mock_message_repo, None);
+        let app = TestAppBuilder::new()
+            .with_message_repo(mock_message_repo)
+            .build();
 
         let req = Request::builder()
-            .uri("/timeline")
+            .uri("/api/v1/timeline")
             .body(Body::empty())
             .unwrap();
 
