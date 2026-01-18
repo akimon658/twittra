@@ -236,10 +236,9 @@ mod tests {
         AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, Scope, TokenResponse,
         TokenUrl, basic::BasicClient,
     };
-    use reqwest::redirect::Policy;
-    use std::{path::PathBuf, time::Duration as StdDuration};
-    use testcontainers::compose::DockerCompose;
-    use tokio::time;
+    use reqwest::{StatusCode, redirect::Policy};
+    use std::path::PathBuf;
+    use testcontainers::{compose::DockerCompose, core::wait::HttpWaitStrategy};
     use uuid::Uuid;
 
     /// Test environment that orchestrates traQ via Docker Compose
@@ -269,13 +268,16 @@ mod tests {
                 test_compose_file.to_str().unwrap(),
             ])
             .with_env("TRAQ_SERVER_PORT", "0") // Random port assignment
-            .with_env("MARIADB_PORT", "0");
+            .with_env("MARIADB_PORT", "0")
+            .with_wait_for_service(
+                "traq_server",
+                HttpWaitStrategy::new("/api/v3/version")
+                    .with_expected_status_code(StatusCode::OK)
+                    .into(),
+            );
 
-            // Start services
+            // Start services and wait for readiness
             compose.up().await.expect("Failed to start docker compose");
-
-            // Wait for services to initialize
-            time::sleep(StdDuration::from_secs(10)).await;
 
             // Get traq_server service and mapped port
             let traq_server = compose
@@ -314,28 +316,10 @@ mod tests {
             _server_base_url: &str,
         ) -> Result<(String, Uuid), String> {
             let client = reqwest::Client::builder()
-                .timeout(StdDuration::from_secs(10))
                 .cookie_store(true)
                 .redirect(Policy::none())
                 .build()
                 .map_err(|e| e.to_string())?;
-
-            // Wait for traQ to be ready
-            eprintln!("Waiting for traQ at {}...", api_base_url);
-            for i in 0..60 {
-                match client.get(format!("{}/version", api_base_url)).send().await {
-                    Ok(res) if res.status().is_success() => {
-                        eprintln!("traQ ready!");
-                        break;
-                    }
-                    Ok(res) => eprintln!("Status: {}", res.status()),
-                    Err(e) => eprintln!("Attempt {}/60: {}", i + 1, e),
-                }
-                if i == 59 {
-                    return Err("traQ not ready after 60 attempts".to_string());
-                }
-                time::sleep(StdDuration::from_secs(1)).await;
-            }
 
             // Login with default user (traq/traq)
             eprintln!("Logging in with default user (traq/traq)...");

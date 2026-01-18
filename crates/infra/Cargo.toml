@@ -15,7 +15,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 domain = { path = "../domain", features = ["test-utils"] }
-testcontainers = { version = "0.26", features = ["docker-compose"] }
+testcontainers = { version = "0.26", features = ["docker-compose", "http_wait_plain"] }
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde_json = "1.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
