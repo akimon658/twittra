@@ -261,18 +261,15 @@ mod tests {
                 .to_path_buf();
 
             let compose_file = workspace_root.join("compose.yaml");
-
-            // Generate unique project name
-            let project_name = format!("traq_test_{}", Uuid::now_v7().simple());
+            let test_compose_file = workspace_root.join("compose.test.yaml");
 
             // Create and configure compose instance
-            let mut compose = DockerCompose::with_local_client(&[compose_file.to_str().unwrap()])
-                .with_env("COMPOSE_PROJECT_NAME", &project_name)
-                .with_env("COMPOSE_PROFILES", "dev")
-                .with_env("TRAQ_SERVER_PORT", "0") // Random port assignment
-                .with_env("TRAQ_CADDY_PORT", "0")
-                .with_env("MARIADB_PORT", "0")
-                .with_env("ADMINER_PORT", "0");
+            let mut compose = DockerCompose::with_local_client(&[
+                compose_file.to_str().unwrap(),
+                test_compose_file.to_str().unwrap(),
+            ])
+            .with_env("TRAQ_SERVER_PORT", "0") // Random port assignment
+            .with_env("MARIADB_PORT", "0");
 
             // Start services
             compose.up().await.expect("Failed to start docker compose");
