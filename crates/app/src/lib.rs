@@ -15,7 +15,7 @@ use domain::{
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use sqlx::MySqlPool;
-use std::{env, sync::Arc, time::Duration};
+use std::{env, error::Error, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task};
 use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
 use tower_sessions_sqlx_store::MySqlStore;
@@ -66,7 +66,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     (openapi_router.0, openapi_router.1)
 }
 
-pub async fn serve() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn serve() -> Result<(), Box<dyn Error>> {
     if cfg!(debug_assertions) {
         // Load .env file if exists
         dotenvy::from_filename(".env.local").ok();
