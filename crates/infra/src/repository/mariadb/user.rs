@@ -129,16 +129,13 @@ impl UserRepository for MariaDbUserRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use domain::test_factories::UserBuilder;
 
     #[sqlx::test]
     async fn test_save_and_find_user(pool: sqlx::MySqlPool) {
         let repo = MariaDbUserRepository::new(pool);
 
-        let user = User {
-            id: Uuid::now_v7(),
-            handle: "test_user".to_string(),
-            display_name: "Test User".to_string(),
-        };
+        let user = UserBuilder::new().build();
 
         // Save user
         repo.save(&user).await.unwrap();
@@ -170,11 +167,7 @@ mod tests {
         let token = "test_access_token_12345";
 
         // Create user first (FK constraint)
-        let user = User {
-            id: user_id,
-            handle: "test_user".to_string(),
-            display_name: "Test User".to_string(),
-        };
+        let user = UserBuilder::new().id(user_id).build();
         repo.save(&user).await.unwrap();
 
         // Save token
@@ -196,11 +189,7 @@ mod tests {
         let token2 = "token_v2";
 
         // Create user first (FK constraint)
-        let user = User {
-            id: user_id,
-            handle: "test_user".to_string(),
-            display_name: "Test User".to_string(),
-        };
+        let user = UserBuilder::new().id(user_id).build();
         repo.save(&user).await.unwrap();
 
         // Save original token
@@ -229,12 +218,8 @@ mod tests {
 
         // Create users first (FK constraint)
         let user_ids = [Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7()];
-        for (i, user_id) in user_ids.iter().enumerate() {
-            let user = User {
-                id: *user_id,
-                handle: format!("test_user_{}", i),
-                display_name: format!("Test User {}", i),
-            };
+        for user_id in user_ids.iter() {
+            let user = UserBuilder::new().id(*user_id).build();
             repo.save(&user).await.unwrap();
         }
 

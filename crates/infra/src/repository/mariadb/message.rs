@@ -317,8 +317,7 @@ impl MessageRepository for MariaDbMessageRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::model::{Message, Reaction};
-    use time::OffsetDateTime;
+    use domain::test_factories::{MessageBuilder, ReactionBuilder};
     use uuid::Uuid;
 
     #[sqlx::test]
@@ -326,15 +325,7 @@ mod tests {
         let repo = MariaDbMessageRepository::new(pool);
 
         // Create a test message
-        let message = Message {
-            id: Uuid::now_v7(),
-            user_id: Uuid::now_v7(),
-            channel_id: Uuid::now_v7(),
-            content: "Test message".to_string(),
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-            reactions: vec![],
-        };
+        let message = MessageBuilder::new().build();
 
         // Save the message
         repo.save(&message).await.unwrap();
@@ -352,21 +343,11 @@ mod tests {
     async fn test_save_message_with_reactions(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
-        let reaction = Reaction {
-            stamp_id: Uuid::now_v7(),
-            user_id: Uuid::now_v7(),
-            stamp_count: 1,
-        };
+        let reaction = ReactionBuilder::new().build();
 
-        let message = Message {
-            id: Uuid::now_v7(),
-            user_id: Uuid::now_v7(),
-            channel_id: Uuid::now_v7(),
-            content: "Message with reaction".to_string(),
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-            reactions: vec![reaction.clone()],
-        };
+        let message = MessageBuilder::new()
+            .reactions(vec![reaction.clone()])
+            .build();
 
         repo.save(&message).await.unwrap();
 
@@ -386,21 +367,15 @@ mod tests {
         let stamp_id = Uuid::now_v7();
         let user_id = Uuid::now_v7();
 
-        let reaction = Reaction {
-            stamp_id,
-            user_id,
-            stamp_count: 1,
-        };
+        let reaction = ReactionBuilder::new()
+            .stamp_id(stamp_id)
+            .user_id(user_id)
+            .build();
 
-        let message = Message {
-            id: message_id,
-            user_id: Uuid::now_v7(),
-            channel_id: Uuid::now_v7(),
-            content: "Message with reaction".to_string(),
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-            reactions: vec![reaction],
-        };
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction])
+            .build();
 
         // Save with reaction
         repo.save(&message).await.unwrap();
@@ -425,24 +400,8 @@ mod tests {
 
         let channel_id = Uuid::now_v7();
         let messages = vec![
-            Message {
-                id: Uuid::now_v7(),
-                user_id: Uuid::now_v7(),
-                channel_id,
-                content: "Message 1".to_string(),
-                created_at: OffsetDateTime::now_utc(),
-                updated_at: OffsetDateTime::now_utc(),
-                reactions: vec![],
-            },
-            Message {
-                id: Uuid::now_v7(),
-                user_id: Uuid::now_v7(),
-                channel_id,
-                content: "Message 2".to_string(),
-                created_at: OffsetDateTime::now_utc(),
-                updated_at: OffsetDateTime::now_utc(),
-                reactions: vec![],
-            },
+            MessageBuilder::new().channel_id(channel_id).build(),
+            MessageBuilder::new().channel_id(channel_id).build(),
         ];
 
         repo.save_batch(&messages).await.unwrap();

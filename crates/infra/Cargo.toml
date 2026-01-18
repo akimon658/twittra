@@ -14,6 +14,7 @@ traq = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+domain = { path = "../domain", features = ["test-utils"] }
 testcontainers = { version = "0.26", features = ["docker-compose"] }
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde_json = "1.0"

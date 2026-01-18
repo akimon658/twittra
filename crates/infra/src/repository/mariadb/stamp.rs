@@ -79,15 +79,13 @@ impl StampRepository for MariaDbStampRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use domain::test_factories::StampBuilder;
 
     #[sqlx::test]
     async fn test_save_and_find_stamp(pool: sqlx::MySqlPool) {
         let repo = MariaDbStampRepository::new(pool);
 
-        let stamp = Stamp {
-            id: Uuid::now_v7(),
-            name: "test_stamp".to_string(),
-        };
+        let stamp = StampBuilder::new().build();
 
         // Save stamp
         repo.save(&stamp).await.unwrap();
@@ -115,18 +113,9 @@ mod tests {
         let repo = MariaDbStampRepository::new(pool);
 
         let stamps = vec![
-            Stamp {
-                id: Uuid::now_v7(),
-                name: "stamp1".to_string(),
-            },
-            Stamp {
-                id: Uuid::now_v7(),
-                name: "stamp2".to_string(),
-            },
-            Stamp {
-                id: Uuid::now_v7(),
-                name: "stamp3".to_string(),
-            },
+            StampBuilder::new().build(),
+            StampBuilder::new().build(),
+            StampBuilder::new().build(),
         ];
 
         // Save batch
@@ -145,19 +134,19 @@ mod tests {
         let repo = MariaDbStampRepository::new(pool);
 
         let stamp_id = Uuid::now_v7();
-        let stamp_v1 = Stamp {
-            id: stamp_id,
-            name: "original_name".to_string(),
-        };
+        let stamp_v1 = StampBuilder::new()
+            .id(stamp_id)
+            .name("original_name")
+            .build();
 
         // Save original
         repo.save(&stamp_v1).await.unwrap();
 
         // Update
-        let stamp_v2 = Stamp {
-            id: stamp_id,
-            name: "updated_name".to_string(),
-        };
+        let stamp_v2 = StampBuilder::new()
+            .id(stamp_id)
+            .name("updated_name")
+            .build();
         repo.save(&stamp_v2).await.unwrap();
 
         // Verify update
