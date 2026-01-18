@@ -21,7 +21,7 @@ sqlx = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
-tower-sessions = { workspace = true, features = ["memory-store"] }
+tower-sessions = { workspace = true }
 tower-sessions-sqlx-store = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -38,3 +38,4 @@ fake = { workspace = true, features = ["time", "uuid"] }
 mockall = { workspace = true }
 serde_json = { workspace = true }
 tower = { workspace = true }
+tower-sessions = { workspace = true, features = ["memory-store"] }
