@@ -245,8 +245,8 @@ mod tests {
     struct TraqTestEnvironment {
         compose: Option<DockerCompose>,
         base_url: String,
-        admin_token: Option<String>,
-        admin_user_id: Option<Uuid>,
+        default_user_token: String,
+        default_user_id: Uuid,
     }
 
     impl TraqTestEnvironment {
@@ -293,33 +293,27 @@ mod tests {
             // server_base_url for OAuth endpoints (no /api/v3)
             let server_base_url = format!("http://localhost:{}", port);
 
-            // Initialize traQ and get admin token via OAuth2
-            let (admin_token, admin_user_id) =
-                match Self::initialize_traq_oauth(&api_base_url, &server_base_url).await {
-                    Ok(result) => (Some(result.0), Some(result.1)),
-                    Err(e) => {
-                        eprintln!("WARNING: traQ initialization failed: {}", e);
-                        (None, None)
-                    }
-                };
+            // Initialize traQ and get default user token via OAuth2
+            let (default_user_token, default_user_id) =
+                Self::initialize_traq_oauth(&api_base_url, &server_base_url).await;
 
             Self {
                 compose: Some(compose),
                 base_url: api_base_url,
-                admin_token,
-                admin_user_id,
+                default_user_token,
+                default_user_id,
             }
         }
 
         async fn initialize_traq_oauth(
             api_base_url: &str,
             _server_base_url: &str,
-        ) -> Result<(String, Uuid), String> {
+        ) -> (String, Uuid) {
             let client = reqwest::Client::builder()
                 .cookie_store(true)
                 .redirect(Policy::none())
                 .build()
-                .map_err(|e| e.to_string())?;
+                .expect("Failed to build reqwest client");
 
             // Login with default user (traq/traq)
             eprintln!("Logging in with default user (traq/traq)...");
@@ -331,10 +325,10 @@ mod tests {
                 }))
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
+                .expect("Failed to send login request");
 
             if !login_res.status().is_success() {
-                return Err("Login failed with default user".to_string());
+                panic!("Login failed with default user");
             }
 
             // Get user ID
@@ -342,10 +336,11 @@ mod tests {
                 .get(format!("{}/users/me", api_base_url))
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
-            let me_data: serde_json::Value = me_res.json().await.map_err(|e| e.to_string())?;
-            let user_id =
-                Uuid::parse_str(me_data["id"].as_str().unwrap()).map_err(|e| e.to_string())?;
+                .expect("Failed to get user info");
+            let me_data: serde_json::Value =
+                me_res.json().await.expect("Failed to parse user info json");
+            let user_id = Uuid::parse_str(me_data["id"].as_str().unwrap())
+                .expect("Failed to parse user uuid");
 
             // Create OAuth client
             eprintln!("Creating OAuth client...");
@@ -359,15 +354,17 @@ mod tests {
                 }))
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
+                .expect("Failed to create oauth client request");
 
             if !client_res.status().is_success() {
-                let error = client_res.text().await.map_err(|e| e.to_string())?;
-                return Err(format!("Failed to create OAuth client: {}", error));
+                let error = client_res.text().await.expect("Failed to get error text");
+                panic!("Failed to create OAuth client: {}", error);
             }
 
-            let client_data: serde_json::Value =
-                client_res.json().await.map_err(|e| e.to_string())?;
+            let client_data: serde_json::Value = client_res
+                .json()
+                .await
+                .expect("Failed to parse oauth client json");
             let client_id = client_data["id"].as_str().unwrap();
             let client_secret = client_data["secret"].as_str().unwrap();
 
@@ -376,11 +373,11 @@ mod tests {
                 .set_client_secret(ClientSecret::new(client_secret.to_string()))
                 .set_auth_uri(
                     AuthUrl::new(format!("{}/oauth2/authorize", api_base_url))
-                        .map_err(|e| e.to_string())?,
+                        .expect("Failed to create auth url"),
                 )
                 .set_token_uri(
                     TokenUrl::new(format!("{}/oauth2/token", api_base_url))
-                        .map_err(|e| e.to_string())?,
+                        .expect("Failed to create token url"),
                 );
 
             // Generate authorization URL
@@ -395,7 +392,7 @@ mod tests {
                 .get(auth_url.as_str())
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
+                .expect("Failed to send auth request");
 
             // Extract authorization code
             let code = if auth_res.status().is_redirection() {
@@ -403,7 +400,7 @@ mod tests {
                     .headers()
                     .get("location")
                     .and_then(|v| v.to_str().ok())
-                    .ok_or_else(|| "No location header".to_string())?;
+                    .expect("No location header");
 
                 if location.contains("/consent") {
                     // Approve via /oauth2/authorize/decide
@@ -413,34 +410,36 @@ mod tests {
                         .form(&[("submit", "approve")])
                         .send()
                         .await
-                        .map_err(|e| e.to_string())?;
+                        .expect("Failed to send approve request");
 
                     if !approve_res.status().is_redirection() {
-                        return Err("Consent approval failed".to_string());
+                        panic!("Consent approval failed");
                     }
 
                     let location = approve_res
                         .headers()
                         .get("location")
                         .and_then(|v| v.to_str().ok())
-                        .ok_or_else(|| "No location after approval".to_string())?;
+                        .expect("No location after approval");
 
-                    let callback_url = url::Url::parse(location).map_err(|e| e.to_string())?;
+                    let callback_url =
+                        url::Url::parse(location).expect("Failed to parse callback url");
                     callback_url
                         .query_pairs()
                         .find(|(key, _)| key == "code")
                         .map(|(_, value)| value.to_string())
-                        .ok_or_else(|| "No code in callback".to_string())?
+                        .expect("No code in callback")
                 } else {
-                    let callback_url = url::Url::parse(location).map_err(|e| e.to_string())?;
+                    let callback_url =
+                        url::Url::parse(location).expect("Failed to parse callback url");
                     callback_url
                         .query_pairs()
                         .find(|(key, _)| key == "code")
                         .map(|(_, value)| value.to_string())
-                        .ok_or_else(|| "No code in callback".to_string())?
+                        .expect("No code in callback")
                 }
             } else {
-                return Err("Unexpected authorization response".to_string());
+                panic!("Unexpected authorization response");
             };
 
             // Exchange code for token
@@ -449,24 +448,24 @@ mod tests {
                 .exchange_code(AuthorizationCode::new(code))
                 .request_async(&http_client)
                 .await
-                .map_err(|e| e.to_string())?;
+                .expect("Failed to exchange code for token");
 
             let access_token = token_result.access_token().secret().to_string();
             eprintln!("Got access token!");
 
-            Ok((access_token, user_id))
+            (access_token, user_id)
         }
 
         fn base_url(&self) -> &str {
             &self.base_url
         }
 
-        fn admin_token(&self) -> &str {
-            self.admin_token.as_deref().unwrap_or("")
+        fn default_user_token(&self) -> &str {
+            &self.default_user_token
         }
 
-        fn admin_user_id(&self) -> Option<Uuid> {
-            self.admin_user_id
+        fn default_user_id(&self) -> Uuid {
+            self.default_user_id
         }
 
         /// Explicit cleanup method
@@ -483,28 +482,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_environment_starts() {
-        let env = TraqTestEnvironment::start().await;
-
-        assert!(!env.base_url().is_empty());
-        assert!(!env.admin_token().is_empty());
-        assert!(env.admin_user_id().is_some());
-
-        println!("traQ URL: {}", env.base_url());
-        println!("Admin token: {}", env.admin_token());
-        println!("Admin user ID: {:?}", env.admin_user_id());
-
-        env.cleanup().await;
-    }
-
-    #[tokio::test]
     async fn test_get_user_success() {
         let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
-        let user_id = env.admin_user_id().expect("No admin user ID");
+        let user_id = env.default_user_id();
 
-        let result = client.get_user(env.admin_token(), &user_id).await;
+        let result = client.get_user(env.default_user_token(), &user_id).await;
 
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -521,7 +505,9 @@ mod tests {
         let client = TraqClientImpl::new(env.base_url().to_string());
         let non_existent_id = Uuid::new_v4();
 
-        let result = client.get_user(env.admin_token(), &non_existent_id).await;
+        let result = client
+            .get_user(env.default_user_token(), &non_existent_id)
+            .await;
 
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
@@ -535,7 +521,7 @@ mod tests {
         let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
-        let user_id = env.admin_user_id().expect("No admin user ID");
+        let user_id = env.default_user_id();
 
         let result = client.get_user("invalid_token", &user_id).await;
 
@@ -552,7 +538,7 @@ mod tests {
 
         let client = TraqClientImpl::new(env.base_url().to_string());
 
-        let result = client.get_stamps(env.admin_token()).await;
+        let result = client.get_stamps(env.default_user_token()).await;
 
         assert!(result.is_ok());
         let stamps = result.unwrap();
@@ -570,7 +556,7 @@ mod tests {
 
         // First get all stamps to get a valid ID
         let stamps = client
-            .get_stamps(env.admin_token())
+            .get_stamps(env.default_user_token())
             .await
             .expect("Failed to get stamps");
         assert!(!stamps.is_empty());
@@ -578,7 +564,7 @@ mod tests {
         let stamp_id = stamps[0].id;
 
         // Now get individual stamp
-        let result = client.get_stamp(env.admin_token(), &stamp_id).await;
+        let result = client.get_stamp(env.default_user_token(), &stamp_id).await;
 
         assert!(result.is_ok());
         let stamp = result.unwrap();
@@ -596,7 +582,9 @@ mod tests {
         // Search messages from a week ago
         let since = OffsetDateTime::now_utc() - Duration::days(7);
 
-        let result = client.fetch_messages_since(env.admin_token(), since).await;
+        let result = client
+            .fetch_messages_since(env.default_user_token(), since)
+            .await;
 
         assert!(result.is_ok());
         let messages = result.unwrap();
