@@ -161,7 +161,7 @@ mod tests {
     async fn test_get_stamps_all() {
         let mut mock_traq_service = MockTraqService::new();
 
-        let stamp = crate::test_factories::create_stamp();
+        let stamp = domain::test_factories::StampBuilder::new().build();
         let stamps = vec![stamp.clone()];
         let stamps_clone = stamps.clone();
 
@@ -169,7 +169,7 @@ mod tests {
             .expect_get_stamps()
             .returning(move || Ok(stamps_clone.clone()));
 
-        let user = crate::test_factories::create_user();
+        let user = domain::test_factories::UserBuilder::new().build();
         let app = TestAppBuilder::new()
             .with_traq_service(mock_traq_service)
             .with_user(user.clone())

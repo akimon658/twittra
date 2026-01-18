@@ -50,7 +50,7 @@ mod tests {
     async fn test_get_timeline_success() {
         let mut mock_timeline_service = MockTimelineService::new();
 
-        let message = crate::test_factories::create_message_list_item();
+        let message = domain::test_factories::MessageListItemBuilder::new().build();
         let messages = vec![message.clone()];
         let messages_clone = messages.clone();
 
@@ -59,7 +59,7 @@ mod tests {
             .times(1)
             .returning(move || Ok(messages_clone.clone()));
 
-        let user = crate::test_factories::create_user();
+        let user = domain::test_factories::UserBuilder::new().build();
 
         let app = TestAppBuilder::new()
             .with_timeline_service(mock_timeline_service)

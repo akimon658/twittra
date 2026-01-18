@@ -31,8 +31,6 @@ use utoipa_swagger_ui::SwaggerUi;
 mod handler;
 mod session;
 #[cfg(test)]
-pub mod test_factories;
-#[cfg(test)]
 pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";

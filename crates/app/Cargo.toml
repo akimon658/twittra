@@ -34,7 +34,6 @@ uuid = { workspace = true }
 [dev-dependencies]
 # domain exports mock models with the "test-utils" feature
 domain = { path = "../domain", features = ["test-utils"] }
-fake = { workspace = true, features = ["time", "uuid"] }
 mockall = { workspace = true }
 serde_json = { workspace = true }
 tower = { workspace = true }

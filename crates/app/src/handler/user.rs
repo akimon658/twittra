@@ -137,7 +137,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_me_success() {
         let mut mock_traq_service = MockTraqService::new();
-        let user = crate::test_factories::create_user();
+        let user = domain::test_factories::UserBuilder::new().build();
         let user_id = user.id;
         let user_clone = user.clone();
 

@@ -55,7 +55,6 @@ dependencies = [
  "constant_time_eq",
  "domain",
  "dotenvy",
- "fake",
  "http",
  "infra",
  "mockall",
@@ -745,6 +744,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "fake",
  "mockall",
  "serde",
  "time",

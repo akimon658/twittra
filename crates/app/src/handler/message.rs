@@ -98,7 +98,7 @@ mod tests {
     async fn test_add_message_stamp_success() {
         let mut mock_traq_service = MockTraqService::new();
 
-        let user = crate::test_factories::create_user();
+        let user = domain::test_factories::UserBuilder::new().build();
         let user_id = user.id;
         let message_id = Uuid::now_v7();
         let stamp_id = Uuid::now_v7();

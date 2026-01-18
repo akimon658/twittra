@@ -55,23 +55,10 @@ impl MessageCrawler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Message;
     use crate::repository::{MockMessageRepository, MockStampRepository, MockUserRepository};
+    use crate::test_factories::MessageBuilder;
     use crate::traq_client::MockTraqClient;
     use time::{Duration, OffsetDateTime};
-    use uuid::Uuid;
-
-    fn test_message() -> Message {
-        Message {
-            id: Uuid::now_v7(),
-            user_id: Uuid::now_v7(),
-            channel_id: Uuid::now_v7(),
-            content: "test message".to_string(),
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-            reactions: vec![],
-        }
-    }
 
     #[tokio::test]
     async fn crawl_success_with_existing_messages() {
@@ -81,8 +68,7 @@ mod tests {
 
         let latest_message_time = OffsetDateTime::now_utc() - Duration::hours(1);
         let token = "test_token".to_string();
-        let messages = vec![test_message()];
-        let messages_clone = messages.clone();
+        let messages = vec![MessageBuilder::new().build()];
 
         // 1. Get latest message time
         mock_message_repo
@@ -104,7 +90,7 @@ mod tests {
                 mockall::predicate::eq(latest_message_time),
             )
             .times(1)
-            .returning(move |_, _| Ok(messages_clone.clone()));
+            .returning(move |_, _| Ok(messages.clone()));
 
         // 4. Save messages to repository
         mock_message_repo
