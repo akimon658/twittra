@@ -31,7 +31,7 @@ impl TryFrom<models::Message> for Message {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageListItem {
     pub id: Uuid,
@@ -50,7 +50,7 @@ pub struct MessageListItem {
     pub reactions: Vec<Reaction>,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Reaction {
     pub stamp_id: Uuid,
@@ -68,7 +68,7 @@ impl From<MessageStamp> for Reaction {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Stamp {
     pub id: Uuid,
@@ -94,7 +94,7 @@ impl From<StampWithThumbnail> for Stamp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,
@@ -123,7 +123,7 @@ impl From<UserDetail> for User {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, ToSchema)]
+#[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserToken {
     pub user_id: Uuid,
