@@ -1,12 +1,21 @@
-use std::{env, sync::Arc, time::Duration};
-
-use anyhow::Result;
+use crate::{
+    handler::{
+        AppState,
+        auth::{self},
+        message, stamp, timeline, user,
+    },
+    session::Backend,
+};
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
-use domain::crawler::MessageCrawler;
+use domain::{
+    crawler::MessageCrawler,
+    service::{TimelineServiceImpl, TraqServiceImpl},
+};
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
 use sqlx::MySqlPool;
+use std::{env, error::Error, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task};
 use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
 use tower_sessions_sqlx_store::MySqlStore;
@@ -18,21 +27,14 @@ use utoipa::openapi::{
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::{
-    handler::{
-        AppState,
-        auth::{self},
-        message, stamp, timeline, user,
-    },
-    session::Backend,
-};
-
 mod handler;
 mod session;
+#[cfg(test)]
+pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
 
-pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
+pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     let mut components = Components::new();
 
     components.add_security_scheme(
@@ -45,7 +47,8 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .servers(Some([Server::new(API_ROOT)]))
         .components(Some(components))
         .build();
-    let openapi_router = OpenApiRouter::with_openapi(openapi)
+
+    OpenApiRouter::with_openapi(openapi)
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
         .routes(utoipa_axum::routes!(
@@ -59,12 +62,10 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .routes(utoipa_axum::routes!(user::get_me))
         .routes(utoipa_axum::routes!(user::get_user_by_id))
         .routes(utoipa_axum::routes!(user::get_user_icon))
-        .split_for_parts();
-
-    Ok(openapi_router)
+        .split_for_parts()
 }
 
-pub async fn serve() -> Result<()> {
+pub async fn serve() -> Result<(), Box<dyn Error>> {
     if cfg!(debug_assertions) {
         // Load .env file if exists
         dotenvy::from_filename(".env.local").ok();
@@ -109,9 +110,11 @@ pub async fn serve() -> Result<()> {
     });
 
     let backend = Backend::new(client, traq_api_base_url, repository.user.clone());
-    let app_state = AppState::new(repository, Arc::new(traq_client));
+    let traq_service = TraqServiceImpl::new(repository.clone(), Arc::new(traq_client));
+    let timeline_service = TimelineServiceImpl::new(repository);
+    let app_state = AppState::new(Arc::new(traq_service), Arc::new(timeline_service));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
-    let (router, openapi) = setup_openapi_routes()?;
+    let (router, openapi) = setup_openapi_routes();
     let router = axum::Router::new()
         .nest(API_ROOT, router.layer(auth_layer))
         .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));

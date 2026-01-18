@@ -1,15 +1,14 @@
+use crate::{handler::AppState, session::AuthSession};
 use axum::{
     Json,
     extract::{Path, Query, State},
     response::IntoResponse,
 };
 use domain::model::Stamp;
-use http::StatusCode;
+use http::{StatusCode, header};
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
-
-use crate::{handler::AppState, session::AuthSession};
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct StampSearchQuery {
@@ -98,7 +97,7 @@ pub async fn get_stamp_image(
         }
     };
 
-    ([(http::header::CONTENT_TYPE, content_type)], image).into_response()
+    ([(header::CONTENT_TYPE, content_type)], image).into_response()
 }
 
 #[utoipa::path(
@@ -148,4 +147,63 @@ pub async fn get_stamps(
     };
 
     Json(stamps).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{
+        body::{self, Body},
+        http::Request,
+    };
+    use domain::{
+        service::MockTraqService,
+        test_factories::{StampBuilder, UserBuilder},
+    };
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_get_stamps_all() {
+        let mut mock_traq_service = MockTraqService::new();
+
+        let stamp = StampBuilder::new().build();
+        let stamps = vec![stamp.clone()];
+        let stamps_clone = stamps.clone();
+
+        mock_traq_service
+            .expect_get_stamps()
+            .returning(move || Ok(stamps_clone.clone()));
+
+        let user = UserBuilder::new().build();
+        let app = TestAppBuilder::new()
+            .with_traq_service(mock_traq_service)
+            .with_user(user.clone())
+            .build();
+
+        // Login
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
+        let login_res = app.clone().oneshot(login_req).await.unwrap();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
+
+        // Get Stamps
+        let req = Request::builder()
+            .uri("/api/v1/stamps")
+            .header(header::COOKIE, cookie)
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Validate response body
+        let body = body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let response_stamps: Vec<Stamp> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response_stamps.len(), 1);
+        assert_eq!(response_stamps[0].id, stamp.id);
+        assert_eq!(response_stamps[0].name, stamp.name);
+    }
 }

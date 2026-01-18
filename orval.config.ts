@@ -11,6 +11,12 @@ export default defineConfig({
       client: "react-query",
       httpClient: "fetch",
       mode: "tags-split",
+      // MSW mock generation from OpenAPI
+      mock: {
+        type: "msw",
+        target: "./api/mocks.ts",
+        delay: 100,
+      },
       override: {
         fetch: {
           forceSuccessResponse: true,

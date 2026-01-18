@@ -1,14 +1,12 @@
-use domain::model::User;
-
+use crate::{handler::AppState, session::AuthSession};
 use axum::{
     Json,
     extract::{Path, State},
     response::IntoResponse,
 };
-use http::StatusCode;
+use domain::model::User;
+use http::{StatusCode, header};
 use uuid::Uuid;
-
-use crate::{handler::AppState, session::AuthSession};
 
 /// Get the current authenticated user's information.
 #[utoipa::path(
@@ -125,5 +123,62 @@ pub async fn get_user_icon(
         }
     };
 
-    ([(http::header::CONTENT_TYPE, content_type)], icon).into_response()
+    ([(header::CONTENT_TYPE, content_type)], icon).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{
+        body::{self, Body},
+        http::Request,
+    };
+    use domain::{service::MockTraqService, test_factories::UserBuilder};
+    use mockall::predicate;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_get_me_success() {
+        let mut mock_traq_service = MockTraqService::new();
+        let user = UserBuilder::new().build();
+        let user_id = user.id;
+        let user_clone = user.clone();
+
+        mock_traq_service
+            .expect_get_user_by_id()
+            .with(predicate::eq(user_id))
+            .times(1)
+            .returning(move |_| Ok(user_clone.clone()));
+
+        let app = TestAppBuilder::new()
+            .with_traq_service(mock_traq_service)
+            .with_user(user.clone())
+            .build();
+
+        // Login
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
+        let login_res = app.clone().oneshot(login_req).await.unwrap();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
+
+        // Get Me
+        let req = Request::builder()
+            .uri("/api/v1/me")
+            .header(header::COOKIE, cookie)
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Validate response body
+        let body = body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let response_user: User = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response_user.id, user.id);
+        assert_eq!(response_user.handle, user.handle);
+        assert_eq!(response_user.display_name, user.display_name);
+    }
 }

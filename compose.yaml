@@ -6,7 +6,7 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: password
     ports:
-      - "3306:3306"
+      - "${MARIADB_PORT:-3306}:3306"
     volumes:
       - type: volume
         source: mariadb_data
@@ -36,8 +36,8 @@ services:
       - type: volume
         source: traq_storage
         target: /app/storage
-    expose:
-      - 3000
+    ports:
+      - "${TRAQ_SERVER_PORT:-3001}:3000"
     depends_on:
       db:
         condition: service_healthy
