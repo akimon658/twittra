@@ -1,5 +1,5 @@
 use axum_login::{AuthUser, AuthnBackend};
-use domain::{RepositoryError, repository::UserRepository};
+use domain::{error::RepositoryError, repository::UserRepository};
 use oauth2::{
     AsyncHttpClient, AuthorizationCode, CsrfToken, EndpointNotSet, EndpointSet, TokenResponse,
     basic::{BasicClient, BasicRequestTokenError},

@@ -214,11 +214,12 @@ impl TraqService for TraqServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::{MockMessageRepository, MockStampRepository, MockUserRepository};
-    use crate::test_factories::{
-        MessageListItemBuilder, RepositoryBuilder, StampBuilder, UserBuilder,
+    use crate::{
+        error::RepositoryError,
+        repository::{MockMessageRepository, MockStampRepository, MockUserRepository},
+        test_factories::{MessageListItemBuilder, RepositoryBuilder, StampBuilder, UserBuilder},
+        traq_client::MockTraqClient,
     };
-    use crate::traq_client::MockTraqClient;
 
     #[tokio::test]
     async fn timeline_get_recommended_messages_success() {
@@ -265,11 +266,7 @@ mod tests {
         mock_message_repo
             .expect_find_recent_messages()
             .times(1)
-            .returning(|| {
-                Err(crate::RepositoryError::Database(
-                    "database error".to_string(),
-                ))
-            });
+            .returning(|| Err(RepositoryError::Database("database error".to_string())));
 
         let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
