@@ -1,13 +1,24 @@
 #![cfg(test)]
 
 use domain::model::{Message, MessageListItem, Reaction, Stamp, User};
-use fake::{Fake, Faker};
-use time::OffsetDateTime;
+use fake::{Fake, Faker, faker::time::en::DateTimeBetween, uuid::UUIDv4};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use uuid::Uuid;
+
+/// Generate a random but valid timestamp for testing.
+///
+/// `DateTime().fake()` generates dates from approximately -9978 to 10000 AD,
+/// but RFC3339 only supports dates between 0000 AD and 9999 AD.
+/// Using `DateTimeBetween` ensures all generated timestamps are RFC3339-serializable.
+fn fake_datetime() -> OffsetDateTime {
+    let start = OffsetDateTime::parse("2020-01-01T00:00:00Z", &Rfc3339).unwrap();
+    let end = OffsetDateTime::parse("2030-01-01T00:00:00Z", &Rfc3339).unwrap();
+    DateTimeBetween(start, end).fake()
+}
 
 pub fn create_user() -> User {
     User {
-        id: Uuid::now_v7(),
+        id: UUIDv4.fake(),
         handle: Faker.fake::<String>(),
         display_name: Faker.fake::<String>(),
     }
@@ -15,19 +26,19 @@ pub fn create_user() -> User {
 
 pub fn create_stamp() -> Stamp {
     Stamp {
-        id: Uuid::now_v7(),
+        id: UUIDv4.fake(),
         name: Faker.fake::<String>(),
     }
 }
 
 pub fn create_message() -> Message {
     Message {
-        id: Uuid::now_v7(),
-        user_id: Uuid::now_v7(),
-        channel_id: Uuid::now_v7(),
+        id: UUIDv4.fake(),
+        user_id: UUIDv4.fake(),
+        channel_id: UUIDv4.fake(),
         content: Faker.fake::<String>(),
-        created_at: OffsetDateTime::now_utc(),
-        updated_at: OffsetDateTime::now_utc(),
+        created_at: fake_datetime(),
+        updated_at: fake_datetime(),
         reactions: vec![],
     }
 }
@@ -42,13 +53,13 @@ pub fn create_reaction(stamp_id: Uuid, user_id: Uuid) -> Reaction {
 
 pub fn create_message_list_item() -> MessageListItem {
     MessageListItem {
-        id: Uuid::now_v7(),
-        user_id: Uuid::now_v7(),
+        id: UUIDv4.fake(),
+        user_id: UUIDv4.fake(),
         user: Some(create_user()),
-        channel_id: Uuid::now_v7(),
+        channel_id: UUIDv4.fake(),
         content: Faker.fake::<String>(),
-        created_at: OffsetDateTime::now_utc(),
-        updated_at: OffsetDateTime::now_utc(),
+        created_at: fake_datetime(),
+        updated_at: fake_datetime(),
         reactions: vec![],
     }
 }
