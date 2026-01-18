@@ -55,8 +55,8 @@ impl MessageCrawler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::{MockMessageRepository, MockStampRepository, MockUserRepository};
-    use crate::test_factories::MessageBuilder;
+    use crate::repository::{MockMessageRepository, MockUserRepository};
+    use crate::test_factories::{MessageBuilder, RepositoryBuilder};
     use crate::traq_client::MockTraqClient;
     use time::{Duration, OffsetDateTime};
 
@@ -98,11 +98,10 @@ mod tests {
             .times(1)
             .returning(|_| Ok(()));
 
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
 
         let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
         let result = crawler.crawl().await;
@@ -141,11 +140,10 @@ mod tests {
             .times(1)
             .returning(|_| Ok(()));
 
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
 
         let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
         let result = crawler.crawl().await;
@@ -167,11 +165,10 @@ mod tests {
             .expect_find_random_valid_token()
             .returning(|| Ok(None));
 
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
 
         let crawler = MessageCrawler::new(Arc::new(MockTraqClient::new()), repo);
         let result = crawler.crawl().await;

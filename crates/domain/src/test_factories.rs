@@ -1,6 +1,10 @@
 #![cfg(any(test, feature = "test-utils"))]
 
 use crate::model::{Message, MessageListItem, Reaction, Stamp, User};
+use crate::repository::{
+    MessageRepository, MockMessageRepository, MockStampRepository, MockUserRepository,
+    StampRepository, UserRepository,
+};
 use fake::{Fake, Faker, faker::time::en::DateTimeBetween, uuid::UUIDv4};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use uuid::Uuid;
@@ -302,5 +306,68 @@ impl ReactionBuilder {
 impl Default for ReactionBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Builder for creating Repository instances with mock repositories in tests.
+///
+/// This builder provides a fluent API for configuring Repository with custom
+/// mock repositories. Any repository not explicitly set will use a default mock.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let repo = RepositoryBuilder::new()
+///     .message(mock_message_repo)
+///     .user(mock_user_repo)
+///     .build();
+/// ```
+pub struct RepositoryBuilder {
+    message: Option<std::sync::Arc<dyn crate::repository::MessageRepository>>,
+    stamp: Option<std::sync::Arc<dyn crate::repository::StampRepository>>,
+    user: Option<std::sync::Arc<dyn crate::repository::UserRepository>>,
+}
+
+impl RepositoryBuilder {
+    /// Create a new builder with all repositories unset (will use defaults)
+    pub fn new() -> Self {
+        Self {
+            message: None,
+            stamp: None,
+            user: None,
+        }
+    }
+
+    /// Set a custom MessageRepository (default: MockMessageRepository::new())
+    pub fn message<T: MessageRepository + 'static>(mut self, repo: T) -> Self {
+        self.message = Some(std::sync::Arc::new(repo));
+        self
+    }
+
+    /// Set a custom StampRepository (default: MockStampRepository::new())
+    pub fn stamp<T: StampRepository + 'static>(mut self, repo: T) -> Self {
+        self.stamp = Some(std::sync::Arc::new(repo));
+        self
+    }
+
+    /// Set a custom UserRepository (default: MockUserRepository::new())
+    pub fn user<T: UserRepository + 'static>(mut self, repo: T) -> Self {
+        self.user = Some(std::sync::Arc::new(repo));
+        self
+    }
+
+    /// Build the Repository using provided repositories or default mocks.
+    pub fn build(self) -> crate::repository::Repository {
+        crate::repository::Repository {
+            message: self
+                .message
+                .unwrap_or_else(|| std::sync::Arc::new(MockMessageRepository::new())),
+            stamp: self
+                .stamp
+                .unwrap_or_else(|| std::sync::Arc::new(MockStampRepository::new())),
+            user: self
+                .user
+                .unwrap_or_else(|| std::sync::Arc::new(MockUserRepository::new())),
+        }
     }
 }

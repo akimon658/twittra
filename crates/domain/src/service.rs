@@ -225,7 +225,9 @@ impl TraqService for TraqServiceImpl {
 mod tests {
     use super::*;
     use crate::repository::{MockMessageRepository, MockStampRepository, MockUserRepository};
-    use crate::test_factories::{MessageListItemBuilder, StampBuilder, UserBuilder};
+    use crate::test_factories::{
+        MessageListItemBuilder, RepositoryBuilder, StampBuilder, UserBuilder,
+    };
     use crate::traq_client::MockTraqClient;
 
     // =============================================================================
@@ -243,11 +245,7 @@ mod tests {
             .times(1)
             .returning(move || Ok(messages.clone()));
 
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(MockUserRepository::new()),
-        };
+        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
         let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages().await.unwrap();
@@ -266,11 +264,7 @@ mod tests {
             .times(1)
             .returning(|| Ok(vec![]));
 
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(MockUserRepository::new()),
-        };
+        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
         let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages().await.unwrap();
@@ -287,11 +281,7 @@ mod tests {
             .times(1)
             .returning(|| Err(anyhow::anyhow!("database error")));
 
-        let repo = Repository {
-            message: Arc::new(mock_message_repo),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(MockUserRepository::new()),
-        };
+        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
         let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages().await;
@@ -317,11 +307,7 @@ mod tests {
             .times(1)
             .returning(move |_| Ok(Some(user_for_mock.clone())));
 
-        let repo = Repository {
-            message: Arc::new(MockMessageRepository::new()),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new().user(mock_user_repo).build();
 
         let mock_client = MockTraqClient::new();
         let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
@@ -365,11 +351,7 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(user.clone()));
 
-        let repo = Repository {
-            message: Arc::new(MockMessageRepository::new()),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new().user(mock_user_repo).build();
 
         let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
         let result = service.get_user_by_id(&user_id).await.unwrap();
@@ -392,11 +374,7 @@ mod tests {
             .times(1)
             .returning(|| Ok(None));
 
-        let repo = Repository {
-            message: Arc::new(MockMessageRepository::new()),
-            stamp: Arc::new(MockStampRepository::new()),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new().user(mock_user_repo).build();
 
         let mock_client = MockTraqClient::new();
         let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
@@ -439,11 +417,10 @@ mod tests {
             .times(1)
             .returning(|_| Ok(()));
 
-        let repo = Repository {
-            message: Arc::new(MockMessageRepository::new()),
-            stamp: Arc::new(mock_stamp_repo),
-            user: Arc::new(mock_user_repo),
-        };
+        let repo = RepositoryBuilder::new()
+            .stamp(mock_stamp_repo)
+            .user(mock_user_repo)
+            .build();
 
         let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
         let result = service.search_stamps("go").await.unwrap();
