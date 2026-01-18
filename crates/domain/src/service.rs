@@ -230,10 +230,6 @@ mod tests {
     };
     use crate::traq_client::MockTraqClient;
 
-    // =============================================================================
-    // TimelineService Tests
-    // =============================================================================
-
     #[tokio::test]
     async fn timeline_get_recommended_messages_success() {
         let mut mock_message_repo = MockMessageRepository::new();
@@ -289,10 +285,6 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "database error");
     }
-
-    // =============================================================================
-    // TraqService Tests
-    // =============================================================================
 
     #[tokio::test]
     async fn traq_get_user_by_id_cache_hit() {
