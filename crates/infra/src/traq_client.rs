@@ -231,12 +231,15 @@ impl TraqClient for TraqClientImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ::time::Duration;
     use oauth2::{
         AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, Scope, TokenResponse,
         TokenUrl, basic::BasicClient,
     };
-    use std::time::Duration;
+    use reqwest::redirect::Policy;
+    use std::{path::PathBuf, time::Duration as StdDuration};
     use testcontainers::compose::DockerCompose;
+    use tokio::time;
     use uuid::Uuid;
 
     /// Test environment that orchestrates traQ via Docker Compose
@@ -250,7 +253,7 @@ mod tests {
     impl TraqTestEnvironment {
         async fn start() -> Self {
             // Get workspace root (crates/infra/src -> project root)
-            let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()
                 .unwrap()
                 .parent()
@@ -274,7 +277,7 @@ mod tests {
             compose.up().await.expect("Failed to start docker compose");
 
             // Wait for services to initialize
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            time::sleep(StdDuration::from_secs(10)).await;
 
             // Get traq_server service and mapped port
             let traq_server = compose
@@ -313,9 +316,9 @@ mod tests {
             _server_base_url: &str,
         ) -> Result<(String, Uuid), String> {
             let client = reqwest::Client::builder()
-                .timeout(Duration::from_secs(10))
+                .timeout(StdDuration::from_secs(10))
                 .cookie_store(true)
-                .redirect(reqwest::redirect::Policy::none())
+                .redirect(Policy::none())
                 .build()
                 .map_err(|e| e.to_string())?;
 
@@ -333,7 +336,7 @@ mod tests {
                 if i == 59 {
                     return Err("traQ not ready after 60 attempts".to_string());
                 }
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                time::sleep(StdDuration::from_secs(1)).await;
             }
 
             // Login with default user (traq/traq)
@@ -616,7 +619,7 @@ mod tests {
         let client = TraqClientImpl::new(env.base_url().to_string());
 
         // Search messages from a week ago
-        let since = OffsetDateTime::now_utc() - time::Duration::days(7);
+        let since = OffsetDateTime::now_utc() - Duration::days(7);
 
         let result = client.fetch_messages_since(env.admin_token(), since).await;
 

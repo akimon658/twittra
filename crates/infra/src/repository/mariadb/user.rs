@@ -228,7 +228,7 @@ mod tests {
         let repo = MariaDbUserRepository::new(pool);
 
         // Create users first (FK constraint)
-        let user_ids = vec![Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7()];
+        let user_ids = [Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7()];
         for (i, user_id) in user_ids.iter().enumerate() {
             let user = User {
                 id: *user_id,

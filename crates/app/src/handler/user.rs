@@ -130,20 +130,24 @@ pub async fn get_user_icon(
 mod tests {
     use super::*;
     use crate::test_helpers::TestAppBuilder;
-    use axum::{body::Body, http::Request};
-    use domain::service::MockTraqService;
+    use axum::{
+        body::{self, Body},
+        http::Request,
+    };
+    use domain::{service::MockTraqService, test_factories::UserBuilder};
+    use mockall::predicate;
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_get_me_success() {
         let mut mock_traq_service = MockTraqService::new();
-        let user = domain::test_factories::UserBuilder::new().build();
+        let user = UserBuilder::new().build();
         let user_id = user.id;
         let user_clone = user.clone();
 
         mock_traq_service
             .expect_get_user_by_id()
-            .with(mockall::predicate::eq(user_id))
+            .with(predicate::eq(user_id))
             .times(1)
             .returning(move |_| Ok(user_clone.clone()));
 
@@ -171,9 +175,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         // Validate response body
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-            .await
-            .unwrap();
+        let body = body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
         let response_user: User = serde_json::from_slice(&body).unwrap();
         assert_eq!(response_user.id, user.id);
         assert_eq!(response_user.handle, user.handle);

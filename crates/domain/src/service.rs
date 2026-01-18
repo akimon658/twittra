@@ -220,6 +220,7 @@ mod tests {
         test_factories::{MessageListItemBuilder, RepositoryBuilder, StampBuilder, UserBuilder},
         traq_client::MockTraqClient,
     };
+    use mockall::predicate;
 
     #[tokio::test]
     async fn timeline_get_recommended_messages_success() {
@@ -286,7 +287,7 @@ mod tests {
 
         mock_user_repo
             .expect_find_by_id()
-            .with(mockall::predicate::eq(user_id))
+            .with(predicate::eq(user_id))
             .times(1)
             .returning(move |_| Ok(Some(user_for_mock.clone())));
 
@@ -314,7 +315,7 @@ mod tests {
         // Cache miss
         mock_user_repo
             .expect_find_by_id()
-            .with(mockall::predicate::eq(user_id))
+            .with(predicate::eq(user_id))
             .times(1)
             .returning(|_| Ok(None));
 

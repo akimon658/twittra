@@ -153,15 +153,21 @@ pub async fn get_stamps(
 mod tests {
     use super::*;
     use crate::test_helpers::TestAppBuilder;
-    use axum::{body::Body, http::Request};
-    use domain::service::MockTraqService;
+    use axum::{
+        body::{self, Body},
+        http::Request,
+    };
+    use domain::{
+        service::MockTraqService,
+        test_factories::{StampBuilder, UserBuilder},
+    };
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_get_stamps_all() {
         let mut mock_traq_service = MockTraqService::new();
 
-        let stamp = domain::test_factories::StampBuilder::new().build();
+        let stamp = StampBuilder::new().build();
         let stamps = vec![stamp.clone()];
         let stamps_clone = stamps.clone();
 
@@ -169,7 +175,7 @@ mod tests {
             .expect_get_stamps()
             .returning(move || Ok(stamps_clone.clone()));
 
-        let user = domain::test_factories::UserBuilder::new().build();
+        let user = UserBuilder::new().build();
         let app = TestAppBuilder::new()
             .with_traq_service(mock_traq_service)
             .with_user(user.clone())
@@ -194,9 +200,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         // Validate response body
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-            .await
-            .unwrap();
+        let body = body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
         let response_stamps: Vec<Stamp> = serde_json::from_slice(&body).unwrap();
         assert_eq!(response_stamps.len(), 1);
         assert_eq!(response_stamps[0].id, stamp.id);

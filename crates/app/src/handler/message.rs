@@ -91,14 +91,16 @@ mod tests {
     use super::*;
     use crate::test_helpers::TestAppBuilder;
     use axum::{body::Body, http::Request};
-    use domain::service::MockTraqService;
+    use domain::{service::MockTraqService, test_factories::UserBuilder};
+    use http::header;
+    use mockall::predicate;
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_add_message_stamp_success() {
         let mut mock_traq_service = MockTraqService::new();
 
-        let user = domain::test_factories::UserBuilder::new().build();
+        let user = UserBuilder::new().build();
         let user_id = user.id;
         let message_id = Uuid::now_v7();
         let stamp_id = Uuid::now_v7();
@@ -106,10 +108,10 @@ mod tests {
         mock_traq_service
             .expect_add_message_stamp()
             .with(
-                mockall::predicate::eq(user_id),
-                mockall::predicate::eq(message_id),
-                mockall::predicate::eq(stamp_id),
-                mockall::predicate::eq(1),
+                predicate::eq(user_id),
+                predicate::eq(message_id),
+                predicate::eq(stamp_id),
+                predicate::eq(1),
             )
             .times(1)
             .returning(|_, _, _, _| Ok(()));
@@ -126,20 +128,16 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let login_res = app.clone().oneshot(login_req).await.unwrap();
-        let cookie = login_res
-            .headers()
-            .get(http::header::SET_COOKIE)
-            .unwrap()
-            .clone();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
 
         // Add Stamp
         let req = Request::builder()
-            .uri(&format!(
+            .uri(format!(
                 "/api/v1/messages/{}/stamps/{}",
                 message_id, stamp_id
             ))
             .method("POST")
-            .header(http::header::COOKIE, cookie)
+            .header(header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();
 

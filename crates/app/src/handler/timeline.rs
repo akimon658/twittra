@@ -42,15 +42,22 @@ pub async fn get_timeline(
 mod tests {
     use super::*;
     use crate::test_helpers::TestAppBuilder;
-    use axum::{body::Body, http::Request};
-    use domain::service::MockTimelineService;
+    use axum::{
+        body::{self, Body},
+        http::Request,
+    };
+    use domain::{
+        service::MockTimelineService,
+        test_factories::{MessageListItemBuilder, UserBuilder},
+    };
+    use http::header;
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_get_timeline_success() {
         let mut mock_timeline_service = MockTimelineService::new();
 
-        let message = domain::test_factories::MessageListItemBuilder::new().build();
+        let message = MessageListItemBuilder::new().build();
         let messages = vec![message.clone()];
         let messages_clone = messages.clone();
 
@@ -59,7 +66,7 @@ mod tests {
             .times(1)
             .returning(move || Ok(messages_clone.clone()));
 
-        let user = domain::test_factories::UserBuilder::new().build();
+        let user = UserBuilder::new().build();
 
         let app = TestAppBuilder::new()
             .with_timeline_service(mock_timeline_service)
@@ -76,16 +83,12 @@ mod tests {
         let login_res = app.clone().oneshot(login_req).await.unwrap();
         assert_eq!(login_res.status(), StatusCode::OK);
 
-        let cookie = login_res
-            .headers()
-            .get(http::header::SET_COOKIE)
-            .unwrap()
-            .clone();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
 
         // 2. Access timeline with cookie
         let req = Request::builder()
             .uri("/api/v1/timeline")
-            .header(http::header::COOKIE, cookie)
+            .header(header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();
 
@@ -93,9 +96,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         // Validate response body
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-            .await
-            .unwrap();
+        let body = body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
         let response_messages: Vec<MessageListItem> = serde_json::from_slice(&body).unwrap();
         assert_eq!(response_messages.len(), 1);
         assert_eq!(response_messages[0].id, message.id);

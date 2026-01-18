@@ -56,6 +56,7 @@ mod tests {
     use crate::repository::{MockMessageRepository, MockUserRepository};
     use crate::test_factories::{MessageBuilder, RepositoryBuilder};
     use crate::traq_client::MockTraqClient;
+    use mockall::predicate;
 
     #[tokio::test]
     async fn crawl_success_with_existing_messages() {
@@ -83,8 +84,8 @@ mod tests {
         mock_client
             .expect_fetch_messages_since()
             .with(
-                mockall::predicate::eq("test_token"),
-                mockall::predicate::eq(latest_message_time),
+                predicate::eq("test_token"),
+                predicate::eq(latest_message_time),
             )
             .times(1)
             .returning(move |_, _| Ok(messages.clone()));

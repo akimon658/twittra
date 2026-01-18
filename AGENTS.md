@@ -32,7 +32,8 @@ issues where user input is the best solution.
 - **Proactive Verification:** Whenever tools or commands are available, verify
   code changes yourself to ensure correctness and code quality.
 - **Automated Checks:** Always execute formatters and linters to enforce coding
-  standards and catch potential issues early.
+  standards and catch potential issues early. (Use `cargo clippy --all-targets`
+  to ensure test code is also checked.)
 - **Refinement & Cleanup:** Review changes to ensure they are minimal and
   sufficient. Check for and remove any unnecessary modifications, unused
   variables, or leftover dependencies.

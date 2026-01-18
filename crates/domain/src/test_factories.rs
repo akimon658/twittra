@@ -2,10 +2,11 @@
 
 use crate::model::{Message, MessageListItem, Reaction, Stamp, User};
 use crate::repository::{
-    MessageRepository, MockMessageRepository, MockStampRepository, MockUserRepository,
+    MessageRepository, MockMessageRepository, MockStampRepository, MockUserRepository, Repository,
     StampRepository, UserRepository,
 };
 use fake::{Fake, Faker, faker::time::en::DateTimeBetween, uuid::UUIDv4};
+use std::sync::Arc;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use uuid::Uuid;
 
@@ -323,9 +324,9 @@ impl Default for ReactionBuilder {
 ///     .build();
 /// ```
 pub struct RepositoryBuilder {
-    message: Option<std::sync::Arc<dyn crate::repository::MessageRepository>>,
-    stamp: Option<std::sync::Arc<dyn crate::repository::StampRepository>>,
-    user: Option<std::sync::Arc<dyn crate::repository::UserRepository>>,
+    message: Option<Arc<dyn MessageRepository>>,
+    stamp: Option<Arc<dyn StampRepository>>,
+    user: Option<Arc<dyn UserRepository>>,
 }
 
 impl RepositoryBuilder {
@@ -340,34 +341,40 @@ impl RepositoryBuilder {
 
     /// Set a custom MessageRepository (default: MockMessageRepository::new())
     pub fn message<T: MessageRepository + 'static>(mut self, repo: T) -> Self {
-        self.message = Some(std::sync::Arc::new(repo));
+        self.message = Some(Arc::new(repo));
         self
     }
 
     /// Set a custom StampRepository (default: MockStampRepository::new())
     pub fn stamp<T: StampRepository + 'static>(mut self, repo: T) -> Self {
-        self.stamp = Some(std::sync::Arc::new(repo));
+        self.stamp = Some(Arc::new(repo));
         self
     }
 
     /// Set a custom UserRepository (default: MockUserRepository::new())
     pub fn user<T: UserRepository + 'static>(mut self, repo: T) -> Self {
-        self.user = Some(std::sync::Arc::new(repo));
+        self.user = Some(Arc::new(repo));
         self
     }
 
     /// Build the Repository using provided repositories or default mocks.
-    pub fn build(self) -> crate::repository::Repository {
-        crate::repository::Repository {
+    pub fn build(self) -> Repository {
+        Repository {
             message: self
                 .message
-                .unwrap_or_else(|| std::sync::Arc::new(MockMessageRepository::new())),
+                .unwrap_or_else(|| Arc::new(MockMessageRepository::new())),
             stamp: self
                 .stamp
-                .unwrap_or_else(|| std::sync::Arc::new(MockStampRepository::new())),
+                .unwrap_or_else(|| Arc::new(MockStampRepository::new())),
             user: self
                 .user
-                .unwrap_or_else(|| std::sync::Arc::new(MockUserRepository::new())),
+                .unwrap_or_else(|| Arc::new(MockUserRepository::new())),
         }
+    }
+}
+
+impl Default for RepositoryBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

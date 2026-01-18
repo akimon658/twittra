@@ -1,17 +1,19 @@
 //! Shared test utilities for app crate tests
 
-use crate::handler::AppState;
-use crate::session::{AuthSession, Backend, BasicClientSet, UserSession};
-use axum::http::StatusCode;
+use crate::{
+    handler::AppState,
+    session::{AuthSession, Backend, BasicClientSet, UserSession},
+};
+use axum::{http::StatusCode, routing};
 use axum_login::AuthManagerLayerBuilder;
-use domain::error::RepositoryError;
-use domain::service::{MockTimelineService, MockTraqService};
 use domain::{
+    error::RepositoryError,
     model::User,
     repository::UserRepository,
+    service::{MockTimelineService, MockTraqService},
     service::{TimelineService, TraqService},
 };
-use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
+use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl, basic::BasicClient};
 use std::sync::Arc;
 use tower_sessions::{MemoryStore, SessionManagerLayer};
 use uuid::Uuid;
@@ -39,7 +41,7 @@ fn create_dummy_oauth_client() -> BasicClientSet {
     let token_url = TokenUrl::new("http://dummy".to_string()).unwrap();
     let redirect_url = RedirectUrl::new("http://dummy/callback".to_string()).unwrap();
 
-    oauth2::basic::BasicClient::new(client_id)
+    BasicClient::new(client_id)
         .set_client_secret(client_secret)
         .set_auth_uri(auth_url)
         .set_token_uri(token_url)
@@ -125,7 +127,7 @@ impl TestAppBuilder {
             .nest("/api/v1", router)
             .route(
                 "/login",
-                axum::routing::post(|mut auth: AuthSession| async move {
+                routing::post(|mut auth: AuthSession| async move {
                     if let Some(user_session) = user.map(|u| UserSession { id: u.id }) {
                         auth.login(&user_session).await.unwrap();
                         StatusCode::OK
@@ -136,5 +138,11 @@ impl TestAppBuilder {
             )
             .layer(auth_layer)
             .with_state(state)
+    }
+}
+
+impl Default for TestAppBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
