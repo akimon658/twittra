@@ -270,6 +270,7 @@ mod tests {
                 .with_env("COMPOSE_PROJECT_NAME", &project_name)
                 .with_env("COMPOSE_PROFILES", "dev")
                 .with_env("TRAQ_SERVER_PORT", "0") // Random port assignment
+                .with_env("TRAQ_CADDY_PORT", "0")
                 .with_env("MARIADB_PORT", "0")
                 .with_env("ADMINER_PORT", "0");
 
@@ -501,7 +502,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_environment_starts() {
         let env = TraqTestEnvironment::start().await;
 
@@ -517,7 +517,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_user_success() {
         let env = TraqTestEnvironment::start().await;
 
@@ -535,7 +534,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_user_not_found() {
         let env = TraqTestEnvironment::start().await;
 
@@ -552,7 +550,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_user_unauthorized() {
         let env = TraqTestEnvironment::start().await;
 
@@ -569,7 +566,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_stamps_success() {
         let env = TraqTestEnvironment::start().await;
 
@@ -586,7 +582,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_stamp_success() {
         let env = TraqTestEnvironment::start().await;
 
@@ -612,7 +607,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_fetch_messages_since() {
         let env = TraqTestEnvironment::start().await;
 
