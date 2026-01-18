@@ -27,7 +27,12 @@ issues where user input is the best solution.
 - **Efficiency:** If solving the problem independently would be excessively
   complex, prioritize asking the user.
 
-## Verification & Testing
+## Code Quality
 
 - **Proactive Verification:** Whenever tools or commands are available, verify
   code changes yourself to ensure correctness and code quality.
+- **Automated Checks:** Always execute formatters and linters to enforce coding
+  standards and catch potential issues early.
+- **Refinement & Cleanup:** Review changes to ensure they are minimal and
+  sufficient. Check for and remove any unnecessary modifications, unused
+  variables, or leftover dependencies.
