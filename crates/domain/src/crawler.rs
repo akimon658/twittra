@@ -1,8 +1,7 @@
-use std::sync::Arc;
-
-use time::{Duration, OffsetDateTime};
-
 use crate::{error::DomainError, repository::Repository, traq_client::TraqClient};
+use ::time::{Duration, OffsetDateTime};
+use std::{sync::Arc, time::Duration as StdDuration};
+use tokio::time;
 
 /// Fetches new messages from traQ every 30 seconds and saves them to the repository.
 pub struct MessageCrawler {
@@ -21,7 +20,7 @@ impl MessageCrawler {
                 tracing::error!("Crawl failed: {:?}", e);
             }
 
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            time::sleep(StdDuration::from_secs(30)).await;
         }
     }
 
@@ -57,7 +56,6 @@ mod tests {
     use crate::repository::{MockMessageRepository, MockUserRepository};
     use crate::test_factories::{MessageBuilder, RepositoryBuilder};
     use crate::traq_client::MockTraqClient;
-    use time::{Duration, OffsetDateTime};
 
     #[tokio::test]
     async fn crawl_success_with_existing_messages() {

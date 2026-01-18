@@ -5,7 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use domain::model::Stamp;
-use http::StatusCode;
+use http::{StatusCode, header};
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
@@ -97,7 +97,7 @@ pub async fn get_stamp_image(
         }
     };
 
-    ([(http::header::CONTENT_TYPE, content_type)], image).into_response()
+    ([(header::CONTENT_TYPE, content_type)], image).into_response()
 }
 
 #[utoipa::path(
@@ -182,16 +182,12 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let login_res = app.clone().oneshot(login_req).await.unwrap();
-        let cookie = login_res
-            .headers()
-            .get(http::header::SET_COOKIE)
-            .unwrap()
-            .clone();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
 
         // Get Stamps
         let req = Request::builder()
             .uri("/api/v1/stamps")
-            .header(http::header::COOKIE, cookie)
+            .header(header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();
         let res = app.oneshot(req).await.unwrap();

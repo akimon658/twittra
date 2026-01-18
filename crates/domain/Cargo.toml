@@ -24,3 +24,6 @@ tokio = { workspace = true, features = ["macros"] }
 
 [features]
 test-utils = ["dep:mockall", "dep:fake"]
+
+[lints]
+workspace = true

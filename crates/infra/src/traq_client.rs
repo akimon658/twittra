@@ -1,6 +1,6 @@
 use domain::{
     error::TraqClientError,
-    model::{Message, User},
+    model::{Message, Stamp, User},
     traq_client::TraqClient,
 };
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
@@ -68,11 +68,7 @@ impl TraqClient for TraqClientImpl {
         Ok(messages)
     }
 
-    async fn get_stamp(
-        &self,
-        token: &str,
-        stamp_id: &Uuid,
-    ) -> Result<domain::model::Stamp, TraqClientError> {
+    async fn get_stamp(&self, token: &str, stamp_id: &Uuid) -> Result<Stamp, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
@@ -86,7 +82,7 @@ impl TraqClient for TraqClientImpl {
         Ok(stamp)
     }
 
-    async fn get_stamps(&self, token: &str) -> Result<Vec<domain::model::Stamp>, TraqClientError> {
+    async fn get_stamps(&self, token: &str) -> Result<Vec<Stamp>, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),

@@ -5,7 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use domain::model::User;
-use http::StatusCode;
+use http::{StatusCode, header};
 use uuid::Uuid;
 
 /// Get the current authenticated user's information.
@@ -123,7 +123,7 @@ pub async fn get_user_icon(
         }
     };
 
-    ([(http::header::CONTENT_TYPE, content_type)], icon).into_response()
+    ([(header::CONTENT_TYPE, content_type)], icon).into_response()
 }
 
 #[cfg(test)]
@@ -159,16 +159,12 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let login_res = app.clone().oneshot(login_req).await.unwrap();
-        let cookie = login_res
-            .headers()
-            .get(http::header::SET_COOKIE)
-            .unwrap()
-            .clone();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
 
         // Get Me
         let req = Request::builder()
             .uri("/api/v1/me")
-            .header(http::header::COOKIE, cookie)
+            .header(header::COOKIE, cookie)
             .body(Body::empty())
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
