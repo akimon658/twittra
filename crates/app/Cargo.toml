@@ -5,7 +5,6 @@ edition = "2024"
 default-run = "app"
 
 [dependencies]
-anyhow = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-login = { workspace = true }

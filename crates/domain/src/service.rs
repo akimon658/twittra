@@ -1,40 +1,40 @@
 use crate::{
+    error::DomainError,
     model::{MessageListItem, Stamp, User},
     repository::Repository,
     traq_client::TraqClient,
 };
-use anyhow::Result;
 use std::{fmt::Debug, sync::Arc};
 use uuid::Uuid;
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait TimelineService: Debug + Send + Sync {
-    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>>;
+    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>, DomainError>;
 }
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait TraqService: Debug + Send + Sync {
-    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User>;
-    async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String)>;
-    async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp>;
-    async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String)>;
-    async fn get_stamps(&self) -> Result<Vec<Stamp>>;
-    async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>>;
+    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User, DomainError>;
+    async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String), DomainError>;
+    async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp, DomainError>;
+    async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String), DomainError>;
+    async fn get_stamps(&self) -> Result<Vec<Stamp>, DomainError>;
+    async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>, DomainError>;
     async fn add_message_stamp(
         &self,
         user_id: &Uuid,
         message_id: &Uuid,
         stamp_id: &Uuid,
         count: i32,
-    ) -> Result<()>;
+    ) -> Result<(), DomainError>;
     async fn remove_message_stamp(
         &self,
         user_id: &Uuid,
         message_id: &Uuid,
         stamp_id: &Uuid,
-    ) -> Result<()>;
+    ) -> Result<(), DomainError>;
 }
 
 /// Service for timeline-related operations.
@@ -51,7 +51,7 @@ impl TimelineServiceImpl {
 
 #[async_trait::async_trait]
 impl TimelineService for TimelineServiceImpl {
-    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>> {
+    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>, DomainError> {
         let messages = self.repo.message.find_recent_messages().await?;
         Ok(messages)
     }
@@ -74,16 +74,14 @@ impl TraqServiceImpl {
 
 #[async_trait::async_trait]
 impl TraqService for TraqServiceImpl {
-    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User> {
+    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<User, DomainError> {
         let user = match self.repo.user.find_by_id(user_id).await? {
             Some(user) => user,
             None => {
                 let token = match self.repo.user.find_random_valid_token().await? {
                     Some(token) => token,
                     None => {
-                        return Err(anyhow::anyhow!(
-                            "no valid token found to fetch user from traQ"
-                        ));
+                        return Err(DomainError::NoTokenForUserFetch);
                     }
                 };
                 let user = self.traq_client.get_user(&token, user_id).await?;
@@ -94,29 +92,25 @@ impl TraqService for TraqServiceImpl {
         Ok(user)
     }
 
-    async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String)> {
+    async fn get_user_icon(&self, user_id: &Uuid) -> Result<(Vec<u8>, String), DomainError> {
         let token = match self.repo.user.find_random_valid_token().await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!(
-                    "no valid token found to fetch user icon from traQ"
-                ));
+                return Err(DomainError::NoTokenForUserIcon);
             }
         };
         let icon = self.traq_client.get_user_icon(&token, user_id).await?;
         Ok(icon)
     }
 
-    async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp> {
+    async fn get_stamp_by_id(&self, stamp_id: &Uuid) -> Result<Stamp, DomainError> {
         let stamp = match self.repo.stamp.find_by_id(stamp_id).await? {
             Some(stamp) => stamp,
             None => {
                 let token = match self.repo.user.find_random_valid_token().await? {
                     Some(token) => token,
                     None => {
-                        return Err(anyhow::anyhow!(
-                            "no valid token found to fetch stamp from traQ"
-                        ));
+                        return Err(DomainError::NoTokenForStampFetch);
                     }
                 };
                 let stamp = self.traq_client.get_stamp(&token, stamp_id).await?;
@@ -127,26 +121,22 @@ impl TraqService for TraqServiceImpl {
         Ok(stamp)
     }
 
-    async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
+    async fn get_stamp_image(&self, stamp_id: &Uuid) -> Result<(Vec<u8>, String), DomainError> {
         let token = match self.repo.user.find_random_valid_token().await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!(
-                    "no valid token found to fetch stamp image from traQ"
-                ));
+                return Err(DomainError::NoTokenForStampImage);
             }
         };
         let image = self.traq_client.get_stamp_image(&token, stamp_id).await?;
         Ok(image)
     }
 
-    async fn get_stamps(&self) -> Result<Vec<Stamp>> {
+    async fn get_stamps(&self) -> Result<Vec<Stamp>, DomainError> {
         let token = match self.repo.user.find_random_valid_token().await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!(
-                    "no valid token found to fetch stamps from traQ"
-                ));
+                return Err(DomainError::NoTokenForStampsList);
             }
         };
         let stamps = self.traq_client.get_stamps(&token).await?;
@@ -154,7 +144,7 @@ impl TraqService for TraqServiceImpl {
         Ok(stamps)
     }
 
-    async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>> {
+    async fn search_stamps(&self, name: &str) -> Result<Vec<Stamp>, DomainError> {
         let stamps = TraqService::get_stamps(self).await?;
         let filtered = stamps
             .into_iter()
@@ -169,11 +159,11 @@ impl TraqService for TraqServiceImpl {
         message_id: &Uuid,
         stamp_id: &Uuid,
         count: i32,
-    ) -> Result<()> {
+    ) -> Result<(), DomainError> {
         let token = match self.repo.user.find_token_by_user_id(user_id).await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!("no valid token found for user {}", user_id));
+                return Err(DomainError::NoTokenForUser(*user_id));
             }
         };
 
@@ -196,11 +186,11 @@ impl TraqService for TraqServiceImpl {
         user_id: &Uuid,
         message_id: &Uuid,
         stamp_id: &Uuid,
-    ) -> Result<()> {
+    ) -> Result<(), DomainError> {
         let token = match self.repo.user.find_token_by_user_id(user_id).await? {
             Some(token) => token,
             None => {
-                return Err(anyhow::anyhow!("no valid token found for user {}", user_id));
+                return Err(DomainError::NoTokenForUser(*user_id));
             }
         };
 
@@ -275,7 +265,11 @@ mod tests {
         mock_message_repo
             .expect_find_recent_messages()
             .times(1)
-            .returning(|| Err(anyhow::anyhow!("database error")));
+            .returning(|| {
+                Err(crate::RepositoryError::Database(
+                    "database error".to_string(),
+                ))
+            });
 
         let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
@@ -283,7 +277,7 @@ mod tests {
         let result = service.get_recommended_messages().await;
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "database error");
+        assert!(matches!(result.unwrap_err(), DomainError::Repository(_)));
     }
 
     #[tokio::test]
@@ -374,12 +368,7 @@ mod tests {
         let result = service.get_user_by_id(&user_id).await;
 
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("no valid token found")
-        );
+        assert_eq!(result.unwrap_err(), DomainError::NoTokenForUserFetch);
     }
 
     #[tokio::test]

@@ -2,9 +2,9 @@
 
 use crate::handler::AppState;
 use crate::session::{AuthSession, Backend, BasicClientSet, UserSession};
-use anyhow::Result;
 use axum::http::StatusCode;
 use axum_login::AuthManagerLayerBuilder;
+use domain::error::RepositoryError;
 use domain::service::{MockTimelineService, MockTraqService};
 use domain::{
     model::User,
@@ -23,11 +23,11 @@ mockall::mock! {
 
     #[async_trait::async_trait]
     impl UserRepository for UserRepo {
-        async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>>;
-        async fn find_random_valid_token(&self) -> Result<Option<String>>;
-        async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>>;
-        async fn save(&self, user: &User) -> Result<()>;
-        async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<()>;
+        async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>, RepositoryError>;
+        async fn find_random_valid_token(&self) -> Result<Option<String>, RepositoryError>;
+        async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>, RepositoryError>;
+        async fn save(&self, user: &User) -> Result<(), RepositoryError>;
+        async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<(), RepositoryError>;
     }
 }
 
@@ -106,8 +106,7 @@ impl TestAppBuilder {
         let state = AppState::new(traq_service, timeline_service);
 
         // Use production route setup
-        let (router, _openapi) =
-            crate::setup_openapi_routes().expect("Failed to setup OpenAPI routes");
+        let (router, _openapi) = crate::setup_openapi_routes();
 
         // Create test-specific auth and session layers
         let mock_user_repo = Arc::new(MockUserRepo::new());

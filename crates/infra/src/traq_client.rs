@@ -1,9 +1,9 @@
-use anyhow::Result;
 use domain::{
+    error::TraqClientError,
     model::{Message, User},
     traq_client::TraqClient,
 };
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
 use traq::{
     apis::{configuration::Configuration, message_api, stamp_api, user_api},
     models::PostMessageStampRequest,
@@ -27,7 +27,7 @@ impl TraqClient for TraqClientImpl {
         &self,
         token: &str,
         since: OffsetDateTime,
-    ) -> Result<Vec<Message>> {
+    ) -> Result<Vec<Message>, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
@@ -36,7 +36,11 @@ impl TraqClient for TraqClientImpl {
         let search_result = message_api::search_messages(
             &config,
             None,
-            Some(since.format(&Rfc3339)?),
+            Some(
+                since
+                    .format(&Rfc3339)
+                    .map_err(|e| TraqClientError::ResponseParse(e.to_string()))?,
+            ),
             None,
             None,
             None,
@@ -52,83 +56,115 @@ impl TraqClient for TraqClientImpl {
             None,
             None,
         )
-        .await?;
+        .await
+        .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
         let messages = search_result
             .hits
             .into_iter()
             .map(|msg| msg.try_into())
-            .collect::<Result<Vec<Message>, _>>()?;
+            .collect::<Result<Vec<Message>, _>>()
+            .map_err(|e: Parse| TraqClientError::ResponseParse(e.to_string()))?;
 
         Ok(messages)
     }
 
-    async fn get_stamp(&self, token: &str, stamp_id: &Uuid) -> Result<domain::model::Stamp> {
+    async fn get_stamp(
+        &self,
+        token: &str,
+        stamp_id: &Uuid,
+    ) -> Result<domain::model::Stamp, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_stamp = stamp_api::get_stamp(&config, &stamp_id.to_string()).await?;
+        let traq_stamp = stamp_api::get_stamp(&config, &stamp_id.to_string())
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
         let stamp = traq_stamp.into();
 
         Ok(stamp)
     }
 
-    async fn get_stamps(&self, token: &str) -> Result<Vec<domain::model::Stamp>> {
+    async fn get_stamps(&self, token: &str) -> Result<Vec<domain::model::Stamp>, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_stamps = stamp_api::get_stamps(&config, None, None).await?;
+        let traq_stamps = stamp_api::get_stamps(&config, None, None)
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
         let stamps = traq_stamps.into_iter().map(|s| s.into()).collect();
 
         Ok(stamps)
     }
 
-    async fn get_stamp_image(&self, token: &str, stamp_id: &Uuid) -> Result<(Vec<u8>, String)> {
+    async fn get_stamp_image(
+        &self,
+        token: &str,
+        stamp_id: &Uuid,
+    ) -> Result<(Vec<u8>, String), TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let response = stamp_api::get_stamp_image(&config, &stamp_id.to_string()).await?;
+        let response = stamp_api::get_stamp_image(&config, &stamp_id.to_string())
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
         let content_type = response
             .headers()
             .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("application/octet-stream")
             .to_string();
-        let bytes = response.bytes().await?.to_vec();
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| TraqClientError::HttpRequest(e.to_string()))?
+            .to_vec();
         Ok((bytes, content_type))
     }
 
-    async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User> {
+    async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_user = user_api::get_user(&config, &user_id.to_string()).await?;
+        let traq_user = user_api::get_user(&config, &user_id.to_string())
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
         let user = traq_user.into();
 
         Ok(user)
     }
 
-    async fn get_user_icon(&self, token: &str, user_id: &Uuid) -> Result<(Vec<u8>, String)> {
+    async fn get_user_icon(
+        &self,
+        token: &str,
+        user_id: &Uuid,
+    ) -> Result<(Vec<u8>, String), TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let response = user_api::get_user_icon(&config, &user_id.to_string()).await?;
+        let response = user_api::get_user_icon(&config, &user_id.to_string())
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
         let content_type = response
             .headers()
             .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("application/octet-stream")
             .to_string();
-        let bytes = response.bytes().await?.to_vec();
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| TraqClientError::HttpRequest(e.to_string()))?
+            .to_vec();
         Ok((bytes, content_type))
     }
 
@@ -138,7 +174,7 @@ impl TraqClient for TraqClientImpl {
         message_id: &Uuid,
         stamp_id: &Uuid,
         count: i32,
-    ) -> Result<()> {
+    ) -> Result<(), TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
@@ -151,7 +187,8 @@ impl TraqClient for TraqClientImpl {
             &stamp_id.to_string(),
             Some(post_message_stamp_request),
         )
-        .await?;
+        .await
+        .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
 
         Ok(())
     }
@@ -161,26 +198,35 @@ impl TraqClient for TraqClientImpl {
         token: &str,
         message_id: &Uuid,
         stamp_id: &Uuid,
-    ) -> Result<()> {
+    ) -> Result<(), TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
         message_api::remove_message_stamp(&config, &message_id.to_string(), &stamp_id.to_string())
-            .await?;
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn get_message(&self, token: &str, message_id: &Uuid) -> Result<Message> {
+    async fn get_message(
+        &self,
+        token: &str,
+        message_id: &Uuid,
+    ) -> Result<Message, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let message = message_api::get_message(&config, &message_id.to_string()).await?;
-        let message = message.try_into()?;
+        let message = message_api::get_message(&config, &message_id.to_string())
+            .await
+            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let message = message
+            .try_into()
+            .map_err(|e: Parse| TraqClientError::ResponseParse(e.to_string()))?;
 
         Ok(message)
     }
@@ -206,7 +252,7 @@ mod tests {
     }
 
     impl TraqTestEnvironment {
-        async fn start() -> anyhow::Result<Self> {
+        async fn start() -> Self {
             // Get workspace root (crates/infra/src -> project root)
             let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()
@@ -229,7 +275,7 @@ mod tests {
                 .with_env("ADMINER_PORT", "0");
 
             // Start services
-            compose.up().await?;
+            compose.up().await.expect("Failed to start docker compose");
 
             // Wait for services to initialize
             tokio::time::sleep(Duration::from_secs(10)).await;
@@ -238,7 +284,10 @@ mod tests {
             let traq_server = compose
                 .service("traq_server")
                 .expect("traq_server service not found");
-            let port = traq_server.get_host_port_ipv4(3000).await?;
+            let port = traq_server
+                .get_host_port_ipv4(3000)
+                .await
+                .expect("Failed to get port");
 
             // base_url for traQ API (with /api/v3 prefix)
             let api_base_url = format!("http://localhost:{}/api/v3", port);
@@ -255,23 +304,24 @@ mod tests {
                     }
                 };
 
-            Ok(Self {
+            Self {
                 compose: Some(compose),
                 base_url: api_base_url,
                 admin_token,
                 admin_user_id,
-            })
+            }
         }
 
         async fn initialize_traq_oauth(
             api_base_url: &str,
             _server_base_url: &str,
-        ) -> anyhow::Result<(String, Uuid)> {
+        ) -> Result<(String, Uuid), String> {
             let client = reqwest::Client::builder()
                 .timeout(Duration::from_secs(10))
                 .cookie_store(true)
                 .redirect(reqwest::redirect::Policy::none())
-                .build()?;
+                .build()
+                .map_err(|e| e.to_string())?;
 
             // Wait for traQ to be ready
             eprintln!("Waiting for traQ at {}...", api_base_url);
@@ -285,7 +335,7 @@ mod tests {
                     Err(e) => eprintln!("Attempt {}/60: {}", i + 1, e),
                 }
                 if i == 59 {
-                    anyhow::bail!("traQ not ready after 60 attempts");
+                    return Err("traQ not ready after 60 attempts".to_string());
                 }
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
@@ -299,19 +349,22 @@ mod tests {
                     "password": "traq"
                 }))
                 .send()
-                .await?;
+                .await
+                .map_err(|e| e.to_string())?;
 
             if !login_res.status().is_success() {
-                anyhow::bail!("Login failed with default user");
+                return Err("Login failed with default user".to_string());
             }
 
             // Get user ID
             let me_res = client
                 .get(format!("{}/users/me", api_base_url))
                 .send()
-                .await?;
-            let me_data: serde_json::Value = me_res.json().await?;
-            let user_id = Uuid::parse_str(me_data["id"].as_str().unwrap())?;
+                .await
+                .map_err(|e| e.to_string())?;
+            let me_data: serde_json::Value = me_res.json().await.map_err(|e| e.to_string())?;
+            let user_id =
+                Uuid::parse_str(me_data["id"].as_str().unwrap()).map_err(|e| e.to_string())?;
 
             // Create OAuth client
             eprintln!("Creating OAuth client...");
@@ -324,22 +377,30 @@ mod tests {
                     "scopes": ["read", "write"]
                 }))
                 .send()
-                .await?;
+                .await
+                .map_err(|e| e.to_string())?;
 
             if !client_res.status().is_success() {
-                let error = client_res.text().await?;
-                anyhow::bail!("Failed to create OAuth client: {}", error);
+                let error = client_res.text().await.map_err(|e| e.to_string())?;
+                return Err(format!("Failed to create OAuth client: {}", error));
             }
 
-            let client_data: serde_json::Value = client_res.json().await?;
+            let client_data: serde_json::Value =
+                client_res.json().await.map_err(|e| e.to_string())?;
             let client_id = client_data["id"].as_str().unwrap();
             let client_secret = client_data["secret"].as_str().unwrap();
 
             // Set up OAuth2 client
             let oauth_client = BasicClient::new(ClientId::new(client_id.to_string()))
                 .set_client_secret(ClientSecret::new(client_secret.to_string()))
-                .set_auth_uri(AuthUrl::new(format!("{}/oauth2/authorize", api_base_url))?)
-                .set_token_uri(TokenUrl::new(format!("{}/oauth2/token", api_base_url))?);
+                .set_auth_uri(
+                    AuthUrl::new(format!("{}/oauth2/authorize", api_base_url))
+                        .map_err(|e| e.to_string())?,
+                )
+                .set_token_uri(
+                    TokenUrl::new(format!("{}/oauth2/token", api_base_url))
+                        .map_err(|e| e.to_string())?,
+                );
 
             // Generate authorization URL
             let (auth_url, _csrf_state) = oauth_client
@@ -349,7 +410,11 @@ mod tests {
                 .url();
 
             // Get authorization (redirects to consent)
-            let auth_res = client.get(auth_url.as_str()).send().await?;
+            let auth_res = client
+                .get(auth_url.as_str())
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
 
             // Extract authorization code
             let code = if auth_res.status().is_redirection() {
@@ -357,7 +422,7 @@ mod tests {
                     .headers()
                     .get("location")
                     .and_then(|v| v.to_str().ok())
-                    .ok_or_else(|| anyhow::anyhow!("No location header"))?;
+                    .ok_or_else(|| "No location header".to_string())?;
 
                 if location.contains("/consent") {
                     // Approve via /oauth2/authorize/decide
@@ -366,34 +431,35 @@ mod tests {
                         .post(&decide_url)
                         .form(&[("submit", "approve")])
                         .send()
-                        .await?;
+                        .await
+                        .map_err(|e| e.to_string())?;
 
                     if !approve_res.status().is_redirection() {
-                        anyhow::bail!("Consent approval failed");
+                        return Err("Consent approval failed".to_string());
                     }
 
                     let location = approve_res
                         .headers()
                         .get("location")
                         .and_then(|v| v.to_str().ok())
-                        .ok_or_else(|| anyhow::anyhow!("No location after approval"))?;
+                        .ok_or_else(|| "No location after approval".to_string())?;
 
-                    let callback_url = url::Url::parse(location)?;
+                    let callback_url = url::Url::parse(location).map_err(|e| e.to_string())?;
                     callback_url
                         .query_pairs()
                         .find(|(key, _)| key == "code")
                         .map(|(_, value)| value.to_string())
-                        .ok_or_else(|| anyhow::anyhow!("No code in callback"))?
+                        .ok_or_else(|| "No code in callback".to_string())?
                 } else {
-                    let callback_url = url::Url::parse(location)?;
+                    let callback_url = url::Url::parse(location).map_err(|e| e.to_string())?;
                     callback_url
                         .query_pairs()
                         .find(|(key, _)| key == "code")
                         .map(|(_, value)| value.to_string())
-                        .ok_or_else(|| anyhow::anyhow!("No code in callback"))?
+                        .ok_or_else(|| "No code in callback".to_string())?
                 }
             } else {
-                anyhow::bail!("Unexpected authorization response");
+                return Err("Unexpected authorization response".to_string());
             };
 
             // Exchange code for token
@@ -401,7 +467,8 @@ mod tests {
             let token_result = oauth_client
                 .exchange_code(AuthorizationCode::new(code))
                 .request_async(&http_client)
-                .await?;
+                .await
+                .map_err(|e| e.to_string())?;
 
             let access_token = token_result.access_token().secret().to_string();
             eprintln!("Got access token!");
@@ -422,22 +489,22 @@ mod tests {
         }
 
         /// Explicit cleanup method
-        async fn cleanup(mut self) -> anyhow::Result<()> {
+        async fn cleanup(mut self) {
             if let Some(compose) = self.compose.take() {
                 eprintln!("Cleaning up Docker Compose resources...");
-                compose.down().await?;
+                compose
+                    .down()
+                    .await
+                    .expect("Failed to cleanup docker compose");
                 eprintln!("Cleanup complete!");
             }
-            Ok(())
         }
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_environment_starts() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ environment");
+        let env = TraqTestEnvironment::start().await;
 
         assert!(!env.base_url().is_empty());
         assert!(!env.admin_token().is_empty());
@@ -447,15 +514,13 @@ mod tests {
         println!("Admin token: {}", env.admin_token());
         println!("Admin user ID: {:?}", env.admin_user_id());
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_user_success() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ");
+        let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
         let user_id = env.admin_user_id().expect("No admin user ID");
@@ -467,15 +532,13 @@ mod tests {
         assert_eq!(user.id, user_id);
         assert_eq!(user.handle, "traq");
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_user_not_found() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ");
+        let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
         let non_existent_id = Uuid::new_v4();
@@ -486,15 +549,13 @@ mod tests {
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("404") || error_msg.contains("Not Found"));
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_user_unauthorized() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ");
+        let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
         let user_id = env.admin_user_id().expect("No admin user ID");
@@ -505,15 +566,13 @@ mod tests {
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("401") || error_msg.contains("Unauthorized"));
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_stamps_success() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ");
+        let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
 
@@ -524,15 +583,13 @@ mod tests {
         // traQ has default stamps
         assert!(!stamps.is_empty());
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_stamp_success() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ");
+        let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
 
@@ -552,15 +609,13 @@ mod tests {
         let stamp = result.unwrap();
         assert_eq!(stamp.id, stamp_id);
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_fetch_messages_since() {
-        let env = TraqTestEnvironment::start()
-            .await
-            .expect("Failed to start traQ");
+        let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
 
@@ -574,6 +629,6 @@ mod tests {
         // May be empty in freshly created traQ instance
         println!("Found {} messages", messages.len());
 
-        env.cleanup().await.expect("Failed to cleanup");
+        env.cleanup().await;
     }
 }

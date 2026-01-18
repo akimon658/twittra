@@ -6,7 +6,6 @@ use crate::{
     },
     session::Backend,
 };
-use anyhow::Result;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use domain::{
@@ -35,7 +34,7 @@ pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
 
-pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
+pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     let mut components = Components::new();
 
     components.add_security_scheme(
@@ -64,10 +63,10 @@ pub fn setup_openapi_routes() -> Result<(Router<AppState>, OpenApi)> {
         .routes(utoipa_axum::routes!(user::get_user_icon))
         .split_for_parts();
 
-    Ok(openapi_router)
+    (openapi_router.0, openapi_router.1)
 }
 
-pub async fn serve() -> Result<()> {
+pub async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         // Load .env file if exists
         dotenvy::from_filename(".env.local").ok();
@@ -116,7 +115,7 @@ pub async fn serve() -> Result<()> {
     let timeline_service = TimelineServiceImpl::new(repository);
     let app_state = AppState::new(Arc::new(traq_service), Arc::new(timeline_service));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
-    let (router, openapi) = setup_openapi_routes()?;
+    let (router, openapi) = setup_openapi_routes();
     let router = axum::Router::new()
         .nest(API_ROOT, router.layer(auth_layer))
         .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));

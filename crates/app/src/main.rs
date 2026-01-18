@@ -1,6 +1,4 @@
-use anyhow::Result;
-
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     app::serve().await
 }

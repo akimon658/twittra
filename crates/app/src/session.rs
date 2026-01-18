@@ -80,7 +80,7 @@ pub enum BackendError {
     #[error(transparent)]
     Oauth2(BasicRequestTokenError<<reqwest::Client as AsyncHttpClient<'static>>::Error>),
     #[error(transparent)]
-    UserRepository(anyhow::Error),
+    UserRepository(#[from] domain::error::RepositoryError),
     #[error(transparent)]
     Traq(apis::Error<GetMeError>),
 }

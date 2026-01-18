@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::TraqClientError;
 use std::fmt::Debug;
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -12,25 +12,34 @@ pub trait TraqClient: Debug + Send + Sync {
         &self,
         token: &str,
         since: OffsetDateTime,
-    ) -> Result<Vec<Message>>;
-    async fn get_stamp(&self, token: &str, stamp_id: &Uuid) -> Result<Stamp>;
-    async fn get_stamps(&self, token: &str) -> Result<Vec<Stamp>>;
-    async fn get_stamp_image(&self, token: &str, stamp_id: &Uuid) -> Result<(Vec<u8>, String)>;
-    async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User>;
+    ) -> Result<Vec<Message>, TraqClientError>;
+    async fn get_stamp(&self, token: &str, stamp_id: &Uuid) -> Result<Stamp, TraqClientError>;
+    async fn get_stamps(&self, token: &str) -> Result<Vec<Stamp>, TraqClientError>;
+    async fn get_stamp_image(
+        &self,
+        token: &str,
+        stamp_id: &Uuid,
+    ) -> Result<(Vec<u8>, String), TraqClientError>;
+    async fn get_user(&self, token: &str, user_id: &Uuid) -> Result<User, TraqClientError>;
 
-    async fn get_user_icon(&self, token: &str, user_id: &Uuid) -> Result<(Vec<u8>, String)>;
+    async fn get_user_icon(
+        &self,
+        token: &str,
+        user_id: &Uuid,
+    ) -> Result<(Vec<u8>, String), TraqClientError>;
     async fn add_message_stamp(
         &self,
         token: &str,
         message_id: &Uuid,
         stamp_id: &Uuid,
         count: i32,
-    ) -> Result<()>;
+    ) -> Result<(), TraqClientError>;
     async fn remove_message_stamp(
         &self,
         token: &str,
         message_id: &Uuid,
         stamp_id: &Uuid,
-    ) -> Result<()>;
-    async fn get_message(&self, token: &str, message_id: &Uuid) -> Result<Message>;
+    ) -> Result<(), TraqClientError>;
+    async fn get_message(&self, token: &str, message_id: &Uuid)
+    -> Result<Message, TraqClientError>;
 }

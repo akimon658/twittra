@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
 use domain::{
+    error::RepositoryError,
     model::{Message, MessageListItem, Reaction, User},
     repository::MessageRepository,
 };
@@ -23,7 +23,7 @@ impl MariaDbMessageRepository {
         &self,
         tx: &mut Transaction<'_, MySql>,
         reactions: &[(Uuid, Reaction)],
-    ) -> Result<()> {
+    ) -> Result<(), RepositoryError> {
         if reactions.is_empty() {
             return Ok(());
         }
@@ -42,7 +42,11 @@ impl MariaDbMessageRepository {
 
         query_builder.push(" ON DUPLICATE KEY UPDATE stamp_count=VALUE(stamp_count)");
 
-        query_builder.build().execute(&mut **tx).await?;
+        query_builder
+            .build()
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(())
     }
@@ -106,7 +110,7 @@ impl From<MessageRowWithReactions> for MessageListItem {
 
 #[async_trait::async_trait]
 impl MessageRepository for MariaDbMessageRepository {
-    async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>> {
+    async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>, RepositoryError> {
         let result = sqlx::query_scalar!(
             r#"
             SELECT MAX(created_at)
@@ -114,12 +118,13 @@ impl MessageRepository for MariaDbMessageRepository {
             "#
         )
         .fetch_one(&self.pool)
-        .await?;
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(result)
     }
 
-    async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>> {
+    async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>, RepositoryError> {
         let messages = sqlx::query_as!(
             MessageRow,
             r#"
@@ -145,7 +150,9 @@ impl MessageRepository for MariaDbMessageRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .with_context(|| "could not fetch recent messages")?;
+        .map_err(|e| {
+            RepositoryError::Database(format!("could not fetch recent messages: {}", e))
+        })?;
 
         if messages.is_empty() {
             return Ok(vec![]);
@@ -174,7 +181,7 @@ impl MessageRepository for MariaDbMessageRepository {
             .build_query_as::<ReactionRow>()
             .fetch_all(&self.pool)
             .await
-            .with_context(|| "could not fetch reactions")?;
+            .map_err(|e| RepositoryError::Database(format!("could not fetch reactions: {}", e)))?;
 
         let mut message_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
 
@@ -201,7 +208,7 @@ impl MessageRepository for MariaDbMessageRepository {
         message_id: &Uuid,
         stamp_id: &Uuid,
         user_id: &Uuid,
-    ) -> Result<()> {
+    ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
             DELETE FROM reactions
@@ -212,13 +219,18 @@ impl MessageRepository for MariaDbMessageRepository {
             user_id
         )
         .execute(&self.pool)
-        .await?;
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn save(&self, message: &Message) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
+    async fn save(&self, message: &Message) -> Result<(), RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         sqlx::query!(
             r#"
@@ -234,7 +246,8 @@ impl MessageRepository for MariaDbMessageRepository {
             message.updated_at
         )
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         let reactions_data: Vec<_> = message
             .reactions
@@ -244,17 +257,23 @@ impl MessageRepository for MariaDbMessageRepository {
 
         self.save_reactions(&mut tx, &reactions_data).await?;
 
-        tx.commit().await?;
+        tx.commit()
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn save_batch(&self, messages: &[Message]) -> Result<()> {
+    async fn save_batch(&self, messages: &[Message]) -> Result<(), RepositoryError> {
         if messages.is_empty() {
             return Ok(());
         }
 
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
         let mut query_builder = QueryBuilder::new(
             "INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at) ",
         );
@@ -270,7 +289,11 @@ impl MessageRepository for MariaDbMessageRepository {
         });
         query_builder
             .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)");
-        query_builder.build().execute(&mut *tx).await?;
+        query_builder
+            .build()
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         let reactions_data = messages
             .iter()
@@ -283,7 +306,9 @@ impl MessageRepository for MariaDbMessageRepository {
 
         self.save_reactions(&mut tx, &reactions_data).await?;
 
-        tx.commit().await?;
+        tx.commit()
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(())
     }
@@ -297,7 +322,7 @@ mod tests {
     use uuid::Uuid;
 
     #[sqlx::test]
-    async fn test_save_and_find_message(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+    async fn test_save_and_find_message(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
         // Create a test message
@@ -312,21 +337,19 @@ mod tests {
         };
 
         // Save the message
-        repo.save(&message).await?;
+        repo.save(&message).await.unwrap();
 
         // Find recent messages
-        let messages = repo.find_recent_messages().await?;
+        let messages = repo.find_recent_messages().await.unwrap();
 
         // Verify
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].id, message.id);
         assert_eq!(messages[0].content, message.content);
-
-        Ok(())
     }
 
     #[sqlx::test]
-    async fn test_save_message_with_reactions(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+    async fn test_save_message_with_reactions(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
         let reaction = Reaction {
@@ -345,20 +368,18 @@ mod tests {
             reactions: vec![reaction.clone()],
         };
 
-        repo.save(&message).await?;
+        repo.save(&message).await.unwrap();
 
-        let messages = repo.find_recent_messages().await?;
+        let messages = repo.find_recent_messages().await.unwrap();
 
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].reactions.len(), 1);
         assert_eq!(messages[0].reactions[0].stamp_id, reaction.stamp_id);
         assert_eq!(messages[0].reactions[0].stamp_count, reaction.stamp_count);
-
-        Ok(())
     }
 
     #[sqlx::test]
-    async fn test_remove_reaction(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+    async fn test_remove_reaction(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
         let message_id = Uuid::now_v7();
@@ -382,25 +403,24 @@ mod tests {
         };
 
         // Save with reaction
-        repo.save(&message).await?;
+        repo.save(&message).await.unwrap();
 
         // Verify reaction exists
-        let messages = repo.find_recent_messages().await?;
+        let messages = repo.find_recent_messages().await.unwrap();
         assert_eq!(messages[0].reactions.len(), 1);
 
         // Remove reaction
         repo.remove_reaction(&message_id, &stamp_id, &user_id)
-            .await?;
+            .await
+            .unwrap();
 
         // Verify reaction is removed
-        let messages = repo.find_recent_messages().await?;
+        let messages = repo.find_recent_messages().await.unwrap();
         assert_eq!(messages[0].reactions.len(), 0);
-
-        Ok(())
     }
 
     #[sqlx::test]
-    async fn test_save_batch(pool: sqlx::MySqlPool) -> anyhow::Result<()> {
+    async fn test_save_batch(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
         let channel_id = Uuid::now_v7();
@@ -425,11 +445,9 @@ mod tests {
             },
         ];
 
-        repo.save_batch(&messages).await?;
+        repo.save_batch(&messages).await.unwrap();
 
-        let saved_messages = repo.find_recent_messages().await?;
+        let saved_messages = repo.find_recent_messages().await.unwrap();
         assert!(saved_messages.len() >= 2); // At least our 2 messages
-
-        Ok(())
     }
 }

@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use anyhow::Result;
 use time::{Duration, OffsetDateTime};
 
-use crate::{repository::Repository, traq_client::TraqClient};
+use crate::{error::DomainError, repository::Repository, traq_client::TraqClient};
 
 /// Fetches new messages from traQ every 30 seconds and saves them to the repository.
 pub struct MessageCrawler {
@@ -26,7 +25,7 @@ impl MessageCrawler {
         }
     }
 
-    pub async fn crawl(&self) -> Result<()> {
+    pub async fn crawl(&self) -> Result<(), DomainError> {
         let last_fetched_at = self
             .repo
             .message
