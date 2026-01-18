@@ -63,7 +63,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
         .routes(utoipa_axum::routes!(user::get_user_icon))
         .split_for_parts();
 
-    (openapi_router.0, openapi_router.1)
+    openapi_router
 }
 
 pub async fn serve() -> Result<(), Box<dyn Error>> {
