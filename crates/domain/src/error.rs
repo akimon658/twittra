@@ -1,4 +1,5 @@
 use thiserror::Error;
+use traq::apis::Error as TraqApiError;
 use uuid::Uuid;
 
 /// Errors that can occur in repository operations
@@ -20,8 +21,26 @@ pub enum TraqClientError {
     #[error("failed to parse response: {0}")]
     ResponseParse(String),
 
-    #[error("traQ API error: {0}")]
-    ApiError(String),
+    #[error("traQ API error: {status} {message}")]
+    ApiError {
+        status: http::StatusCode,
+        message: String,
+    },
+}
+
+impl<T> From<TraqApiError<T>> for TraqClientError {
+    fn from(e: TraqApiError<T>) -> Self {
+        match e {
+            TraqApiError::ResponseError(response) => TraqClientError::ApiError {
+                status: response.status,
+                message: response.content,
+            },
+            _ => TraqClientError::ApiError {
+                status: http::StatusCode::INTERNAL_SERVER_ERROR,
+                message: e.to_string(),
+            },
+        }
+    }
 }
 
 /// Domain-level errors for service operations

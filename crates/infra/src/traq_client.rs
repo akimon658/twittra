@@ -56,8 +56,7 @@ impl TraqClient for TraqClientImpl {
             None,
             None,
         )
-        .await
-        .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        .await?;
         let messages = search_result
             .hits
             .into_iter()
@@ -74,9 +73,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_stamp = stamp_api::get_stamp(&config, &stamp_id.to_string())
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let traq_stamp = stamp_api::get_stamp(&config, &stamp_id.to_string()).await?;
         let stamp = traq_stamp.into();
 
         Ok(stamp)
@@ -88,9 +85,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_stamps = stamp_api::get_stamps(&config, None, None)
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let traq_stamps = stamp_api::get_stamps(&config, None, None).await?;
         let stamps = traq_stamps.into_iter().map(|s| s.into()).collect();
 
         Ok(stamps)
@@ -106,9 +101,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let response = stamp_api::get_stamp_image(&config, &stamp_id.to_string())
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let response = stamp_api::get_stamp_image(&config, &stamp_id.to_string()).await?;
         let content_type = response
             .headers()
             .get("content-type")
@@ -129,9 +122,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let traq_user = user_api::get_user(&config, &user_id.to_string())
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let traq_user = user_api::get_user(&config, &user_id.to_string()).await?;
         let user = traq_user.into();
 
         Ok(user)
@@ -147,9 +138,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let response = user_api::get_user_icon(&config, &user_id.to_string())
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let response = user_api::get_user_icon(&config, &user_id.to_string()).await?;
         let content_type = response
             .headers()
             .get("content-type")
@@ -183,8 +172,7 @@ impl TraqClient for TraqClientImpl {
             &stamp_id.to_string(),
             Some(post_message_stamp_request),
         )
-        .await
-        .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        .await?;
 
         Ok(())
     }
@@ -201,8 +189,7 @@ impl TraqClient for TraqClientImpl {
             ..Default::default()
         };
         message_api::remove_message_stamp(&config, &message_id.to_string(), &stamp_id.to_string())
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+            .await?;
 
         Ok(())
     }
@@ -217,9 +204,7 @@ impl TraqClient for TraqClientImpl {
             oauth_access_token: Some(token.to_string()),
             ..Default::default()
         };
-        let message = message_api::get_message(&config, &message_id.to_string())
-            .await
-            .map_err(|e| TraqClientError::ApiError(e.to_string()))?;
+        let message = message_api::get_message(&config, &message_id.to_string()).await?;
         let message = message
             .try_into()
             .map_err(|e: Parse| TraqClientError::ResponseParse(e.to_string()))?;
@@ -232,11 +217,12 @@ impl TraqClient for TraqClientImpl {
 mod tests {
     use super::*;
     use ::time::Duration;
+    use http::StatusCode;
     use oauth2::{
         AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, Scope, TokenResponse,
         TokenUrl, basic::BasicClient,
     };
-    use reqwest::{StatusCode, redirect::Policy};
+    use reqwest::redirect::Policy;
     use std::path::PathBuf;
     use testcontainers::{compose::DockerCompose, core::wait::HttpWaitStrategy};
     use uuid::Uuid;
@@ -510,8 +496,12 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("404") || error_msg.contains("Not Found"));
+        match result.unwrap_err() {
+            TraqClientError::ApiError { status, .. } => {
+                assert_eq!(status, StatusCode::NOT_FOUND);
+            }
+            _ => panic!("Expected ApiError"),
+        }
 
         env.cleanup().await;
     }
@@ -526,8 +516,12 @@ mod tests {
         let result = client.get_user("invalid_token", &user_id).await;
 
         assert!(result.is_err());
-        let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("401") || error_msg.contains("Unauthorized"));
+        match result.unwrap_err() {
+            TraqClientError::ApiError { status, .. } => {
+                assert_eq!(status, StatusCode::UNAUTHORIZED);
+            }
+            _ => panic!("Expected ApiError"),
+        }
 
         env.cleanup().await;
     }

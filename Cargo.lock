@@ -743,6 +743,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "fake",
+ "http",
  "mockall",
  "serde",
  "thiserror 2.0.17",
@@ -1508,6 +1509,7 @@ dependencies = [
  "async-trait",
  "domain",
  "fastrand",
+ "http",
  "oauth2",
  "reqwest",
  "serde_json",
