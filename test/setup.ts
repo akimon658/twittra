@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom"
 import { cleanup } from "@testing-library/react"
 import { setupWorker } from "msw/browser"
 import { afterAll, afterEach, beforeAll } from "vitest"

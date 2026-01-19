@@ -17,14 +17,12 @@
     "@mantine/core": "npm:@mantine/core@^8.3.10",
     "@tabler/icons-react": "npm:@tabler/icons-react@^3.36.0",
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
-    "@testing-library/jest-dom": "npm:@testing-library/jest-dom@^6.9.1",
     "@testing-library/react": "npm:@testing-library/react@^16.3.1",
     "@testing-library/user-event": "npm:@testing-library/user-event@^14.6.1",
     "@traptitech/traq-markdown-it": "npm:@traptitech/traq-markdown-it@^7.0.2",
     "@types/react": "npm:@types/react@^19.2.7",
     "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^5.1.2",
     "@vitest/browser-playwright": "npm:@vitest/browser-playwright@^4.0.17",
-    "@vitest/ui": "npm:@vitest/ui@^4.0.17",
     "babel-plugin-react-compiler": "npm:babel-plugin-react-compiler@^1.0.0",
     "msw": "npm:msw@^2.12.7",
     "orval": "npm:orval@^7.17.2",
@@ -50,10 +48,9 @@
   "tasks": {
     "dev": "vite",
     "gen": "cargo run --package app --bin export_schema && orval",
+    "install-browser": "deno x npm:playwright install",
     "migrate": "sqlx migrate run --source ./crates/infra/migrations",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:watch": "vitest --watch"
+    "test": "vitest"
   },
   "unstable": [
     "sloppy-imports" // Required for type inference on orval-generated files which import without file extensions
