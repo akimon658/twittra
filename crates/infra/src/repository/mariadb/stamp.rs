@@ -80,6 +80,7 @@ impl StampRepository for MariaDbStampRepository {
 mod tests {
     use super::*;
     use domain::test_factories::StampBuilder;
+    use fake::{Fake, uuid::UUIDv4};
 
     #[sqlx::test]
     async fn test_save_and_find_stamp(pool: sqlx::MySqlPool) {
@@ -103,7 +104,7 @@ mod tests {
     async fn test_find_nonexistent_stamp(pool: sqlx::MySqlPool) {
         let repo = MariaDbStampRepository::new(pool);
 
-        let result = repo.find_by_id(&Uuid::now_v7()).await.unwrap();
+        let result = repo.find_by_id(&UUIDv4.fake()).await.unwrap();
 
         assert!(result.is_none());
     }
@@ -133,7 +134,7 @@ mod tests {
     async fn test_update_stamp(pool: sqlx::MySqlPool) {
         let repo = MariaDbStampRepository::new(pool);
 
-        let stamp_id = Uuid::now_v7();
+        let stamp_id = UUIDv4.fake();
         let stamp_v1 = StampBuilder::new()
             .id(stamp_id)
             .name("original_name")

@@ -15,10 +15,10 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 traq = { workspace = true }
 utoipa = { workspace = true }
-uuid = { workspace = true, features = ["v7"] }
+uuid = { workspace = true }
 
 [dev-dependencies]
-fake = { workspace = true }
+fake = { workspace = true, features = ["time", "uuid"] }
 mockall = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }

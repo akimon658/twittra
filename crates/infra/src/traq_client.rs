@@ -217,6 +217,7 @@ impl TraqClient for TraqClientImpl {
 mod tests {
     use super::*;
     use ::time::Duration;
+    use fake::{Fake, uuid::UUIDv4};
     use http::StatusCode;
     use oauth2::{
         AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, Scope, TokenResponse,
@@ -489,7 +490,7 @@ mod tests {
         let env = TraqTestEnvironment::start().await;
 
         let client = TraqClientImpl::new(env.base_url().to_string());
-        let non_existent_id = Uuid::new_v4();
+        let non_existent_id = UUIDv4.fake();
 
         let result = client
             .get_user(env.default_user_token(), &non_existent_id)

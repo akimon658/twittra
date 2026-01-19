@@ -8,15 +8,16 @@ axum = { version = "0.8.8", default-features = false, features = ["http1", "json
 axum-login = "0.18.0"
 constant_time_eq = "0.4.2"
 dotenvy = "0.15.7"
-fake = { version = "4.4.0", default-features = false, features = ["time", "uuid"] }
+fake = { version = "4.4.0", default-features = false }
 fastrand = "2.3.0"
 http = "1.4.0"
 mockall = "0.14.0"
 oauth2 = "5.0.0"
 reqwest = "0.12.28"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0"
+serde_json = "1.0.149"
 sqlx = { version = "0.8.6", default-features = false, features = ["macros", "migrate", "mysql", "runtime-tokio", "time", "uuid"] }
+testcontainers = { version = "0.26.3", default-features = false }
 thiserror = "2.0.17"
 time = { version = "0.3.44", features = ["formatting", "parsing", "serde"] }
 tokio = { version = "1.48.0", features = ["net", "rt-multi-thread"] }
@@ -26,6 +27,7 @@ tower-sessions-sqlx-store = { version = "0.15.0", features = ["mysql"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.22"
 traq = "0.1.5"
+url = "2.5.8"
 utoipa = { version = "5.4.0", features = ["uuid", "time"] }
 utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", default-features = false, features = ["axum", "vendored"] }

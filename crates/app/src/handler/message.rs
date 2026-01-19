@@ -92,6 +92,7 @@ mod tests {
     use crate::test_helpers::TestAppBuilder;
     use axum::{body::Body, http::Request};
     use domain::{service::MockTraqService, test_factories::UserBuilder};
+    use fake::{Fake, uuid::UUIDv4};
     use http::header;
     use mockall::predicate;
     use tower::ServiceExt;
@@ -102,8 +103,8 @@ mod tests {
 
         let user = UserBuilder::new().build();
         let user_id = user.id;
-        let message_id = Uuid::now_v7();
-        let stamp_id = Uuid::now_v7();
+        let message_id: Uuid = UUIDv4.fake();
+        let stamp_id: Uuid = UUIDv4.fake();
 
         mock_traq_service
             .expect_add_message_stamp()

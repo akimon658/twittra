@@ -130,6 +130,7 @@ impl UserRepository for MariaDbUserRepository {
 mod tests {
     use super::*;
     use domain::test_factories::UserBuilder;
+    use fake::{Fake, uuid::UUIDv4};
 
     #[sqlx::test]
     async fn test_save_and_find_user(pool: sqlx::MySqlPool) {
@@ -154,7 +155,7 @@ mod tests {
     async fn test_find_nonexistent_user(pool: sqlx::MySqlPool) {
         let repo = MariaDbUserRepository::new(pool);
 
-        let result = repo.find_by_id(&Uuid::now_v7()).await.unwrap();
+        let result = repo.find_by_id(&UUIDv4.fake()).await.unwrap();
 
         assert!(result.is_none());
     }
@@ -163,7 +164,7 @@ mod tests {
     async fn test_save_and_find_token(pool: sqlx::MySqlPool) {
         let repo = MariaDbUserRepository::new(pool);
 
-        let user_id = Uuid::now_v7();
+        let user_id = UUIDv4.fake();
         let token = "test_access_token_12345";
 
         // Create user first (FK constraint)
@@ -184,7 +185,7 @@ mod tests {
     async fn test_update_token(pool: sqlx::MySqlPool) {
         let repo = MariaDbUserRepository::new(pool);
 
-        let user_id = Uuid::now_v7();
+        let user_id = UUIDv4.fake();
         let token1 = "token_v1";
         let token2 = "token_v2";
 
@@ -217,7 +218,7 @@ mod tests {
         let repo = MariaDbUserRepository::new(pool);
 
         // Create users first (FK constraint)
-        let user_ids = [Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7()];
+        let user_ids: Vec<Uuid> = (0..3).map(|_| UUIDv4.fake()).collect();
         for user_id in user_ids.iter() {
             let user = UserBuilder::new().id(*user_id).build();
             repo.save(&user).await.unwrap();

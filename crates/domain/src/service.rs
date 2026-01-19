@@ -220,6 +220,7 @@ mod tests {
         test_factories::{MessageListItemBuilder, RepositoryBuilder, StampBuilder, UserBuilder},
         traq_client::MockTraqClient,
     };
+    use fake::{Fake, uuid::UUIDv4};
     use mockall::predicate;
 
     #[tokio::test]
@@ -280,7 +281,7 @@ mod tests {
 
     #[tokio::test]
     async fn traq_get_user_by_id_cache_hit() {
-        let user_id = Uuid::now_v7();
+        let user_id = UUIDv4.fake();
         let mut mock_user_repo = MockUserRepository::new();
         let user = UserBuilder::new().id(user_id).build();
         let user_for_mock = user.clone();
@@ -307,7 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn traq_get_user_by_id_cache_miss() {
-        let user_id = Uuid::now_v7();
+        let user_id = UUIDv4.fake();
         let mut mock_user_repo = MockUserRepository::new();
         let mut mock_client = MockTraqClient::new();
         let user = UserBuilder::new().id(user_id).build();
@@ -345,7 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn traq_get_user_by_id_no_token_error() {
-        let user_id = Uuid::now_v7();
+        let user_id = UUIDv4.fake();
         let mut mock_user_repo = MockUserRepository::new();
 
         mock_user_repo

@@ -318,7 +318,7 @@ impl MessageRepository for MariaDbMessageRepository {
 mod tests {
     use super::*;
     use domain::test_factories::{MessageBuilder, ReactionBuilder};
-    use uuid::Uuid;
+    use fake::{Fake, uuid::UUIDv4};
 
     #[sqlx::test]
     async fn test_save_and_find_message(pool: sqlx::MySqlPool) {
@@ -363,9 +363,9 @@ mod tests {
     async fn test_remove_reaction(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
-        let message_id = Uuid::now_v7();
-        let stamp_id = Uuid::now_v7();
-        let user_id = Uuid::now_v7();
+        let message_id = UUIDv4.fake();
+        let stamp_id = UUIDv4.fake();
+        let user_id = UUIDv4.fake();
 
         let reaction = ReactionBuilder::new()
             .stamp_id(stamp_id)
@@ -398,7 +398,7 @@ mod tests {
     async fn test_save_batch(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
 
-        let channel_id = Uuid::now_v7();
+        let channel_id = UUIDv4.fake();
         let messages = vec![
             MessageBuilder::new().channel_id(channel_id).build(),
             MessageBuilder::new().channel_id(channel_id).build(),

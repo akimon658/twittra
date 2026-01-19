@@ -16,12 +16,13 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 domain = { path = "../domain", features = ["test-utils"] }
-testcontainers = { version = "0.26", features = ["docker-compose", "http_wait_plain"] }
-reqwest = { version = "0.12", features = ["json", "cookies"] }
-serde_json = "1.0"
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+fake = { workspace = true, features = ["uuid"] }
 oauth2 = { workspace = true }
-url = "2.5"
+reqwest = { workspace = true, features = ["cookies"] }
+serde_json = { workspace = true }
+testcontainers = { workspace = true, features = ["docker-compose", "http_wait_plain"] }
+tokio = { workspace = true, features = ["macros"] }
+url = { workspace = true }
 
 [lints]
 workspace = true
