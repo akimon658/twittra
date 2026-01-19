@@ -4,11 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = { workspace = true }
 async-trait = { workspace = true }
 domain = { path = "../domain" }
 fastrand = { workspace = true }
+http = { workspace = true }
 sqlx = { workspace = true }
 time = { workspace = true }
 traq = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+domain = { path = "../domain", features = ["test-utils"] }
+fake = { workspace = true, features = ["uuid"] }
+oauth2 = { workspace = true }
+reqwest = { workspace = true, features = ["cookies"] }
+serde_json = { workspace = true }
+testcontainers = { workspace = true, features = ["docker-compose", "http_wait_plain"] }
+tokio = { workspace = true, features = ["macros"] }
+url = { workspace = true }
+
+[lints]
+workspace = true

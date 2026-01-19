@@ -1,0 +1,7 @@
+services:
+  traq_ui:
+    profiles: ["test-disabled"]
+  caddy:
+    profiles: ["test-disabled"]
+  adminer:
+    profiles: ["test-disabled"]

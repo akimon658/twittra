@@ -5,7 +5,7 @@ edition = "2024"
 default-run = "app"
 
 [dependencies]
-anyhow = { workspace = true }
+async-trait = { workspace = true }
 axum = { workspace = true }
 axum-login = { workspace = true }
 constant_time_eq = { workspace = true }
@@ -28,3 +28,15 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+# domain exports mock models with the "test-utils" feature
+domain = { path = "../domain", features = ["test-utils"] }
+fake = { workspace = true, features = ["uuid"] }
+mockall = { workspace = true }
+serde_json = { workspace = true }
+tower = { workspace = true }
+tower-sessions = { workspace = true, features = ["memory-store"] }
+
+[lints]
+workspace = true

@@ -1,17 +1,16 @@
-use std::{
-    fmt::{self, Debug, Formatter},
-    result,
-    sync::Arc,
-};
-
 use axum_login::{AuthUser, AuthnBackend};
-use domain::repository::UserRepository;
+use domain::{error::RepositoryError, repository::UserRepository};
 use oauth2::{
     AsyncHttpClient, AuthorizationCode, CsrfToken, EndpointNotSet, EndpointSet, TokenResponse,
     basic::{BasicClient, BasicRequestTokenError},
     url::Url,
 };
 use reqwest::Client;
+use std::{
+    fmt::{self, Debug, Formatter},
+    result,
+    sync::Arc,
+};
 use traq::apis::{
     self,
     configuration::Configuration,
@@ -45,7 +44,7 @@ impl AuthUser for UserSession {
     }
 }
 
-type BasicClientSet =
+pub type BasicClientSet =
     BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 
 #[derive(Clone, Debug)]
@@ -80,7 +79,7 @@ pub enum BackendError {
     #[error(transparent)]
     Oauth2(BasicRequestTokenError<<reqwest::Client as AsyncHttpClient<'static>>::Error>),
     #[error(transparent)]
-    UserRepository(anyhow::Error),
+    UserRepository(#[from] RepositoryError),
     #[error(transparent)]
     Traq(apis::Error<GetMeError>),
 }

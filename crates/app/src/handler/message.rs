@@ -1,11 +1,10 @@
+use crate::{handler::AppState, session::AuthSession};
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
 };
 use http::StatusCode;
 use uuid::Uuid;
-
-use crate::{handler::AppState, session::AuthSession};
 
 #[utoipa::path(
     post,
@@ -85,4 +84,65 @@ pub async fn remove_message_stamp(
     }
 
     StatusCode::NO_CONTENT.into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::TestAppBuilder;
+    use axum::{body::Body, http::Request};
+    use domain::{service::MockTraqService, test_factories::UserBuilder};
+    use fake::{Fake, uuid::UUIDv4};
+    use http::header;
+    use mockall::predicate;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_add_message_stamp_success() {
+        let mut mock_traq_service = MockTraqService::new();
+
+        let user = UserBuilder::new().build();
+        let user_id = user.id;
+        let message_id: Uuid = UUIDv4.fake();
+        let stamp_id: Uuid = UUIDv4.fake();
+
+        mock_traq_service
+            .expect_add_message_stamp()
+            .with(
+                predicate::eq(user_id),
+                predicate::eq(message_id),
+                predicate::eq(stamp_id),
+                predicate::eq(1),
+            )
+            .times(1)
+            .returning(|_, _, _, _| Ok(()));
+
+        let app = TestAppBuilder::new()
+            .with_traq_service(mock_traq_service)
+            .with_user(user.clone())
+            .build();
+
+        // Login
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
+        let login_res = app.clone().oneshot(login_req).await.unwrap();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
+
+        // Add Stamp
+        let req = Request::builder()
+            .uri(format!(
+                "/api/v1/messages/{}/stamps/{}",
+                message_id, stamp_id
+            ))
+            .method("POST")
+            .header(header::COOKIE, cookie)
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    }
 }

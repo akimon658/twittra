@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
 use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDetail};
 use utoipa::ToSchema;
@@ -31,7 +31,7 @@ impl TryFrom<models::Message> for Message {
     }
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageListItem {
     pub id: Uuid,
@@ -50,7 +50,7 @@ pub struct MessageListItem {
     pub reactions: Vec<Reaction>,
 }
 
-#[derive(Clone, Debug, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Reaction {
     pub stamp_id: Uuid,
@@ -68,7 +68,7 @@ impl From<MessageStamp> for Reaction {
     }
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Stamp {
     pub id: Uuid,
@@ -94,7 +94,7 @@ impl From<StampWithThumbnail> for Stamp {
     }
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,

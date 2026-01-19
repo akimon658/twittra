@@ -4,12 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = { workspace = true }
 async-trait = { workspace = true }
+fake = { workspace = true, optional = true }
+http = { workspace = true }
+mockall = { workspace = true, optional = true }
 serde = { workspace = true }
+thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 traq = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+fake = { workspace = true, features = ["time", "uuid"] }
+mockall = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+
+[features]
+test-utils = ["dep:mockall", "dep:fake"]
+
+[lints]
+workspace = true

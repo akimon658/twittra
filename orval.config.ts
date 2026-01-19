@@ -11,6 +11,10 @@ export default defineConfig({
       client: "react-query",
       httpClient: "fetch",
       mode: "tags-split",
+      mock: {
+        type: "msw",
+        delay: 100,
+      },
       override: {
         fetch: {
           forceSuccessResponse: true,
