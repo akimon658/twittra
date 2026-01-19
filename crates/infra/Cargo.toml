@@ -10,7 +10,6 @@ fastrand = { workspace = true }
 http = { workspace = true }
 sqlx = { workspace = true }
 time = { workspace = true }
-tokio = { workspace = true, features = ["macros"] }
 traq = { workspace = true }
 uuid = { workspace = true }
 
