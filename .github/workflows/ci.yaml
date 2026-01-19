@@ -45,6 +45,9 @@ jobs:
         with:
           cache: true
 
+      - name: Install browser
+        run: deno task install-browser
+
       - name: Run deno tests
         run: deno task test
 
