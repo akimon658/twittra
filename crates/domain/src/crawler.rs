@@ -46,7 +46,52 @@ impl MessageCrawler {
 
         self.repo.message.save_batch(&messages).await?;
 
+        self.refresh_messages(&token).await?;
+
         Ok(())
+    }
+
+    async fn refresh_messages(&self, token: &str) -> Result<(), DomainError> {
+        let candidates = self.repo.message.find_sync_candidates().await?;
+        let now = OffsetDateTime::now_utc();
+
+        for (message_id, created_at, last_crawled_at) in candidates {
+            if !should_refresh(created_at, last_crawled_at, now) {
+                continue;
+            }
+
+            match self.client.get_message(token, &message_id).await {
+                Ok(message) => {
+                    self.repo.message.save(&message).await?;
+                    tracing::debug!("Refreshed message {}", message_id);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to refresh message {}: {:?}", message_id, e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn should_refresh(
+    created_at: OffsetDateTime,
+    last_crawled_at: Option<OffsetDateTime>,
+    now: OffsetDateTime,
+) -> bool {
+    let age = now - created_at;
+    let interval = if age < Duration::hours(3) {
+        Duration::minutes(1)
+    } else if age < Duration::hours(12) {
+        Duration::minutes(10)
+    } else {
+        Duration::minutes(30)
+    };
+
+    match last_crawled_at {
+        Some(last_crawled) => now - last_crawled >= interval,
+        None => true,
     }
 }
 
@@ -56,6 +101,7 @@ mod tests {
     use crate::repository::{MockMessageRepository, MockUserRepository};
     use crate::test_factories::{MessageBuilder, RepositoryBuilder};
     use crate::traq_client::MockTraqClient;
+    use fake::{Fake, uuid::UUIDv4};
     use mockall::predicate;
 
     #[tokio::test]
@@ -95,6 +141,12 @@ mod tests {
             .expect_save_batch()
             .times(1)
             .returning(|_| Ok(()));
+
+        // 5. Find sync candidates (for refresh)
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(|| Ok(vec![]));
 
         let repo = RepositoryBuilder::new()
             .message(mock_message_repo)
@@ -138,6 +190,12 @@ mod tests {
             .times(1)
             .returning(|_| Ok(()));
 
+        // 5. Find sync candidates
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(|| Ok(vec![]));
+
         let repo = RepositoryBuilder::new()
             .message(mock_message_repo)
             .user(mock_user_repo)
@@ -173,5 +231,160 @@ mod tests {
 
         // Should succeed (return Ok) but log warning and skip fetch
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn crawl_refreshes_messages_needing_update() {
+        let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_client = MockTraqClient::new();
+
+        let now = OffsetDateTime::now_utc();
+        let message_id = UUIDv4.fake();
+        let created_at = now - Duration::minutes(30);
+        let last_crawled_at = now - Duration::minutes(2);
+
+        mock_message_repo
+            .expect_find_latest_message_time()
+            .returning(move || Ok(Some(now)));
+
+        mock_user_repo
+            .expect_find_random_valid_token()
+            .returning(|| Ok(Some("test_token".to_string())));
+
+        mock_client
+            .expect_fetch_messages_since()
+            .returning(|_, _| Ok(vec![]));
+
+        mock_message_repo.expect_save_batch().returning(|_| Ok(()));
+
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+
+        let refreshed_message = MessageBuilder::new().id(message_id).build();
+        mock_client
+            .expect_get_message()
+            .times(1)
+            .returning(move |_, _| Ok(refreshed_message.clone()));
+
+        mock_message_repo
+            .expect_save()
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
+        let result = crawler.crawl().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn crawl_skips_messages_not_needing_refresh() {
+        let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_client = MockTraqClient::new();
+
+        let now = OffsetDateTime::now_utc();
+        let message_id = UUIDv4.fake();
+        let created_at = now - Duration::minutes(30);
+        let last_crawled_at = now - Duration::seconds(30);
+
+        mock_message_repo
+            .expect_find_latest_message_time()
+            .returning(move || Ok(Some(now)));
+
+        mock_user_repo
+            .expect_find_random_valid_token()
+            .returning(|| Ok(Some("test_token".to_string())));
+
+        mock_client
+            .expect_fetch_messages_since()
+            .returning(|_, _| Ok(vec![]));
+
+        mock_message_repo.expect_save_batch().returning(|_| Ok(()));
+
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
+        let result = crawler.crawl().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn should_refresh_returns_true_for_never_crawled_message() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(1);
+
+        assert!(should_refresh(created_at, None, now));
+    }
+
+    #[test]
+    fn should_refresh_recent_message_within_interval() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(2);
+        let last_crawled_at = now - Duration::minutes(2);
+
+        assert!(should_refresh(created_at, Some(last_crawled_at), now));
+    }
+
+    #[test]
+    fn should_refresh_recent_message_not_within_interval() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(2);
+        let last_crawled_at = now - Duration::seconds(30);
+
+        assert!(!should_refresh(created_at, Some(last_crawled_at), now));
+    }
+
+    #[test]
+    fn should_refresh_medium_age_message_within_interval() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(6);
+        let last_crawled_at = now - Duration::minutes(11);
+
+        assert!(should_refresh(created_at, Some(last_crawled_at), now));
+    }
+
+    #[test]
+    fn should_refresh_medium_age_message_not_within_interval() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(6);
+        let last_crawled_at = now - Duration::minutes(5);
+
+        assert!(!should_refresh(created_at, Some(last_crawled_at), now));
+    }
+
+    #[test]
+    fn should_refresh_old_message_within_interval() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(18);
+        let last_crawled_at = now - Duration::minutes(31);
+
+        assert!(should_refresh(created_at, Some(last_crawled_at), now));
+    }
+
+    #[test]
+    fn should_refresh_old_message_not_within_interval() {
+        let now = OffsetDateTime::now_utc();
+        let created_at = now - Duration::hours(18);
+        let last_crawled_at = now - Duration::minutes(20);
+
+        assert!(!should_refresh(created_at, Some(last_crawled_at), now));
     }
 }

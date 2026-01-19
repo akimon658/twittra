@@ -124,6 +124,34 @@ impl MessageRepository for MariaDbMessageRepository {
         Ok(result)
     }
 
+    async fn find_sync_candidates(
+        &self,
+    ) -> Result<Vec<(Uuid, OffsetDateTime, Option<OffsetDateTime>)>, RepositoryError> {
+        #[derive(sqlx::FromRow)]
+        struct SyncCandidateRow {
+            id: Uuid,
+            created_at: OffsetDateTime,
+            last_crawled_at: Option<OffsetDateTime>,
+        }
+
+        let rows = sqlx::query_as!(
+            SyncCandidateRow,
+            r#"
+            SELECT id AS `id: _`, created_at, last_crawled_at AS `last_crawled_at: _`
+            FROM messages
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.id, row.created_at, row.last_crawled_at))
+            .collect())
+    }
+
     async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>, RepositoryError> {
         let messages = sqlx::query_as!(
             MessageRow,
@@ -234,9 +262,9 @@ impl MessageRepository for MariaDbMessageRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)
+            INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at, last_crawled_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW(6))
+            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at), last_crawled_at=NOW(6)
             "#,
             message.id,
             message.user_id,
@@ -275,7 +303,7 @@ impl MessageRepository for MariaDbMessageRepository {
             .await
             .map_err(|e| RepositoryError::Database(e.to_string()))?;
         let mut query_builder = QueryBuilder::new(
-            "INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at) ",
+            "INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at, last_crawled_at) ",
         );
 
         query_builder.push_values(messages, |mut separated, message| {
@@ -285,10 +313,11 @@ impl MessageRepository for MariaDbMessageRepository {
                 .push_bind(message.channel_id)
                 .push_bind(&message.content)
                 .push_bind(message.created_at)
-                .push_bind(message.updated_at);
+                .push_bind(message.updated_at)
+                .push("NOW(6)");
         });
         query_builder
-            .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)");
+            .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at), last_crawled_at=NOW(6)");
         query_builder
             .build()
             .execute(&mut *tx)
@@ -317,7 +346,7 @@ impl MessageRepository for MariaDbMessageRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::test_factories::{MessageBuilder, ReactionBuilder};
+    use domain::test_factories::{MessageBuilder, ReactionBuilder, fake_recent_datetime};
     use fake::{Fake, uuid::UUIDv4};
 
     #[sqlx::test]
@@ -408,5 +437,64 @@ mod tests {
 
         let saved_messages = repo.find_recent_messages().await.unwrap();
         assert!(saved_messages.len() >= 2); // At least our 2 messages
+    }
+
+    #[sqlx::test]
+    async fn test_find_sync_candidates_returns_recent_messages(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let recent_time = fake_recent_datetime();
+        let recent_message = MessageBuilder::new()
+            .created_at(recent_time - time::Duration::hours(1))
+            .build();
+        let old_message = MessageBuilder::new()
+            .created_at(recent_time - time::Duration::hours(25))
+            .build();
+
+        repo.save(&recent_message).await.unwrap();
+        repo.save(&old_message).await.unwrap();
+
+        let candidates = repo.find_sync_candidates().await.unwrap();
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].0, recent_message.id);
+        assert!(candidates[0].2.is_some());
+    }
+
+    #[sqlx::test]
+    async fn test_find_sync_candidates_includes_last_crawled_at(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let recent_time = fake_recent_datetime();
+        let message = MessageBuilder::new().created_at(recent_time).build();
+        repo.save(&message).await.unwrap();
+
+        let candidates = repo.find_sync_candidates().await.unwrap();
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].0, message.id);
+        assert_eq!(candidates[0].1, message.created_at);
+        assert!(candidates[0].2.is_some());
+    }
+
+    #[sqlx::test]
+    async fn test_save_updates_last_crawled_at(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let recent_time = fake_recent_datetime();
+        let message = MessageBuilder::new().created_at(recent_time).build();
+        repo.save(&message).await.unwrap();
+
+        let first_candidates = repo.find_sync_candidates().await.unwrap();
+        let first_crawled_at = first_candidates[0].2.unwrap();
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        repo.save(&message).await.unwrap();
+
+        let second_candidates = repo.find_sync_candidates().await.unwrap();
+        let second_crawled_at = second_candidates[0].2.unwrap();
+
+        assert!(second_crawled_at > first_crawled_at);
     }
 }

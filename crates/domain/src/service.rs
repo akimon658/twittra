@@ -412,4 +412,47 @@ mod tests {
         assert!(names.contains(&"go_fast"));
         assert!(!names.contains(&"rust"));
     }
+
+    #[tokio::test]
+    async fn traq_remove_message_stamp_optimistically_updates_local_db() {
+        let user_id = UUIDv4.fake();
+        let message_id = UUIDv4.fake();
+        let stamp_id = UUIDv4.fake();
+
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_client = MockTraqClient::new();
+
+        mock_user_repo
+            .expect_find_token_by_user_id()
+            .with(predicate::eq(user_id))
+            .times(1)
+            .returning(move |_| Ok(Some("test_token".to_string())));
+
+        mock_client
+            .expect_remove_message_stamp()
+            .withf(|token, _, _| token == "test_token")
+            .times(1)
+            .returning(|_, _, _| Ok(()));
+
+        mock_message_repo
+            .expect_remove_reaction()
+            .withf(move |msg_id, stp_id, usr_id| {
+                *msg_id == message_id && *stp_id == stamp_id && *usr_id == user_id
+            })
+            .times(1)
+            .returning(|_, _, _| Ok(()));
+
+        let repo = RepositoryBuilder::new()
+            .user(mock_user_repo)
+            .message(mock_message_repo)
+            .build();
+
+        let service = TraqServiceImpl::new(repo, Arc::new(mock_client));
+        let result = service
+            .remove_message_stamp(&user_id, &message_id, &stamp_id)
+            .await;
+
+        assert!(result.is_ok());
+    }
 }
