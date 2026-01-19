@@ -35,6 +35,19 @@ jobs:
       - name: Run deno lint
         run: deno lint
 
+  deno-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: denoland/setup-deno@v2
+        with:
+          cache: true
+
+      - name: Run deno tests
+        run: deno task test
+
   rust-fmt:
     runs-on: ubuntu-latest
 
@@ -65,3 +78,25 @@ jobs:
 
       - name: Run cargo clippy
         run: cargo clippy --all-targets -- --deny warnings
+
+  rust-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Start MySQL container (required for tests)
+        run: docker compose up --detach db
+
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+
+      - name: Install sqlx CLI
+        run: cargo install sqlx-cli
+
+      - uses: denoland/setup-deno@v2
+
+      - name: Run migrations
+        run: deno task migrate
+
+      - name: Run cargo tests
+        run: cargo test
