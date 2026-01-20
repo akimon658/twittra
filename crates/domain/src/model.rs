@@ -4,13 +4,16 @@ use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDet
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: Uuid,
     pub user_id: Uuid,
     pub channel_id: Uuid,
     pub content: String,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
     pub reactions: Vec<Reaction>,
 }

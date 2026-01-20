@@ -1,4 +1,7 @@
-use crate::{error::DomainError, repository::Repository, traq_client::TraqClient};
+use crate::{
+    error::DomainError, model::Message, notifier::MessageNotifier, repository::Repository,
+    traq_client::TraqClient,
+};
 use ::time::{Duration, OffsetDateTime};
 use std::{sync::Arc, time::Duration as StdDuration};
 use tokio::time;
@@ -7,11 +10,20 @@ use tokio::time;
 pub struct MessageCrawler {
     client: Arc<dyn TraqClient>,
     repo: Repository,
+    notifier: Arc<dyn MessageNotifier>,
 }
 
 impl MessageCrawler {
-    pub fn new(client: Arc<dyn TraqClient>, repo: Repository) -> Self {
-        Self { client, repo }
+    pub fn new(
+        client: Arc<dyn TraqClient>,
+        repo: Repository,
+        notifier: Arc<dyn MessageNotifier>,
+    ) -> Self {
+        Self {
+            client,
+            repo,
+            notifier,
+        }
     }
 
     pub async fn run(&self) {
@@ -46,14 +58,24 @@ impl MessageCrawler {
 
         self.repo.message.save_batch(&messages).await?;
 
-        self.refresh_messages(&token).await?;
+        let refreshed = self.refresh_messages(&token).await?;
+
+        let mut updated_messages = messages;
+        updated_messages.extend(refreshed);
+
+        if !updated_messages.is_empty() {
+            self.notifier
+                .notify_messages_updated(&updated_messages)
+                .await;
+        }
 
         Ok(())
     }
 
-    async fn refresh_messages(&self, token: &str) -> Result<(), DomainError> {
+    async fn refresh_messages(&self, token: &str) -> Result<Vec<Message>, DomainError> {
         let candidates = self.repo.message.find_sync_candidates().await?;
         let now = OffsetDateTime::now_utc();
+        let mut refreshed_messages = Vec::new();
 
         for (message_id, created_at, last_crawled_at) in candidates {
             if !should_refresh(created_at, last_crawled_at, now) {
@@ -64,6 +86,7 @@ impl MessageCrawler {
                 Ok(message) => {
                     self.repo.message.save(&message).await?;
                     tracing::debug!("Refreshed message {}", message_id);
+                    refreshed_messages.push(message);
                 }
                 Err(e) => {
                     tracing::warn!("Failed to refresh message {}: {:?}", message_id, e);
@@ -71,7 +94,7 @@ impl MessageCrawler {
             }
         }
 
-        Ok(())
+        Ok(refreshed_messages)
     }
 }
 
@@ -98,6 +121,7 @@ fn should_refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notifier::MockMessageNotifier;
     use crate::repository::{MockMessageRepository, MockUserRepository};
     use crate::test_factories::{MessageBuilder, RepositoryBuilder};
     use crate::traq_client::MockTraqClient;
@@ -153,7 +177,13 @@ mod tests {
             .user(mock_user_repo)
             .build();
 
-        let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
+        let mut mock_notifier = MockMessageNotifier::new();
+        mock_notifier
+            .expect_notify_messages_updated()
+            .times(1)
+            .returning(|_| ());
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
         let result = crawler.crawl().await;
 
         assert!(result.is_ok());
@@ -201,7 +231,9 @@ mod tests {
             .user(mock_user_repo)
             .build();
 
-        let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
+        let mock_notifier = MockMessageNotifier::new();
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
         let result = crawler.crawl().await;
 
         assert!(result.is_ok());
@@ -226,7 +258,13 @@ mod tests {
             .user(mock_user_repo)
             .build();
 
-        let crawler = MessageCrawler::new(Arc::new(MockTraqClient::new()), repo);
+        let mock_notifier = MockMessageNotifier::new();
+
+        let crawler = MessageCrawler::new(
+            Arc::new(MockTraqClient::new()),
+            repo,
+            Arc::new(mock_notifier),
+        );
         let result = crawler.crawl().await;
 
         // Should succeed (return Ok) but log warning and skip fetch
@@ -279,7 +317,13 @@ mod tests {
             .user(mock_user_repo)
             .build();
 
-        let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
+        let mut mock_notifier = MockMessageNotifier::new();
+        mock_notifier
+            .expect_notify_messages_updated()
+            .times(1)
+            .returning(|_| ());
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
         let result = crawler.crawl().await;
 
         assert!(result.is_ok());
@@ -320,7 +364,9 @@ mod tests {
             .user(mock_user_repo)
             .build();
 
-        let crawler = MessageCrawler::new(Arc::new(mock_client), repo);
+        let mock_notifier = MockMessageNotifier::new();
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
         let result = crawler.crawl().await;
 
         assert!(result.is_ok());

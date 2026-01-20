@@ -14,8 +14,10 @@ http = "1.4.0"
 mockall = "0.14.0"
 oauth2 = "5.0.0"
 reqwest = "0.12.28"
+rust_socketio = "0.6.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+socketioxide = "0.18.0"
 sqlx = { version = "0.8.6", default-features = false, features = ["macros", "migrate", "mysql", "runtime-tokio", "time", "uuid"] }
 testcontainers = { version = "0.26.3", default-features = false }
 thiserror = "2.0.17"

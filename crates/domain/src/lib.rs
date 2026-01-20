@@ -1,6 +1,7 @@
 pub mod crawler;
 pub mod error;
 pub mod model;
+pub mod notifier;
 pub mod repository;
 pub mod service;
 pub mod traq_client;

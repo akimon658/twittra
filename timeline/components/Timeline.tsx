@@ -10,14 +10,32 @@ import {
   Text,
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
-import { QueryErrorResetBoundary } from "@tanstack/react-query"
-import { Suspense } from "react"
+import { QueryErrorResetBoundary, useQueryClient } from "@tanstack/react-query"
+import { Suspense, useEffect } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
-import { useGetTimelineSuspense } from "../../api/timeline/timeline.ts"
+import { getGetTimelineQueryKey, useGetTimelineSuspense } from "../../api/timeline/timeline.ts"
+import { useSocket } from "../../app/SocketProvider.tsx"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {
   const { data: { data } } = useGetTimelineSuspense()
+  const { socket } = useSocket()
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleMessagesUpdated = (payload: { messages: typeof data }) => {
+      console.log("Received messages_updated event", payload)
+      queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+    }
+
+    socket.on("messages_updated", handleMessagesUpdated)
+
+    return () => {
+      socket.off("messages_updated", handleMessagesUpdated)
+    }
+  }, [socket, queryClient])
 
   return (
     <Stack>

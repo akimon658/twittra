@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   mockApiError,
   renderWithProviders,
@@ -7,7 +7,27 @@ import {
 } from "../../test/utils.tsx"
 import { Timeline } from "./Timeline.tsx"
 
+// Mock socket.io-client
+const mockSocket = {
+  on: vi.fn(),
+  off: vi.fn(),
+  emit: vi.fn(),
+  close: vi.fn(),
+}
+
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => mockSocket),
+}))
+
 describe("Timeline", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it("renders messages from API", async () => {
     // MSW will automatically return mocked data from api/mocks.ts
     renderWithProviders(<Timeline />)
@@ -59,5 +79,33 @@ describe("Timeline", () => {
       },
       { timeout: 3000 },
     )
+  })
+
+  describe("Socket.io Integration", () => {
+    it("registers socket event listener for messages_updated", async () => {
+      renderWithProviders(<Timeline />)
+
+      await waitFor(() => {
+        expect(mockSocket.on).toHaveBeenCalledWith(
+          "messages_updated",
+          expect.any(Function),
+        )
+      })
+    })
+
+    it("cleans up socket listener on unmount", async () => {
+      const { unmount } = renderWithProviders(<Timeline />)
+
+      await waitFor(() => {
+        expect(mockSocket.on).toHaveBeenCalled()
+      })
+
+      unmount()
+
+      expect(mockSocket.off).toHaveBeenCalledWith(
+        "messages_updated",
+        expect.any(Function),
+      )
+    })
   })
 })

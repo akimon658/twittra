@@ -4,6 +4,7 @@ import { render } from "@testing-library/react"
 import { http, HttpResponse } from "msw"
 import type { ReactElement } from "react"
 import type { User } from "../api/twittra.schemas.ts"
+import { MockSocketProvider } from "../app/MockSocketProvider.tsx"
 import { UserContext } from "../auth/context/user.ts"
 import { createMockUser } from "./factories.ts"
 import { worker } from "./setup.ts"
@@ -24,11 +25,13 @@ export function renderWithProviders(
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <UserContext value={user}>
-        <MantineProvider>
-          {ui}
-        </MantineProvider>
-      </UserContext>
+      <MockSocketProvider>
+        <UserContext value={user}>
+          <MantineProvider>
+            {ui}
+          </MantineProvider>
+        </UserContext>
+      </MockSocketProvider>
     </QueryClientProvider>,
   )
 }

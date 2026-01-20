@@ -10,10 +10,14 @@ use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
+    model::Message,
+    notifier::MessageNotifier,
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
+use serde_json::json;
+use socketioxide::{SocketIo, extract::SocketRef, layer::SocketIoLayer};
 use sqlx::MySqlPool;
 use std::{env, error::Error, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task};
@@ -33,6 +37,42 @@ mod session;
 pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
+
+/// Creates and configures the Socket.io layer with necessary namespaces.
+pub fn create_socket_layer() -> (SocketIoLayer, SocketIo) {
+    let (socket_layer, io) = SocketIo::new_layer();
+
+    // Register default namespace handler to prevent panic when emitting
+    io.ns("/", |_: SocketRef| async move {});
+
+    (socket_layer, io)
+}
+
+/// Notifier implementation that broadcasts message updates via Socket.io
+struct SocketNotifier {
+    io: SocketIo,
+}
+
+impl SocketNotifier {
+    fn new(io: SocketIo) -> Self {
+        Self { io }
+    }
+}
+
+#[async_trait::async_trait]
+impl MessageNotifier for SocketNotifier {
+    async fn notify_messages_updated(&self, messages: &[Message]) {
+        tracing::info!(
+            "Broadcasting messages_updated for {} messages",
+            messages.len()
+        );
+
+        let data = json!({ "messages": messages });
+        if let Err(e) = self.io.emit("messages_updated", &data).await {
+            tracing::error!("Failed to broadcast messages_updated: {:?}", e);
+        }
+    }
+}
 
 pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     let mut components = Components::new();
@@ -103,7 +143,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         ))?);
     let repository = mariadb::new_repository(pool).await?;
     let traq_client = TraqClientImpl::new(traq_api_base_url.clone());
-    let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone());
+
+    let (socket_layer, io) = create_socket_layer();
+    let notifier = Arc::new(SocketNotifier::new(io));
+    let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone(), notifier);
 
     task::spawn(async move {
         crawler.run().await;
@@ -117,9 +160,24 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     let (router, openapi) = setup_openapi_routes();
     let router = axum::Router::new()
         .nest(API_ROOT, router.layer(auth_layer))
-        .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));
+        .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi))
+        .layer(socket_layer);
 
     axum::serve(listener, router.with_state(app_state)).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_socket_layer_configuration_prevents_panic() {
+        let (_, io) = create_socket_layer();
+
+        // Verify that emitting to default namespace works
+        let result = io.emit("test", &"test").await;
+        assert!(result.is_ok());
+    }
 }
