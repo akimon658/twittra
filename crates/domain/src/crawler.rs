@@ -83,10 +83,24 @@ impl MessageCrawler {
             }
 
             match self.client.get_message(token, &message_id).await {
-                Ok(message) => {
-                    self.repo.message.save(&message).await?;
-                    tracing::debug!("Refreshed message {}", message_id);
-                    refreshed_messages.push(message);
+                Ok(new_message) => {
+                    let existing_message = self.repo.message.find_by_id(&message_id).await?;
+
+                    // Always save to update last_crawled_at
+                    self.repo.message.save(&new_message).await?;
+
+                    // Only notify if the message actually changed
+                    let has_changed = match existing_message {
+                        Some(existing) => existing != new_message,
+                        None => true, // New message, always notify
+                    };
+
+                    if has_changed {
+                        tracing::debug!("Refreshed message {}", message_id);
+                        refreshed_messages.push(new_message);
+                    } else {
+                        tracing::debug!("Message {} unchanged, skipping notification", message_id);
+                    }
                 }
                 Err(e) => {
                     tracing::warn!("Failed to refresh message {}: {:?}", message_id, e);
@@ -123,7 +137,7 @@ mod tests {
     use super::*;
     use crate::notifier::MockMessageNotifier;
     use crate::repository::{MockMessageRepository, MockUserRepository};
-    use crate::test_factories::{MessageBuilder, RepositoryBuilder};
+    use crate::test_factories::{MessageBuilder, ReactionBuilder, RepositoryBuilder};
     use crate::traq_client::MockTraqClient;
     use fake::{Fake, uuid::UUIDv4};
     use mockall::predicate;
@@ -301,7 +315,223 @@ mod tests {
             .times(1)
             .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
 
+        let existing_message = MessageBuilder::new().id(message_id).build();
+        let refreshed_message = existing_message.clone();
+
+        // Expect find_by_id to return existing message
+        mock_message_repo
+            .expect_find_by_id()
+            .times(1)
+            .returning(move |_| Ok(Some(existing_message.clone())));
+
+        mock_client
+            .expect_get_message()
+            .times(1)
+            .returning(move |_, _| Ok(refreshed_message.clone()));
+
+        mock_message_repo
+            .expect_save()
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
+
+        // Notifier should NOT be called since message is unchanged
+        let mock_notifier = MockMessageNotifier::new();
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
+        let result = crawler.crawl().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn crawl_notifies_when_message_content_changed() {
+        let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_client = MockTraqClient::new();
+
+        let now = OffsetDateTime::now_utc();
+        let message_id = UUIDv4.fake();
+        let created_at = now - Duration::minutes(30);
+        let last_crawled_at = now - Duration::minutes(2);
+
+        mock_message_repo
+            .expect_find_latest_message_time()
+            .returning(move || Ok(Some(now)));
+
+        mock_user_repo
+            .expect_find_random_valid_token()
+            .returning(|| Ok(Some("test_token".to_string())));
+
+        mock_client
+            .expect_fetch_messages_since()
+            .returning(|_, _| Ok(vec![]));
+
+        mock_message_repo.expect_save_batch().returning(|_| Ok(()));
+
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+
+        let existing_message = MessageBuilder::new()
+            .id(message_id)
+            .content("old content".to_string())
+            .build();
+        let refreshed_message = MessageBuilder::new()
+            .id(message_id)
+            .content("new content".to_string())
+            .build();
+
+        mock_message_repo
+            .expect_find_by_id()
+            .times(1)
+            .returning(move |_| Ok(Some(existing_message.clone())));
+
+        mock_client
+            .expect_get_message()
+            .times(1)
+            .returning(move |_, _| Ok(refreshed_message.clone()));
+
+        mock_message_repo
+            .expect_save()
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
+
+        let mut mock_notifier = MockMessageNotifier::new();
+        mock_notifier
+            .expect_notify_messages_updated()
+            .times(1)
+            .returning(|_| ());
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
+        let result = crawler.crawl().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn crawl_notifies_when_reactions_changed() {
+        let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_client = MockTraqClient::new();
+
+        let now = OffsetDateTime::now_utc();
+        let message_id = UUIDv4.fake();
+        let created_at = now - Duration::minutes(30);
+        let last_crawled_at = now - Duration::minutes(2);
+
+        mock_message_repo
+            .expect_find_latest_message_time()
+            .returning(move || Ok(Some(now)));
+
+        mock_user_repo
+            .expect_find_random_valid_token()
+            .returning(|| Ok(Some("test_token".to_string())));
+
+        mock_client
+            .expect_fetch_messages_since()
+            .returning(|_, _| Ok(vec![]));
+
+        mock_message_repo.expect_save_batch().returning(|_| Ok(()));
+
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+
+        let reaction1 = ReactionBuilder::new().stamp_count(1).build();
+        let reaction2 = ReactionBuilder::new().stamp_count(2).build();
+
+        let existing_message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone()])
+            .build();
+        let refreshed_message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1, reaction2])
+            .build();
+
+        mock_message_repo
+            .expect_find_by_id()
+            .times(1)
+            .returning(move |_| Ok(Some(existing_message.clone())));
+
+        mock_client
+            .expect_get_message()
+            .times(1)
+            .returning(move |_, _| Ok(refreshed_message.clone()));
+
+        mock_message_repo
+            .expect_save()
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .build();
+
+        let mut mock_notifier = MockMessageNotifier::new();
+        mock_notifier
+            .expect_notify_messages_updated()
+            .times(1)
+            .returning(|_| ());
+
+        let crawler = MessageCrawler::new(Arc::new(mock_client), repo, Arc::new(mock_notifier));
+        let result = crawler.crawl().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+
+    async fn crawl_refreshes_messages_needing_update_legacy() {
+        let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_client = MockTraqClient::new();
+
+        let now = OffsetDateTime::now_utc();
+        let message_id = UUIDv4.fake();
+        let created_at = now - Duration::minutes(30);
+        let last_crawled_at = now - Duration::minutes(2);
+
+        mock_message_repo
+            .expect_find_latest_message_time()
+            .returning(move || Ok(Some(now)));
+
+        mock_user_repo
+            .expect_find_random_valid_token()
+            .returning(|| Ok(Some("test_token".to_string())));
+
+        mock_client
+            .expect_fetch_messages_since()
+            .returning(|_, _| Ok(vec![]));
+
+        mock_message_repo.expect_save_batch().returning(|_| Ok(()));
+
+        mock_message_repo
+            .expect_find_sync_candidates()
+            .times(1)
+            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+
         let refreshed_message = MessageBuilder::new().id(message_id).build();
+
+        // Expect find_by_id to return None (message doesn't exist yet)
+        mock_message_repo
+            .expect_find_by_id()
+            .times(1)
+            .returning(|_| Ok(None));
+
         mock_client
             .expect_get_message()
             .times(1)

@@ -124,6 +124,58 @@ impl MessageRepository for MariaDbMessageRepository {
         Ok(result)
     }
 
+    async fn find_by_id(&self, id: &Uuid) -> Result<Option<Message>, RepositoryError> {
+        #[derive(sqlx::FromRow)]
+        struct MessageRow {
+            id: Uuid,
+            user_id: Uuid,
+            channel_id: Uuid,
+            content: String,
+            created_at: OffsetDateTime,
+            updated_at: OffsetDateTime,
+        }
+
+        let message_row = sqlx::query_as!(
+            MessageRow,
+            r#"
+            SELECT id AS `id: _`, user_id AS `user_id: _`, channel_id AS `channel_id: _`, content, created_at, updated_at
+            FROM messages
+            WHERE id = ?
+            "#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        let Some(row) = message_row else {
+            return Ok(None);
+        };
+
+        let reactions = sqlx::query_as!(
+            ReactionRow,
+            r#"
+            SELECT message_id AS `message_id: _`, stamp_id AS `stamp_id: _`, user_id AS `user_id: _`, stamp_count
+            FROM reactions
+            WHERE message_id = ?
+            "#,
+            id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        Ok(Some(Message {
+            id: row.id,
+            user_id: row.user_id,
+            channel_id: row.channel_id,
+            content: row.content,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            reactions: reactions.into_iter().map(Into::into).collect(),
+        }))
+    }
+
     async fn find_sync_candidates(
         &self,
     ) -> Result<Vec<(Uuid, OffsetDateTime, Option<OffsetDateTime>)>, RepositoryError> {
@@ -348,6 +400,8 @@ mod tests {
     use super::*;
     use domain::test_factories::{MessageBuilder, ReactionBuilder, fake_recent_datetime};
     use fake::{Fake, uuid::UUIDv4};
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[sqlx::test]
     async fn test_save_and_find_message(pool: sqlx::MySqlPool) {
@@ -488,7 +542,7 @@ mod tests {
         let first_candidates = repo.find_sync_candidates().await.unwrap();
         let first_crawled_at = first_candidates[0].2.unwrap();
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(100)).await;
 
         repo.save(&message).await.unwrap();
 

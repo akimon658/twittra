@@ -34,6 +34,29 @@ impl TryFrom<models::Message> for Message {
     }
 }
 
+impl PartialEq for Message {
+    fn eq(&self, other: &Self) -> bool {
+        if self.id != other.id
+            || self.user_id != other.user_id
+            || self.channel_id != other.channel_id
+            || self.content != other.content
+            || self.created_at != other.created_at
+            || self.updated_at != other.updated_at
+        {
+            return false;
+        }
+
+        // Compare reactions ignoring order
+        let mut self_reactions = self.reactions.clone();
+        let mut other_reactions = other.reactions.clone();
+        self_reactions.sort();
+        other_reactions.sort();
+        self_reactions == other_reactions
+    }
+}
+
+impl Eq for Message {}
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageListItem {
@@ -53,7 +76,7 @@ pub struct MessageListItem {
     pub reactions: Vec<Reaction>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct Reaction {
     pub stamp_id: Uuid,
