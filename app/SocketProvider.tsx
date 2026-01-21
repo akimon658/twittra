@@ -1,4 +1,5 @@
 import { io } from "socket.io-client"
+import * as parser from "./socketParser.ts"
 import {
     createContext,
     type ReactNode,
@@ -35,6 +36,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
         const newSocket = io({
             path: "/socket.io/",
             transports: ["websocket", "polling"],
+            parser,
         })
 
         newSocket.on("connect", () => {

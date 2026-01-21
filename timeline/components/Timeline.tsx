@@ -15,7 +15,6 @@ import { Suspense, useEffect } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { getGetTimelineQueryKey, useGetTimelineSuspense } from "../../api/timeline/timeline.ts"
 import { useSocket } from "../../app/SocketProvider.tsx"
-import { revivePayload } from "../../app/typedSocket.ts"
 import type { MessagesUpdatedPayload } from "../../api/twittra.schemas.ts"
 import { MessageItem } from "./Message.tsx"
 
@@ -27,8 +26,7 @@ const TimelineContent = () => {
   useEffect(() => {
     if (!socket) return
 
-    const handleMessagesUpdated = (rawPayload: unknown) => {
-      const payload = revivePayload<MessagesUpdatedPayload>(rawPayload)
+    const handleMessagesUpdated = (payload: MessagesUpdatedPayload) => {
       queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
     }
 
