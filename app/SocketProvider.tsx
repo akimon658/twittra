@@ -1,4 +1,4 @@
-import { io, type Socket } from "socket.io-client"
+import { io } from "socket.io-client"
 import {
     createContext,
     type ReactNode,
@@ -6,9 +6,10 @@ import {
     useEffect,
     useState,
 } from "react"
+import type { TypedSocket } from "./typedSocket.ts"
 
 interface SocketContextType {
-    socket: Socket | null
+    socket: TypedSocket | null
     isConnected: boolean
 }
 
@@ -27,7 +28,7 @@ interface SocketProviderProps {
 }
 
 export const SocketProvider = ({ children }: SocketProviderProps) => {
-    const [socket, setSocket] = useState<Socket | null>(null)
+    const [socket, setSocket] = useState<TypedSocket | null>(null)
     const [isConnected, setIsConnected] = useState(false)
 
     useEffect(() => {

@@ -76,6 +76,21 @@ pub struct MessageListItem {
     pub reactions: Vec<Reaction>,
 }
 
+impl From<Message> for MessageListItem {
+    fn from(message: Message) -> Self {
+        MessageListItem {
+            id: message.id,
+            user_id: message.user_id,
+            user: None,
+            channel_id: message.channel_id,
+            content: message.content,
+            created_at: message.created_at,
+            updated_at: message.updated_at,
+            reactions: message.reactions,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct Reaction {

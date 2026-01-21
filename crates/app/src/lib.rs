@@ -10,13 +10,13 @@ use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
+    event::{MessagesUpdatedPayload, ServerEvent},
     model::Message,
     notifier::MessageNotifier,
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
-use serde_json::json;
 use socketioxide::{SocketIo, extract::SocketRef, layer::SocketIoLayer};
 use sqlx::MySqlPool;
 use std::{env, error::Error, sync::Arc, time::Duration};
@@ -24,9 +24,12 @@ use tokio::{net::TcpListener, task};
 use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
 use tower_sessions_sqlx_store::MySqlStore;
 use tracing_subscriber::fmt;
-use utoipa::openapi::{
-    Components, Info, OpenApi, OpenApiBuilder, Server,
-    security::{ApiKey, ApiKeyValue, SecurityScheme},
+use utoipa::{
+    OpenApi,
+    openapi::{
+        Components, Info, OpenApi as OpenApiSpec, OpenApiBuilder, Server,
+        security::{ApiKey, ApiKeyValue, SecurityScheme},
+    },
 };
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
@@ -67,14 +70,32 @@ impl MessageNotifier for SocketNotifier {
             messages.len()
         );
 
-        let data = json!({ "messages": messages });
-        if let Err(e) = self.io.emit("messages_updated", &data).await {
+        let payload = MessagesUpdatedPayload {
+            messages: messages.iter().map(|m| m.clone().into()).collect(),
+        };
+        let event = ServerEvent::MessagesUpdated(payload);
+
+        if let Err(e) = self
+            .io
+            .emit(
+                event.name(),
+                &match event {
+                    ServerEvent::MessagesUpdated(ref p) => p,
+                },
+            )
+            .await
+        {
             tracing::error!("Failed to broadcast messages_updated: {:?}", e);
         }
     }
 }
 
-pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
+/// Helper for including Socket.io event schemas in OpenAPI
+#[derive(utoipa::OpenApi)]
+#[openapi(components(schemas(MessagesUpdatedPayload, ServerEvent,)))]
+struct SocketEventSchemas;
+
+pub fn setup_openapi_routes() -> (Router<AppState>, OpenApiSpec) {
     let mut components = Components::new();
 
     components.add_security_scheme(
@@ -88,7 +109,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
         .components(Some(components))
         .build();
 
-    OpenApiRouter::with_openapi(openapi)
+    let (router, mut openapi) = OpenApiRouter::with_openapi(openapi)
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
         .routes(utoipa_axum::routes!(
@@ -102,7 +123,12 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
         .routes(utoipa_axum::routes!(user::get_me))
         .routes(utoipa_axum::routes!(user::get_user_by_id))
         .routes(utoipa_axum::routes!(user::get_user_icon))
-        .split_for_parts()
+        .split_for_parts();
+
+    // Merge Socket.io event schemas
+    openapi.merge(SocketEventSchemas::openapi());
+
+    (router, openapi)
 }
 
 pub async fn serve() -> Result<(), Box<dyn Error>> {

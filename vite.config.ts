@@ -23,6 +23,9 @@ export default defineConfig({
       "/docs": {
         target: "http://localhost:8080",
       },
+      "/socket.io": {
+        target: "ws://localhost:8080",
+      },
     },
   },
 })

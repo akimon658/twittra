@@ -42,6 +42,17 @@ on content discovery and a fluid browsing experience.
 - **Optimization:** Uses React Compiler, which automatically optimizes
   re-renders. No need for manual `useMemo` or `useCallback`.
 
+### Real-time Updates (Socket.IO)
+
+- **Type Safety:** **End-to-End Type Safety**.
+  - **Backend:** Defines a `ServerEvent` enum (Discriminated Union).
+    `ServerEvent::name()` ensures runtime event names match the type definition.
+  - **Frontend:** A custom `TypedSocket` wrapper automatically derives the event
+    map from the generated `ServerEvent` type using TypeScript Mapped Types.
+  - **Date Handling:** Automated deserialization. Custom `reviver` ensures ISO
+    8601 date strings in payloads are converted to `Date` objects, keeping
+    behavior consistent with REST APIs.
+
 ### Authentication & Session Management
 
 - **OAuth2:** Users authenticate via traQ OAuth2.

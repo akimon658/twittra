@@ -17,11 +17,36 @@ Omitted if the server hasn't cached the user info. */
   userId: string
 }
 
+/**
+ * Payload for the messagesUpdated event
+ */
+export interface MessagesUpdatedPayload {
+  messages: MessageListItem[]
+}
+
 export interface Reaction {
   stampCount: number
   stampId: string
   userId: string
 }
+
+export type ServerEventOneOfType =
+  typeof ServerEventOneOfType[keyof typeof ServerEventOneOfType]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ServerEventOneOfType = {
+  messagesUpdated: "messagesUpdated",
+} as const
+
+export type ServerEventOneOf = {
+  payload: MessagesUpdatedPayload
+  type: ServerEventOneOfType
+}
+
+/**
+ * Discriminated union of all Socket.io server-to-client events
+ */
+export type ServerEvent = ServerEventOneOf
 
 export interface Stamp {
   id: string
