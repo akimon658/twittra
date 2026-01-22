@@ -23,7 +23,7 @@ pub trait MessageRepository: Debug + Send + Sync {
     /// Returns tuples of (message_id, created_at, last_crawled_at) for messages created within the last 24 hours.
     async fn find_sync_candidates(
         &self,
-    ) -> Result<Vec<(Uuid, OffsetDateTime, Option<OffsetDateTime>)>, RepositoryError>;
+    ) -> Result<Vec<(Uuid, OffsetDateTime, OffsetDateTime)>, RepositoryError>;
     /// Removes a reaction from a message.
     /// This is used for optimistic updates when deleting a stamp.
     async fn remove_reaction(

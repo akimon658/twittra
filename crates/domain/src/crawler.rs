@@ -110,7 +110,7 @@ impl MessageCrawler {
 
 fn should_refresh(
     created_at: OffsetDateTime,
-    last_crawled_at: Option<OffsetDateTime>,
+    last_crawled_at: OffsetDateTime,
     now: OffsetDateTime,
 ) -> bool {
     let age = now - created_at;
@@ -122,10 +122,7 @@ fn should_refresh(
         Duration::minutes(30)
     };
 
-    match last_crawled_at {
-        Some(last_crawled) => now - last_crawled >= interval,
-        None => true,
-    }
+    now - last_crawled_at >= interval
 }
 
 #[cfg(test)]
@@ -305,7 +302,7 @@ mod tests {
         mock_message_repo
             .expect_find_sync_candidates()
             .times(1)
-            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+            .returning(move || Ok(vec![(message_id, created_at, last_crawled_at)]));
 
         let existing_message = MessageBuilder::new().id(message_id).build();
         let refreshed_message = existing_message.clone();
@@ -368,7 +365,7 @@ mod tests {
         mock_message_repo
             .expect_find_sync_candidates()
             .times(1)
-            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+            .returning(move || Ok(vec![(message_id, created_at, last_crawled_at)]));
 
         let existing_message = MessageBuilder::new()
             .id(message_id)
@@ -439,7 +436,7 @@ mod tests {
         mock_message_repo
             .expect_find_sync_candidates()
             .times(1)
-            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+            .returning(move || Ok(vec![(message_id, created_at, last_crawled_at)]));
 
         let reaction1 = ReactionBuilder::new().stamp_count(1).build();
         let reaction2 = ReactionBuilder::new().stamp_count(2).build();
@@ -513,7 +510,7 @@ mod tests {
         mock_message_repo
             .expect_find_sync_candidates()
             .times(1)
-            .returning(move || Ok(vec![(message_id, created_at, Some(last_crawled_at))]));
+            .returning(move || Ok(vec![(message_id, created_at, last_crawled_at)]));
 
         let repo = RepositoryBuilder::new()
             .message(mock_message_repo)
@@ -529,20 +526,12 @@ mod tests {
     }
 
     #[test]
-    fn should_refresh_returns_true_for_never_crawled_message() {
-        let now = OffsetDateTime::now_utc();
-        let created_at = now - Duration::hours(1);
-
-        assert!(should_refresh(created_at, None, now));
-    }
-
-    #[test]
     fn should_refresh_recent_message_within_interval() {
         let now = OffsetDateTime::now_utc();
         let created_at = now - Duration::hours(2);
         let last_crawled_at = now - Duration::minutes(2);
 
-        assert!(should_refresh(created_at, Some(last_crawled_at), now));
+        assert!(should_refresh(created_at, last_crawled_at, now));
     }
 
     #[test]
@@ -551,7 +540,7 @@ mod tests {
         let created_at = now - Duration::hours(2);
         let last_crawled_at = now - Duration::seconds(30);
 
-        assert!(!should_refresh(created_at, Some(last_crawled_at), now));
+        assert!(!should_refresh(created_at, last_crawled_at, now));
     }
 
     #[test]
@@ -560,7 +549,7 @@ mod tests {
         let created_at = now - Duration::hours(6);
         let last_crawled_at = now - Duration::minutes(11);
 
-        assert!(should_refresh(created_at, Some(last_crawled_at), now));
+        assert!(should_refresh(created_at, last_crawled_at, now));
     }
 
     #[test]
@@ -569,7 +558,7 @@ mod tests {
         let created_at = now - Duration::hours(6);
         let last_crawled_at = now - Duration::minutes(5);
 
-        assert!(!should_refresh(created_at, Some(last_crawled_at), now));
+        assert!(!should_refresh(created_at, last_crawled_at, now));
     }
 
     #[test]
@@ -578,7 +567,7 @@ mod tests {
         let created_at = now - Duration::hours(18);
         let last_crawled_at = now - Duration::minutes(31);
 
-        assert!(should_refresh(created_at, Some(last_crawled_at), now));
+        assert!(should_refresh(created_at, last_crawled_at, now));
     }
 
     #[test]
@@ -587,6 +576,6 @@ mod tests {
         let created_at = now - Duration::hours(18);
         let last_crawled_at = now - Duration::minutes(20);
 
-        assert!(!should_refresh(created_at, Some(last_crawled_at), now));
+        assert!(!should_refresh(created_at, last_crawled_at, now));
     }
 }
