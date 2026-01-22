@@ -1,33 +1,19 @@
-import { createContext, type ReactNode, useContext } from "react"
-import type { Socket } from "socket.io-client"
-
-interface SocketContextType {
-    socket: Socket | null
-    isConnected: boolean
-}
-
-const SocketContext = createContext<SocketContextType | undefined>(undefined)
-
-export const useSocket = () => {
-    const context = useContext(SocketContext)
-    if (!context) {
-        // In test environment, return null socket
-        return { socket: null, isConnected: false }
-    }
-    return context
-}
+import type { ReactNode } from "react"
+import type { TypedSocket } from "./typedSocket.ts"
+import { SocketContext } from "./SocketProvider.tsx"
 
 interface MockSocketProviderProps {
     children: ReactNode
+    socket?: TypedSocket | null
 }
 
 /**
  * Mock SocketProvider for testing
- * Returns a null socket which is gracefully handled by components
+ * Accepts an optional socket instance to inject for testing
  */
-export const MockSocketProvider = ({ children }: MockSocketProviderProps) => {
+export const MockSocketProvider = ({ children, socket = null }: MockSocketProviderProps) => {
     return (
-        <SocketContext.Provider value={{ socket: null, isConnected: false }}>
+        <SocketContext.Provider value={{ socket, isConnected: socket !== null }}>
             {children}
         </SocketContext.Provider>
     )

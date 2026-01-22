@@ -8,10 +8,10 @@ use async_trait::async_trait;
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait MessageNotifier: Send + Sync {
-    /// Notifies that messages have been updated.
+    /// Notifies that a message has been updated.
     ///
     /// # Arguments
     ///
-    /// * `messages` - The messages that were updated
-    async fn notify_messages_updated(&self, messages: &[Message]);
+    /// * `message` - The message that was updated
+    async fn notify_message_updated(&self, message: &Message);
 }

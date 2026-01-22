@@ -63,10 +63,8 @@ impl MessageCrawler {
         let mut updated_messages = messages;
         updated_messages.extend(refreshed);
 
-        if !updated_messages.is_empty() {
-            self.notifier
-                .notify_messages_updated(&updated_messages)
-                .await;
+        for message in &updated_messages {
+            self.notifier.notify_message_updated(message).await;
         }
 
         Ok(())
@@ -193,7 +191,7 @@ mod tests {
 
         let mut mock_notifier = MockMessageNotifier::new();
         mock_notifier
-            .expect_notify_messages_updated()
+            .expect_notify_message_updated()
             .times(1)
             .returning(|_| ());
 
@@ -409,7 +407,7 @@ mod tests {
 
         let mut mock_notifier = MockMessageNotifier::new();
         mock_notifier
-            .expect_notify_messages_updated()
+            .expect_notify_message_updated()
             .times(1)
             .returning(|_| ());
 
@@ -483,7 +481,7 @@ mod tests {
 
         let mut mock_notifier = MockMessageNotifier::new();
         mock_notifier
-            .expect_notify_messages_updated()
+            .expect_notify_message_updated()
             .times(1)
             .returning(|_| ());
 
@@ -549,7 +547,7 @@ mod tests {
 
         let mut mock_notifier = MockMessageNotifier::new();
         mock_notifier
-            .expect_notify_messages_updated()
+            .expect_notify_message_updated()
             .times(1)
             .returning(|_| ());
 

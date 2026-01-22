@@ -4,6 +4,47 @@
  * Twittra
  * OpenAPI spec version: 0.1.0
  */
+export type ClientEventOneOfType =
+  typeof ClientEventOneOfType[keyof typeof ClientEventOneOfType]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ClientEventOneOfType = {
+  subscribe: "subscribe",
+} as const
+
+export type ClientEventOneOf = {
+  payload: SubscribePayload
+  type: ClientEventOneOfType
+}
+
+export type ClientEventOneOfThreeType =
+  typeof ClientEventOneOfThreeType[keyof typeof ClientEventOneOfThreeType]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ClientEventOneOfThreeType = {
+  unsubscribe: "unsubscribe",
+} as const
+
+export type ClientEventOneOfThree = {
+  payload: UnsubscribePayload
+  type: ClientEventOneOfThreeType
+}
+
+/**
+ * Client-to-server events for Socket.io
+ */
+export type ClientEvent = ClientEventOneOf | ClientEventOneOfThree
+
+export interface Message {
+  channelId: string
+  content: string
+  createdAt: Date
+  id: string
+  reactions: Reaction[]
+  updatedAt: Date
+  userId: string
+}
+
 export interface MessageListItem {
   channelId: string
   content: string
@@ -17,13 +58,6 @@ Omitted if the server hasn't cached the user info. */
   userId: string
 }
 
-/**
- * Payload for the messagesUpdated event
- */
-export interface MessagesUpdatedPayload {
-  messages: MessageListItem[]
-}
-
 export interface Reaction {
   stampCount: number
   stampId: string
@@ -35,16 +69,16 @@ export type ServerEventOneOfType =
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ServerEventOneOfType = {
-  messagesUpdated: "messagesUpdated",
+  messageUpdated: "messageUpdated",
 } as const
 
 export type ServerEventOneOf = {
-  payload: MessagesUpdatedPayload
+  payload: Message
   type: ServerEventOneOfType
 }
 
 /**
- * Discriminated union of all Socket.io server-to-client events
+ * Server-to-client events for Socket.io
  */
 export type ServerEvent = ServerEventOneOf
 
@@ -52,6 +86,20 @@ export interface Stamp {
   id: string
   /** @maxLength 32 */
   name: string
+}
+
+/**
+ * Payload for the subscribe event
+ */
+export interface SubscribePayload {
+  messageId: string
+}
+
+/**
+ * Payload for the unsubscribe event
+ */
+export interface UnsubscribePayload {
+  messageId: string
 }
 
 export interface User {

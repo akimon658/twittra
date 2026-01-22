@@ -10,14 +10,11 @@ use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
-    event::{MessagesUpdatedPayload, ServerEvent},
-    model::Message,
-    notifier::MessageNotifier,
+    event::{ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload},
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
-use socketioxide::{SocketIo, extract::SocketRef, layer::SocketIoLayer};
 use sqlx::MySqlPool;
 use std::{env, error::Error, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task};
@@ -36,63 +33,15 @@ use utoipa_swagger_ui::SwaggerUi;
 
 mod handler;
 mod session;
+mod socket;
 #[cfg(test)]
 pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
 
-/// Creates and configures the Socket.io layer with necessary namespaces.
-pub fn create_socket_layer() -> (SocketIoLayer, SocketIo) {
-    let (socket_layer, io) = SocketIo::new_layer();
-
-    // Register default namespace handler to prevent panic when emitting
-    io.ns("/", |_: SocketRef| async move {});
-
-    (socket_layer, io)
-}
-
-/// Notifier implementation that broadcasts message updates via Socket.io
-struct SocketNotifier {
-    io: SocketIo,
-}
-
-impl SocketNotifier {
-    fn new(io: SocketIo) -> Self {
-        Self { io }
-    }
-}
-
-#[async_trait::async_trait]
-impl MessageNotifier for SocketNotifier {
-    async fn notify_messages_updated(&self, messages: &[Message]) {
-        tracing::info!(
-            "Broadcasting messages_updated for {} messages",
-            messages.len()
-        );
-
-        let payload = MessagesUpdatedPayload {
-            messages: messages.iter().map(|m| m.clone().into()).collect(),
-        };
-        let event = ServerEvent::MessagesUpdated(payload);
-
-        if let Err(e) = self
-            .io
-            .emit(
-                event.name(),
-                &match event {
-                    ServerEvent::MessagesUpdated(ref p) => p,
-                },
-            )
-            .await
-        {
-            tracing::error!("Failed to broadcast messages_updated: {:?}", e);
-        }
-    }
-}
-
 /// Helper for including Socket.io event schemas in OpenAPI
 #[derive(utoipa::OpenApi)]
-#[openapi(components(schemas(MessagesUpdatedPayload, ServerEvent,)))]
+#[openapi(components(schemas(ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload,)))]
 struct SocketEventSchemas;
 
 pub fn setup_openapi_routes() -> (Router<AppState>, OpenApiSpec) {
@@ -170,8 +119,8 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     let repository = mariadb::new_repository(pool).await?;
     let traq_client = TraqClientImpl::new(traq_api_base_url.clone());
 
-    let (socket_layer, io) = create_socket_layer();
-    let notifier = Arc::new(SocketNotifier::new(io));
+    let (socket_layer, io) = socket::create_socket_layer();
+    let notifier = Arc::new(socket::SocketNotifier::new(io));
     let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone(), notifier);
 
     task::spawn(async move {
@@ -192,18 +141,4 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     axum::serve(listener, router.with_state(app_state)).await?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_socket_layer_configuration_prevents_panic() {
-        let (_, io) = create_socket_layer();
-
-        // Verify that emitting to default namespace works
-        let result = io.emit("test", &"test").await;
-        assert!(result.is_ok());
-    }
 }

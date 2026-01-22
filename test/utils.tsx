@@ -12,7 +12,7 @@ import { worker } from "./setup.ts"
 // Custom render with all providers
 export function renderWithProviders(
   ui: ReactElement,
-  { user = createMockUser() }: { user?: User } = {},
+  { user = createMockUser(), socket }: { user?: User; socket?: any } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -25,7 +25,7 @@ export function renderWithProviders(
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MockSocketProvider>
+      <MockSocketProvider socket={socket}>
         <UserContext value={user}>
           <MantineProvider>
             {ui}
