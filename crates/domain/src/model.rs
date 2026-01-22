@@ -4,7 +4,7 @@ use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDet
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: Uuid,
@@ -74,21 +74,6 @@ pub struct MessageListItem {
     #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
     pub reactions: Vec<Reaction>,
-}
-
-impl From<Message> for MessageListItem {
-    fn from(message: Message) -> Self {
-        MessageListItem {
-            id: message.id,
-            user_id: message.user_id,
-            user: None,
-            channel_id: message.channel_id,
-            content: message.content,
-            created_at: message.created_at,
-            updated_at: message.updated_at,
-            reactions: message.reactions,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
