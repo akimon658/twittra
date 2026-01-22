@@ -58,12 +58,9 @@ impl MessageCrawler {
 
         self.repo.message.save_batch(&messages).await?;
 
-        let refreshed = self.refresh_messages(&token).await?;
+        let refreshed_messages = self.refresh_messages(&token).await?;
 
-        let mut updated_messages = messages;
-        updated_messages.extend(refreshed);
-
-        for message in &updated_messages {
+        for message in &refreshed_messages {
             self.notifier.notify_message_updated(message).await;
         }
 
