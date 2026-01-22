@@ -9,6 +9,7 @@ fake = { workspace = true, optional = true, features = ["time", "uuid"] }
 http = { workspace = true }
 mockall = { workspace = true, optional = true }
 serde = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
