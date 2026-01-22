@@ -1,5 +1,5 @@
 import type { Socket } from "socket.io-client"
-import type { ClientEvent, ServerEvent } from "../api/twittra.schemas.ts"
+import type { ClientEvent, ServerEvent } from "../../api/twittra.schemas.ts"
 
 // Automatically derive server-to-client event map from ServerEvent discriminated union
 type ServerToClientEvents = {
@@ -12,4 +12,4 @@ type ClientToServerEvents = {
 }
 
 // Typed wrapper around Socket.io client
-export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>
+export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>

@@ -18,13 +18,13 @@ import {
   useGetTimelineSuspense,
 } from "../../api/timeline/timeline.ts"
 import type { Message } from "../../api/twittra.schemas.ts"
-import { useSocket } from "../../app/SocketProvider.tsx"
 import { useMessageSubscription } from "../../hooks/useMessageSubscription.ts"
+import { useSocket } from "../../socket/hooks/useSocket.ts"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {
   const { data: { data } } = useGetTimelineSuspense()
-  const { socket } = useSocket()
+  const socket = useSocket()
   const queryClient = useQueryClient()
 
   // Subscribe to all loaded messages

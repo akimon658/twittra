@@ -1,15 +1,15 @@
 import { renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { TypedSocket } from "../app/typedSocket.ts"
+import type { AppSocket } from "../socket/lib/types.ts"
 import { useMessageSubscription } from "./useMessageSubscription.ts"
 
 // Mock the SocketProvider
 const mockSocket = {
   emit: vi.fn(),
-} as unknown as TypedSocket
+} as unknown as AppSocket
 
-vi.mock("../app/SocketProvider.tsx", () => ({
-  useSocket: () => ({ socket: mockSocket, isConnected: true }),
+vi.mock("../socket/hooks/useSocket.ts", () => ({
+  useSocket: () => mockSocket,
 }))
 
 describe("useMessageSubscription", () => {
@@ -25,7 +25,7 @@ describe("useMessageSubscription", () => {
     const { rerender } = renderHook(
       ({ ids }) => useMessageSubscription(ids),
       {
-        initialProps: { ids: [] },
+        initialProps: { ids: [] as string[] },
       },
     )
 

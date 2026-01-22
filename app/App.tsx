@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { AuthProvider } from "../auth/components/AuthProvider.tsx"
 import { Layout } from "../components/Layout.tsx"
-import { SocketProvider } from "./SocketProvider.tsx"
+import { SocketProvider } from "../socket/components/SocketProvider.tsx"
 import "./global.css"
 
 const queryClient = new QueryClient({

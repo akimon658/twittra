@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react"
-import { useSocket } from "../app/SocketProvider.tsx"
+import { useSocket } from "../socket/hooks/useSocket.ts"
 
 /**
  * Hook to manage message subscriptions via Socket.io.
  * Automatically subscribes to new message IDs and unsubscribes from removed ones.
  */
 export const useMessageSubscription = (messageIds: string[]) => {
-  const { socket } = useSocket()
+  const socket = useSocket()
   const subscribedIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
