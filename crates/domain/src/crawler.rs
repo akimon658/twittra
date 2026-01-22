@@ -82,18 +82,19 @@ impl MessageCrawler {
 
             match self.client.get_message(token, &message_id).await {
                 Ok(new_message) => {
-                    let existing_message = self.repo.message.find_by_id(&message_id).await?;
+                    let existing_message = match self.repo.message.find_by_id(&message_id).await? {
+                        Some(msg) => msg,
+                        None => {
+                            // Since message_id is from the repo, this should not happen
+                            return Err(DomainError::NoMessageForId(message_id));
+                        }
+                    };
 
                     // Always save to update last_crawled_at
                     self.repo.message.save(&new_message).await?;
 
                     // Only notify if the message actually changed
-                    let has_changed = match existing_message {
-                        Some(existing) => existing != new_message,
-                        None => true, // New message, always notify
-                    };
-
-                    if has_changed {
+                    if existing_message != new_message {
                         tracing::debug!("Refreshed message {}", message_id);
                         refreshed_messages.push(new_message);
                     } else {
