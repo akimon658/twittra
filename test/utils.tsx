@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw"
 import type { ReactElement } from "react"
 import type { User } from "../api/twittra.schemas.ts"
 import { MockSocketProvider } from "../app/MockSocketProvider.tsx"
+import type { TypedSocket } from "../app/typedSocket.ts"
 import { UserContext } from "../auth/context/user.ts"
 import { createMockUser } from "./factories.ts"
 import { worker } from "./setup.ts"
@@ -12,7 +13,8 @@ import { worker } from "./setup.ts"
 // Custom render with all providers
 export function renderWithProviders(
   ui: ReactElement,
-  { user = createMockUser(), socket }: { user?: User; socket?: any } = {},
+  { user = createMockUser(), socket }: { user?: User; socket?: TypedSocket } =
+    {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {

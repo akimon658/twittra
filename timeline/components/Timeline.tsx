@@ -13,9 +13,12 @@ import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
 import { QueryErrorResetBoundary, useQueryClient } from "@tanstack/react-query"
 import { Suspense, useEffect } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
-import { getGetTimelineQueryKey, useGetTimelineSuspense } from "../../api/timeline/timeline.ts"
-import { useSocket } from "../../app/SocketProvider.tsx"
+import {
+  getGetTimelineQueryKey,
+  useGetTimelineSuspense,
+} from "../../api/timeline/timeline.ts"
 import type { Message } from "../../api/twittra.schemas.ts"
+import { useSocket } from "../../app/SocketProvider.tsx"
 import { useMessageSubscription } from "../../hooks/useMessageSubscription.ts"
 import { MessageItem } from "./Message.tsx"
 
@@ -31,7 +34,7 @@ const TimelineContent = () => {
   useEffect(() => {
     if (!socket) return
 
-    const handleMessageUpdated = (payload: Message) => {
+    const handleMessageUpdated = (_: Message) => {
       queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
     }
 

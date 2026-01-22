@@ -44,7 +44,9 @@ describe("Timeline", () => {
   })
 
   it("shows loading state initially", () => {
-    const { container } = renderWithProviders(<Timeline />, { socket: mockSocket })
+    const { container } = renderWithProviders(<Timeline />, {
+      socket: mockSocket,
+    })
 
     // Should show skeleton loaders (they have data-visible="true")
     const skeletons = container.querySelectorAll('[data-visible="true"]')
@@ -55,7 +57,9 @@ describe("Timeline", () => {
     // Override default mock to return error
     mockApiError("/api/v1/timeline", 500)
 
-    const { container } = renderWithProviders(<Timeline />, { socket: mockSocket })
+    const { container } = renderWithProviders(<Timeline />, {
+      socket: mockSocket,
+    })
 
     await waitFor(
       () => {
@@ -106,7 +110,9 @@ describe("Timeline", () => {
     })
 
     it("cleans up socket listener on unmount", async () => {
-      const { unmount } = renderWithProviders(<Timeline />, { socket: mockSocket })
+      const { unmount } = renderWithProviders(<Timeline />, {
+        socket: mockSocket,
+      })
 
       await waitFor(() => {
         expect(mockSocket.on).toHaveBeenCalled()

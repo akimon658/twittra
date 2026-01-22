@@ -6,34 +6,34 @@ import { useSocket } from "../app/SocketProvider.tsx"
  * Automatically subscribes to new message IDs and unsubscribes from removed ones.
  */
 export const useMessageSubscription = (messageIds: string[]) => {
-    const { socket } = useSocket()
-    const subscribedIdsRef = useRef<Set<string>>(new Set())
+  const { socket } = useSocket()
+  const subscribedIdsRef = useRef<Set<string>>(new Set())
 
-    useEffect(() => {
-        if (!socket) return
+  useEffect(() => {
+    if (!socket) return
 
-        const currentIds = new Set(messageIds)
-        const previousIds = subscribedIdsRef.current
+    const currentIds = new Set(messageIds)
+    const previousIds = subscribedIdsRef.current
 
-        // Find IDs to subscribe (new IDs)
-        const toSubscribe = messageIds.filter((id) => !previousIds.has(id))
+    // Find IDs to subscribe (new IDs)
+    const toSubscribe = messageIds.filter((id) => !previousIds.has(id))
 
-        // Find IDs to unsubscribe (removed IDs)
-        const toUnsubscribe = Array.from(previousIds).filter(
-            (id) => !currentIds.has(id),
-        )
+    // Find IDs to unsubscribe (removed IDs)
+    const toUnsubscribe = Array.from(previousIds).filter(
+      (id) => !currentIds.has(id),
+    )
 
-        // Subscribe to new messages
-        for (const messageId of toSubscribe) {
-            socket.emit("subscribe", { messageId })
-        }
+    // Subscribe to new messages
+    for (const messageId of toSubscribe) {
+      socket.emit("subscribe", { messageId })
+    }
 
-        // Unsubscribe from removed messages
-        for (const messageId of toUnsubscribe) {
-            socket.emit("unsubscribe", { messageId })
-        }
+    // Unsubscribe from removed messages
+    for (const messageId of toUnsubscribe) {
+      socket.emit("unsubscribe", { messageId })
+    }
 
-        // Update the ref
-        subscribedIdsRef.current = currentIds
-    }, [messageIds, socket])
+    // Update the ref
+    subscribedIdsRef.current = currentIds
+  }, [messageIds, socket])
 }

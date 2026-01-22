@@ -5,99 +5,99 @@ import { useMessageSubscription } from "./useMessageSubscription.ts"
 
 // Mock the SocketProvider
 const mockSocket = {
-    emit: vi.fn(),
+  emit: vi.fn(),
 } as unknown as TypedSocket
 
 vi.mock("../app/SocketProvider.tsx", () => ({
-    useSocket: () => ({ socket: mockSocket, isConnected: true }),
+  useSocket: () => ({ socket: mockSocket, isConnected: true }),
 }))
 
 describe("useMessageSubscription", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("subscribes to new message IDs", () => {
+    const { rerender } = renderHook(
+      ({ ids }) => useMessageSubscription(ids),
+      {
+        initialProps: { ids: [] },
+      },
+    )
+
+    // Add new message IDs
+    rerender({ ids: ["msg-1", "msg-2"] })
+
+    expect(mockSocket.emit).toHaveBeenCalledTimes(2)
+    expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
+      messageId: "msg-1",
     })
-
-    afterEach(() => {
-        vi.restoreAllMocks()
+    expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
+      messageId: "msg-2",
     })
+  })
 
-    it("subscribes to new message IDs", () => {
-        const { rerender } = renderHook(
-            ({ ids }) => useMessageSubscription(ids),
-            {
-                initialProps: { ids: [] },
-            },
-        )
+  it("unsubscribes from removed message IDs", () => {
+    const { rerender } = renderHook(
+      ({ ids }) => useMessageSubscription(ids),
+      {
+        initialProps: { ids: ["msg-1", "msg-2", "msg-3"] },
+      },
+    )
 
-        // Add new message IDs
-        rerender({ ids: ["msg-1", "msg-2"] })
+    vi.clearAllMocks()
 
-        expect(mockSocket.emit).toHaveBeenCalledTimes(2)
-        expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
-            messageId: "msg-1",
-        })
-        expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
-            messageId: "msg-2",
-        })
+    // Remove some message IDs
+    rerender({ ids: ["msg-2"] })
+
+    expect(mockSocket.emit).toHaveBeenCalledTimes(2)
+    expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
+      messageId: "msg-1",
     })
-
-    it("unsubscribes from removed message IDs", () => {
-        const { rerender } = renderHook(
-            ({ ids }) => useMessageSubscription(ids),
-            {
-                initialProps: { ids: ["msg-1", "msg-2", "msg-3"] },
-            },
-        )
-
-        vi.clearAllMocks()
-
-        // Remove some message IDs
-        rerender({ ids: ["msg-2"] })
-
-        expect(mockSocket.emit).toHaveBeenCalledTimes(2)
-        expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
-            messageId: "msg-1",
-        })
-        expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
-            messageId: "msg-3",
-        })
+    expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
+      messageId: "msg-3",
     })
+  })
 
-    it("handles both subscribe and unsubscribe in the same update", () => {
-        const { rerender } = renderHook(
-            ({ ids }) => useMessageSubscription(ids),
-            {
-                initialProps: { ids: ["msg-1", "msg-2"] },
-            },
-        )
+  it("handles both subscribe and unsubscribe in the same update", () => {
+    const { rerender } = renderHook(
+      ({ ids }) => useMessageSubscription(ids),
+      {
+        initialProps: { ids: ["msg-1", "msg-2"] },
+      },
+    )
 
-        vi.clearAllMocks()
+    vi.clearAllMocks()
 
-        // Replace message IDs
-        rerender({ ids: ["msg-2", "msg-3"] })
+    // Replace message IDs
+    rerender({ ids: ["msg-2", "msg-3"] })
 
-        expect(mockSocket.emit).toHaveBeenCalledTimes(2)
-        expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
-            messageId: "msg-3",
-        })
-        expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
-            messageId: "msg-1",
-        })
+    expect(mockSocket.emit).toHaveBeenCalledTimes(2)
+    expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
+      messageId: "msg-3",
     })
-
-    it("does nothing when message IDs don't change", () => {
-        const { rerender } = renderHook(
-            ({ ids }) => useMessageSubscription(ids),
-            {
-                initialProps: { ids: ["msg-1", "msg-2"] },
-            },
-        )
-
-        vi.clearAllMocks()
-
-        // Rerender with same IDs
-        rerender({ ids: ["msg-1", "msg-2"] })
-
-        expect(mockSocket.emit).not.toHaveBeenCalled()
+    expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
+      messageId: "msg-1",
     })
+  })
+
+  it("does nothing when message IDs don't change", () => {
+    const { rerender } = renderHook(
+      ({ ids }) => useMessageSubscription(ids),
+      {
+        initialProps: { ids: ["msg-1", "msg-2"] },
+      },
+    )
+
+    vi.clearAllMocks()
+
+    // Rerender with same IDs
+    rerender({ ids: ["msg-1", "msg-2"] })
+
+    expect(mockSocket.emit).not.toHaveBeenCalled()
+  })
 })
