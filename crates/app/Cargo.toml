@@ -37,7 +37,6 @@ domain = { path = "../domain", features = ["test-utils"] }
 fake = { workspace = true, features = ["uuid"] }
 mockall = { workspace = true }
 rust_socketio = { workspace = true }
-serde_json = { workspace = true }
 tower = { workspace = true }
 tower-sessions = { workspace = true, features = ["memory-store"] }
 
