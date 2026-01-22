@@ -59,19 +59,20 @@ pub fn create_socket_layer() -> (SocketIoLayer, SocketIo) {
     (socket_layer, io)
 }
 
+#[tracing::instrument(skip(socket, payload), fields(socket_id = %socket.id, message_id = %payload.message_id))]
 async fn handle_subscribe(socket: SocketRef, payload: SubscribePayload) {
-    let room = format!("message:{}", payload.message_id);
-    socket.join(room.clone());
-    tracing::debug!("Socket {} joined room {}", socket.id, room);
+    socket.join(format!("message:{}", payload.message_id));
+    tracing::info!("Client subscribed to message updates");
 }
 
+#[tracing::instrument(skip(socket, payload), fields(socket_id = %socket.id, message_id = %payload.message_id))]
 async fn handle_unsubscribe(socket: SocketRef, payload: UnsubscribePayload) {
-    let room = format!("message:{}", payload.message_id);
-    socket.leave(room.clone());
-    tracing::debug!("Socket {} left room {}", socket.id, room);
+    socket.leave(format!("message:{}", payload.message_id));
+    tracing::info!("Client unsubscribed from message updates");
 }
 
 /// Notifier implementation that broadcasts message updates via Socket.io to subscribed clients
+#[derive(Debug)]
 pub struct SocketNotifier {
     io: SocketIo,
 }
@@ -84,13 +85,10 @@ impl SocketNotifier {
 
 #[async_trait::async_trait]
 impl MessageNotifier for SocketNotifier {
+    #[tracing::instrument(skip(self, message), fields(message_id = %message.id))]
     async fn notify_message_updated(&self, message: &Message) {
         let room = format!("message:{}", message.id);
-        tracing::info!(
-            "Broadcasting message_updated for message {} to room {}",
-            message.id,
-            room
-        );
+        tracing::info!("Broadcasting messageUpdated");
 
         let event = ServerEvent::MessageUpdated(message.clone());
         let event_name: &'static str = (&event).into();
@@ -106,7 +104,7 @@ impl MessageNotifier for SocketNotifier {
             )
             .await
         {
-            tracing::error!("Failed to broadcast message_updated: {:?}", e);
+            tracing::error!("Failed to broadcast messageUpdated: {:?}", e);
         }
     }
 }
