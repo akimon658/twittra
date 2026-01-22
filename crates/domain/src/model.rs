@@ -4,7 +4,7 @@ use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDet
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: Uuid,

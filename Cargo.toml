@@ -10,11 +10,12 @@ constant_time_eq = "0.4.2"
 dotenvy = "0.15.7"
 fake = { version = "4.4.0", default-features = false }
 fastrand = "2.3.0"
+futures-util = "0.3.31"
 http = "1.4.0"
 mockall = "0.14.0"
 oauth2 = "5.0.0"
 reqwest = "0.12.28"
-rust_socketio = "0.6.0"
+rust_socketio = { version = "0.6.0", features = ["async"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 socketioxide = "0.18.0"
