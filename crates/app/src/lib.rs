@@ -11,6 +11,7 @@ use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
     event::{ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload},
+    model::Message,
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
@@ -21,12 +22,9 @@ use tokio::{net::TcpListener, task};
 use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::ExpiredDeletion};
 use tower_sessions_sqlx_store::MySqlStore;
 use tracing_subscriber::fmt;
-use utoipa::{
-    OpenApi,
-    openapi::{
-        Components, Info, OpenApi as OpenApiSpec, OpenApiBuilder, Server,
-        security::{ApiKey, ApiKeyValue, SecurityScheme},
-    },
+use utoipa::openapi::{
+    ComponentsBuilder, Info, OpenApi, OpenApiBuilder, Server,
+    security::{ApiKey, ApiKeyValue, SecurityScheme},
 };
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
@@ -39,18 +37,19 @@ pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
 
-/// Helper for including Socket.io event schemas in OpenAPI
-#[derive(utoipa::OpenApi)]
-#[openapi(components(schemas(ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload,)))]
-struct SocketEventSchemas;
-
-pub fn setup_openapi_routes() -> (Router<AppState>, OpenApiSpec) {
-    let mut components = Components::new();
-
-    components.add_security_scheme(
-        "cookieAuth",
-        SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("id".to_string()))),
-    );
+pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
+    // Include Socket.IO event schemas
+    let components = ComponentsBuilder::new()
+        .schema_from::<ClientEvent>()
+        .schema_from::<Message>()
+        .schema_from::<ServerEvent>()
+        .schema_from::<SubscribePayload>()
+        .schema_from::<UnsubscribePayload>()
+        .security_scheme(
+            "cookieAuth",
+            SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("id".to_string()))),
+        )
+        .build();
 
     let openapi = OpenApiBuilder::new()
         .info(Info::new("Twittra", env!("CARGO_PKG_VERSION")))
@@ -58,7 +57,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApiSpec) {
         .components(Some(components))
         .build();
 
-    let (router, mut openapi) = OpenApiRouter::with_openapi(openapi)
+    OpenApiRouter::with_openapi(openapi)
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
         .routes(utoipa_axum::routes!(
@@ -72,12 +71,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApiSpec) {
         .routes(utoipa_axum::routes!(user::get_me))
         .routes(utoipa_axum::routes!(user::get_user_by_id))
         .routes(utoipa_axum::routes!(user::get_user_icon))
-        .split_for_parts();
-
-    // Merge Socket.io event schemas
-    openapi.merge(SocketEventSchemas::openapi());
-
-    (router, openapi)
+        .split_for_parts()
 }
 
 pub async fn serve() -> Result<(), Box<dyn Error>> {
