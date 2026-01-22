@@ -1,7 +1,7 @@
-import { Encoder, Decoder as IoDecoder } from "socket.io-parser"
+import { Decoder as DefaultDecoder, Encoder } from "socket.io-parser"
 import { customReviver } from "../../api/reviver.ts"
 
-class Decoder extends IoDecoder {
+class Decoder extends DefaultDecoder {
   constructor() {
     super(customReviver)
   }
