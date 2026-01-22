@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 async-trait = { workspace = true }
-fake = { workspace = true, optional = true, features = ["time", "uuid"] }
+fake = { workspace = true, optional = true }
 http = { workspace = true }
 mockall = { workspace = true, optional = true }
 serde = { workspace = true }
