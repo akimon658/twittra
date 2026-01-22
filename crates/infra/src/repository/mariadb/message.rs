@@ -19,11 +19,29 @@ impl MariaDbMessageRepository {
         Self { pool }
     }
 
-    async fn save_reactions(
+    async fn update_reactions(
         &self,
         tx: &mut Transaction<'_, MySql>,
+        message_ids: &[Uuid],
         reactions: &[(Uuid, Reaction)],
     ) -> Result<(), RepositoryError> {
+        if message_ids.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = QueryBuilder::new("DELETE FROM reactions WHERE message_id IN (");
+        let mut separated = query_builder.separated(", ");
+        for id in message_ids {
+            separated.push_bind(id);
+        }
+        query_builder.push(")");
+
+        query_builder
+            .build()
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
         if reactions.is_empty() {
             return Ok(());
         }
@@ -39,8 +57,6 @@ impl MariaDbMessageRepository {
                 .push_bind(reaction.user_id)
                 .push_bind(reaction.stamp_count);
         });
-
-        query_builder.push(" ON DUPLICATE KEY UPDATE stamp_count=VALUE(stamp_count)");
 
         query_builder
             .build()
@@ -335,7 +351,8 @@ impl MessageRepository for MariaDbMessageRepository {
             .map(|r| (message.id, r.clone()))
             .collect();
 
-        self.save_reactions(&mut tx, &reactions_data).await?;
+        self.update_reactions(&mut tx, &[message.id], &reactions_data)
+            .await?;
 
         tx.commit()
             .await
@@ -384,7 +401,9 @@ impl MessageRepository for MariaDbMessageRepository {
             })
             .collect::<Vec<_>>();
 
-        self.save_reactions(&mut tx, &reactions_data).await?;
+        let message_ids = messages.iter().map(|m| m.id).collect::<Vec<_>>();
+        self.update_reactions(&mut tx, &message_ids, &reactions_data)
+            .await?;
 
         tx.commit()
             .await
@@ -532,5 +551,87 @@ mod tests {
         let second_crawled_at = second_candidates[0].2;
 
         assert!(second_crawled_at > first_crawled_at);
+    }
+    #[sqlx::test]
+    async fn test_save_adds_new_reactions(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let message_id = UUIDv4.fake();
+        let reaction1 = ReactionBuilder::new().stamp_count(1).build();
+
+        // 1. Initial save with no reactions
+        let message = MessageBuilder::new().id(message_id).build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert!(saved.reactions.is_empty());
+
+        // 2. Update: Add reaction1
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 1);
+        assert_eq!(saved.reactions[0].stamp_id, reaction1.stamp_id);
+    }
+
+    #[sqlx::test]
+    async fn test_save_updates_reaction_counts(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let message_id = UUIDv4.fake();
+        let mut reaction = ReactionBuilder::new().stamp_count(1).build();
+
+        // 1. Initial save with count 1
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        // 2. Update: count 2
+        reaction.stamp_count = 2;
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 1);
+        assert_eq!(saved.reactions[0].stamp_count, 2);
+    }
+
+    #[sqlx::test]
+    async fn test_save_removes_missing_reactions(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let message_id = UUIDv4.fake();
+        let reaction1 = ReactionBuilder::new().stamp_count(1).build();
+        let reaction2 = ReactionBuilder::new().stamp_count(1).build();
+
+        // 1. Initial save with 2 reactions
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone(), reaction2.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 2);
+
+        // 2. Update: Remove reaction2
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 1);
+        assert_eq!(saved.reactions[0].stamp_id, reaction1.stamp_id);
     }
 }
