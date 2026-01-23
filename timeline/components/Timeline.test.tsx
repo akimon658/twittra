@@ -19,6 +19,10 @@ vi.mock("socket.io-client", () => ({
   io: vi.fn(() => mockSocket),
 }))
 
+vi.mock("@mantine/hooks", () => ({
+  useIntersection: () => ({ ref: { current: null }, entry: { isIntersecting: true } }),
+}))
+
 describe("Timeline", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -30,7 +34,7 @@ describe("Timeline", () => {
 
   it("renders messages from API", async () => {
     // MSW will automatically return mocked data from api/mocks.ts
-    renderWithProviders(<Timeline />, { socket: mockSocket })
+    renderWithProviders(<Timeline />, { socket: mockSocket as any })
 
     // Wait for messages to load
     await waitFor(
@@ -111,7 +115,7 @@ describe("Timeline", () => {
 
     it("cleans up socket listener on unmount", async () => {
       const { unmount } = renderWithProviders(<Timeline />, {
-        socket: mockSocket,
+        socket: mockSocket as any,
       })
 
       await waitFor(() => {

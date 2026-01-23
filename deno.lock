@@ -3,6 +3,7 @@
   "specifiers": {
     "npm:@faker-js/faker@^9.9.0": "9.9.0",
     "npm:@mantine/core@^8.3.10": "8.3.12_@mantine+hooks@8.3.12__react@19.2.3_react@19.2.3_react-dom@19.2.3__react@19.2.3_@types+react@19.2.8",
+    "npm:@mantine/hooks@^8.3.10": "8.3.12_react@19.2.3",
     "npm:@tabler/icons-react@^3.36.0": "3.36.1_react@19.2.3",
     "npm:@tanstack/react-query@^5.90.12": "5.90.17_react@19.2.3",
     "npm:@testing-library/react@^16.3.1": "16.3.1_@testing-library+dom@10.4.1_@types+react@19.2.8_react@19.2.3_react-dom@19.2.3__react@19.2.3",
@@ -3770,6 +3771,7 @@
     "dependencies": [
       "npm:@faker-js/faker@^9.9.0",
       "npm:@mantine/core@^8.3.10",
+      "npm:@mantine/hooks@^8.3.10",
       "npm:@tabler/icons-react@^3.36.0",
       "npm:@tanstack/react-query@^5.90.12",
       "npm:@testing-library/react@^16.3.1",

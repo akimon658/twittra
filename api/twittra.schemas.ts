@@ -64,6 +64,10 @@ export interface Reaction {
   userId: string
 }
 
+export interface ReadMessagesRequest {
+  message_ids: string[]
+}
+
 export type ServerEventOneOfType =
   typeof ServerEventOneOfType[keyof typeof ServerEventOneOfType]
 

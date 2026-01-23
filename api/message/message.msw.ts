@@ -7,6 +7,21 @@
 import { delay, http, HttpResponse } from "msw"
 import type { RequestHandlerOptions } from "msw"
 
+export const getMarkMessagesAsReadMockHandler = (
+  overrideResponse?:
+    | void
+    | ((
+      info: Parameters<Parameters<typeof http.post>[1]>[0],
+    ) => Promise<void> | void),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post("*/messages/read", async (info) => {
+    await delay(100)
+    if (typeof overrideResponse === "function") await overrideResponse(info)
+    return new HttpResponse(null, { status: 200 })
+  }, options)
+}
+
 export const getAddMessageStampMockHandler = (
   overrideResponse?:
     | void
@@ -37,6 +52,7 @@ export const getRemoveMessageStampMockHandler = (
   }, options)
 }
 export const getMessageMock = () => [
+  getMarkMessagesAsReadMockHandler(),
   getAddMessageStampMockHandler(),
   getRemoveMessageStampMockHandler(),
 ]

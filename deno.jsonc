@@ -15,6 +15,7 @@
   "imports": {
     "@faker-js/faker": "npm:@faker-js/faker@^9.9.0",
     "@mantine/core": "npm:@mantine/core@^8.3.10",
+    "@mantine/hooks": "npm:@mantine/hooks@^8.3.10",
     "@tabler/icons-react": "npm:@tabler/icons-react@^3.36.0",
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
     "@testing-library/react": "npm:@testing-library/react@^16.3.1",

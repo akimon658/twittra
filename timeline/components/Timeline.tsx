@@ -17,6 +17,7 @@ import {
   getGetTimelineQueryKey,
   useGetTimelineSuspense,
 } from "../../api/timeline/timeline.ts"
+import { useReadManagement } from "../../app/hooks/useReadManagement.ts"
 import { useMessageSubscription } from "../../socket/hooks/useMessageSubscription.ts"
 import { MessageItem } from "./Message.tsx"
 
@@ -31,10 +32,13 @@ const TimelineContent = () => {
   // Subscribe to all loaded messages and handle updates
   const messageIds = data.map((item) => item.id)
   useMessageSubscription(messageIds, handleMessageUpdated)
+  const { markAsRead } = useReadManagement()
 
   return (
     <Stack>
-      {data.map((item) => <MessageItem key={item.id} message={item} />)}
+      {data.map((item) => (
+        <MessageItem key={item.id} message={item} onRead={markAsRead} />
+      ))}
     </Stack>
   )
 }
