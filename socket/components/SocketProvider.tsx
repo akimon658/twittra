@@ -14,14 +14,6 @@ export const SocketProvider = ({ children }: PropsWithChildren) => {
       parser,
     })
 
-    newSocket.on("connect", () => {
-      console.log("Socket.io connected")
-    })
-
-    newSocket.on("disconnect", () => {
-      console.log("Socket.io disconnected")
-    })
-
     setSocket(newSocket)
 
     return () => {
