@@ -14,26 +14,23 @@ export const useMessageSubscription = (
   const socket = useContext(SocketContext)
   const subscribedIdsRef = useRef<Set<string>>(new Set())
 
+  // Effect to manage subscriptions based on messageIds changes
   useEffect(() => {
     if (!socket) return
 
     const currentIds = new Set(messageIds)
     const previousIds = subscribedIdsRef.current
-
     // Find IDs to subscribe (new IDs)
-    const toSubscribe = messageIds.filter((id) => !previousIds.has(id))
-
+    const toSubscribe = Array.from(currentIds.difference(previousIds))
     // Find IDs to unsubscribe (removed IDs)
-    const toUnsubscribe = Array.from(previousIds).filter(
-      (id) => !currentIds.has(id),
-    )
+    const toUnsubscribe = Array.from(previousIds.difference(currentIds))
 
-    // Batch subscribe to new messages
+    // Subscribe to new messages
     if (toSubscribe.length > 0) {
       socket.emit("subscribe", { messageIds: toSubscribe })
     }
 
-    // Batch unsubscribe from removed messages
+    // Unsubscribe from removed messages
     if (toUnsubscribe.length > 0) {
       socket.emit("unsubscribe", { messageIds: toUnsubscribe })
     }
@@ -42,6 +39,7 @@ export const useMessageSubscription = (
     subscribedIdsRef.current = currentIds
   }, [messageIds, socket])
 
+  // Effect to handle messageUpdated events
   useEffect(() => {
     if (!socket || !onMessageUpdated) return
 
