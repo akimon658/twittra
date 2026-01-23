@@ -28,8 +28,9 @@ on content discovery and a fluid browsing experience.
   Rust, no external IO.**
 - `crates/infra`: DB implementation (sqlx), API clients (`traq` crate wrapper),
   Concrete repositories.
-- **API Definition:** **Code-first**. OpenAPI JSON is generated from Rust code
-  using `utoipa`.
+- **API Definition:** **Code-first**. Rust code is the single source of truth.
+  Uses `utoipa` to generate OpenAPI JSON from Rust code (including Socket.IO
+  events definition).
 
 ### Frontend (React)
 
@@ -41,17 +42,6 @@ on content discovery and a fluid browsing experience.
 - **UI:** Mantine v8.
 - **Optimization:** Uses React Compiler, which automatically optimizes
   re-renders. No need for manual `useMemo` or `useCallback`.
-
-### Real-time Updates (Socket.IO)
-
-- **Type Safety:** **End-to-End Type Safety**.
-  - **Backend:** Defines a `ServerEvent` enum (Discriminated Union).
-    `ServerEvent::name()` ensures runtime event names match the type definition.
-  - **Frontend:** A custom `TypedSocket` wrapper automatically derives the event
-    map from the generated `ServerEvent` type using TypeScript Mapped Types.
-  - **Date Handling:** Automated deserialization. Custom `reviver` ensures ISO
-    8601 date strings in payloads are converted to `Date` objects, keeping
-    behavior consistent with REST APIs.
 
 ### Authentication & Session Management
 
