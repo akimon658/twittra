@@ -1,11 +1,16 @@
 import { useEffect, useRef } from "react"
+import type { Message } from "../api/twittra.schemas.ts"
 import { useSocket } from "../socket/hooks/useSocket.ts"
 
 /**
  * Hook to manage message subscriptions via Socket.io.
  * Automatically subscribes to new message IDs and unsubscribes from removed ones.
+ * Optionally handles messageUpdated events via callback.
  */
-export const useMessageSubscription = (messageIds: string[]) => {
+export const useMessageSubscription = (
+  messageIds: string[],
+  onMessageUpdated?: (message: Message) => void,
+) => {
   const socket = useSocket()
   const subscribedIdsRef = useRef<Set<string>>(new Set())
 
@@ -23,17 +28,27 @@ export const useMessageSubscription = (messageIds: string[]) => {
       (id) => !currentIds.has(id),
     )
 
-    // Subscribe to new messages
-    for (const messageId of toSubscribe) {
-      socket.emit("subscribe", { messageId })
+    // Batch subscribe to new messages
+    if (toSubscribe.length > 0) {
+      socket.emit("subscribe", { messageIds: toSubscribe })
     }
 
-    // Unsubscribe from removed messages
-    for (const messageId of toUnsubscribe) {
-      socket.emit("unsubscribe", { messageId })
+    // Batch unsubscribe from removed messages
+    if (toUnsubscribe.length > 0) {
+      socket.emit("unsubscribe", { messageIds: toUnsubscribe })
     }
 
     // Update the ref
     subscribedIdsRef.current = currentIds
   }, [messageIds, socket])
+
+  useEffect(() => {
+    if (!socket || !onMessageUpdated) return
+
+    socket.on("messageUpdated", onMessageUpdated)
+
+    return () => {
+      socket.off("messageUpdated", onMessageUpdated)
+    }
+  }, [socket, onMessageUpdated])
 }

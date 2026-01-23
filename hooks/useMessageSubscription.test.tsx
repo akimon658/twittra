@@ -32,12 +32,9 @@ describe("useMessageSubscription", () => {
     // Add new message IDs
     rerender({ ids: ["msg-1", "msg-2"] })
 
-    expect(mockSocket.emit).toHaveBeenCalledTimes(2)
+    expect(mockSocket.emit).toHaveBeenCalledTimes(1)
     expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
-      messageId: "msg-1",
-    })
-    expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
-      messageId: "msg-2",
+      messageIds: ["msg-1", "msg-2"],
     })
   })
 
@@ -54,12 +51,9 @@ describe("useMessageSubscription", () => {
     // Remove some message IDs
     rerender({ ids: ["msg-2"] })
 
-    expect(mockSocket.emit).toHaveBeenCalledTimes(2)
+    expect(mockSocket.emit).toHaveBeenCalledTimes(1)
     expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
-      messageId: "msg-1",
-    })
-    expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
-      messageId: "msg-3",
+      messageIds: ["msg-1", "msg-3"],
     })
   })
 
@@ -78,10 +72,10 @@ describe("useMessageSubscription", () => {
 
     expect(mockSocket.emit).toHaveBeenCalledTimes(2)
     expect(mockSocket.emit).toHaveBeenCalledWith("subscribe", {
-      messageId: "msg-3",
+      messageIds: ["msg-3"],
     })
     expect(mockSocket.emit).toHaveBeenCalledWith("unsubscribe", {
-      messageId: "msg-1",
+      messageIds: ["msg-1"],
     })
   })
 
@@ -99,5 +93,27 @@ describe("useMessageSubscription", () => {
     rerender({ ids: ["msg-1", "msg-2"] })
 
     expect(mockSocket.emit).not.toHaveBeenCalled()
+  })
+
+  it("registers and unregisters onMessageUpdated callback", () => {
+    const mockCallback = vi.fn()
+    const mockOn = vi.fn()
+    const mockOff = vi.fn()
+
+    // Temporarily add on/off methods to mockSocket
+    Object.assign(mockSocket, {
+      on: mockOn,
+      off: mockOff,
+    })
+
+    const { unmount } = renderHook(() =>
+      useMessageSubscription(["msg-1"], mockCallback)
+    )
+
+    expect(mockOn).toHaveBeenCalledWith("messageUpdated", mockCallback)
+
+    unmount()
+
+    expect(mockOff).toHaveBeenCalledWith("messageUpdated", mockCallback)
   })
 })

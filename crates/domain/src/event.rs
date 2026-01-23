@@ -24,7 +24,7 @@ pub enum ClientEvent {
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SubscribePayload {
-    pub message_id: Uuid,
+    pub message_ids: Vec<Uuid>,
 }
 
 impl SocketEvent for SubscribePayload {
@@ -37,7 +37,7 @@ impl SocketEvent for SubscribePayload {
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UnsubscribePayload {
-    pub message_id: Uuid,
+    pub message_ids: Vec<Uuid>,
 }
 
 impl SocketEvent for UnsubscribePayload {

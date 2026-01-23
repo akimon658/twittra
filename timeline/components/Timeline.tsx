@@ -11,39 +11,26 @@ import {
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
 import { QueryErrorResetBoundary, useQueryClient } from "@tanstack/react-query"
-import { Suspense, useEffect } from "react"
+import { Suspense } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import {
   getGetTimelineQueryKey,
   useGetTimelineSuspense,
 } from "../../api/timeline/timeline.ts"
-import type { Message } from "../../api/twittra.schemas.ts"
 import { useMessageSubscription } from "../../hooks/useMessageSubscription.ts"
-import { useSocket } from "../../socket/hooks/useSocket.ts"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {
   const { data: { data } } = useGetTimelineSuspense()
-  const socket = useSocket()
   const queryClient = useQueryClient()
 
-  // Subscribe to all loaded messages
+  const handleMessageUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+  }
+
+  // Subscribe to all loaded messages and handle updates
   const messageIds = data.map((item) => item.id)
-  useMessageSubscription(messageIds)
-
-  useEffect(() => {
-    if (!socket) return
-
-    const handleMessageUpdated = (_: Message) => {
-      queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
-    }
-
-    socket.on("messageUpdated", handleMessageUpdated)
-
-    return () => {
-      socket.off("messageUpdated", handleMessageUpdated)
-    }
-  }, [socket, queryClient])
+  useMessageSubscription(messageIds, handleMessageUpdated)
 
   return (
     <Stack>

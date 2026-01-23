@@ -92,14 +92,14 @@ export interface Stamp {
  * Payload for the subscribe event
  */
 export interface SubscribePayload {
-  messageId: string
+  messageIds: string[]
 }
 
 /**
  * Payload for the unsubscribe event
  */
 export interface UnsubscribePayload {
-  messageId: string
+  messageIds: string[]
 }
 
 export interface User {

@@ -101,10 +101,10 @@ describe("Timeline", () => {
       renderWithProviders(<Timeline />, { socket: mockSocket })
 
       await waitFor(() => {
-        // Should emit subscribe for each loaded message
+        // Should emit batch subscribe for all loaded messages
         expect(mockSocket.emit).toHaveBeenCalledWith(
           "subscribe",
-          expect.objectContaining({ messageId: expect.any(String) }),
+          expect.objectContaining({ messageIds: expect.any(Array) }),
         )
       })
     })
