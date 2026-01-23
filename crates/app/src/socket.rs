@@ -113,14 +113,17 @@ impl MessageNotifier for SocketNotifier {
 mod tests {
     use super::*;
     use axum::Router;
-    use domain::{event::SubscribePayload, model::Message};
+    use domain::{event::SubscribePayload, model::Message, test_factories::MessageBuilder};
     use futures_util::FutureExt;
     use rust_socketio::{
         Payload,
         asynchronous::{Client, ClientBuilder},
     };
     use std::sync::{Arc, Mutex};
-    use tokio::net::TcpListener;
+    use tokio::{
+        net::TcpListener,
+        time::{self, Duration},
+    };
 
     /// Spawns a test server with Socket.IO layer and returns the server address and notifier
     async fn start_test_server() -> (String, Arc<SocketNotifier>) {
@@ -136,7 +139,7 @@ mod tests {
         });
 
         // Give the server a moment to start
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        time::sleep(Duration::from_millis(100)).await;
 
         (format!("http://{}", addr), notifier)
     }
@@ -157,10 +160,10 @@ mod tests {
                 move |payload: Payload, _client: Client| {
                     let events = Arc::clone(&events_clone);
                     async move {
-                        if let Payload::Text(values) = payload {
-                            if let Some(value) = values.first() {
-                                events.lock().unwrap().push(value.clone());
-                            }
+                        if let Payload::Text(values) = payload
+                            && let Some(value) = values.first()
+                        {
+                            events.lock().unwrap().push(value.clone());
                         }
                     }
                     .boxed()
@@ -171,9 +174,9 @@ mod tests {
             .expect("Failed to connect to Socket.IO server");
 
         // Wait for connection to establish
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        time::sleep(Duration::from_millis(200)).await;
 
-        let message = domain::test_factories::MessageBuilder::new().build();
+        let message = MessageBuilder::new().build();
 
         // Subscribe to message updates
         let subscribe_payload = SubscribePayload {
@@ -188,23 +191,25 @@ mod tests {
             .expect("Failed to emit subscribe event");
 
         // Wait for subscription to be processed
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        time::sleep(Duration::from_millis(200)).await;
 
         // Trigger notification
         notifier.notify_message_updated(&message).await;
 
         // Wait for event to be received
-        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+        time::sleep(Duration::from_millis(300)).await;
 
         // Verify the event was received
-        let events = received_events.lock().unwrap();
-        assert_eq!(events.len(), 1, "Should receive exactly one event");
+        {
+            let events = received_events.lock().unwrap();
+            assert_eq!(events.len(), 1, "Should receive exactly one event");
 
-        // Verify the payload matches the sent message
-        let received_message: Message =
-            serde_json::from_value(events[0].clone()).expect("Failed to deserialize message");
-        assert_eq!(received_message.id, message.id);
-        assert_eq!(received_message.content, message.content);
+            // Verify the payload matches the sent message
+            let received_message: Message =
+                serde_json::from_value(events[0].clone()).expect("Failed to deserialize message");
+            assert_eq!(received_message.id, message.id);
+            assert_eq!(received_message.content, message.content);
+        }
 
         // Disconnect client
         client.disconnect().await.expect("Failed to disconnect");
