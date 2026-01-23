@@ -14,8 +14,8 @@ export const MockSocketProvider = (
   { children, socket }: PropsWithChildren<MockSocketProviderProps>,
 ) => {
   return (
-    <SocketContext.Provider value={socket}>
+    <SocketContext value={socket}>
       {children}
-    </SocketContext.Provider>
+    </SocketContext>
   )
 }
