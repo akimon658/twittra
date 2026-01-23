@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   mockApiError,
   renderWithProviders,
@@ -7,10 +7,30 @@ import {
 } from "../../test/utils.tsx"
 import { Timeline } from "./Timeline.tsx"
 
+// Mock socket.io-client
+const mockSocket = {
+  on: vi.fn(),
+  off: vi.fn(),
+  emit: vi.fn(),
+  close: vi.fn(),
+}
+
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => mockSocket),
+}))
+
 describe("Timeline", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it("renders messages from API", async () => {
     // MSW will automatically return mocked data from api/mocks.ts
-    renderWithProviders(<Timeline />)
+    renderWithProviders(<Timeline />, { socket: mockSocket })
 
     // Wait for messages to load
     await waitFor(
@@ -24,7 +44,9 @@ describe("Timeline", () => {
   })
 
   it("shows loading state initially", () => {
-    const { container } = renderWithProviders(<Timeline />)
+    const { container } = renderWithProviders(<Timeline />, {
+      socket: mockSocket,
+    })
 
     // Should show skeleton loaders (they have data-visible="true")
     const skeletons = container.querySelectorAll('[data-visible="true"]')
@@ -35,20 +57,22 @@ describe("Timeline", () => {
     // Override default mock to return error
     mockApiError("/api/v1/timeline", 500)
 
-    const { container } = renderWithProviders(<Timeline />)
+    const { container } = renderWithProviders(<Timeline />, {
+      socket: mockSocket,
+    })
 
     await waitFor(
       () => {
         // Check for error alert (Mantine Alert component)
         const alert = container.querySelector('[class*="Alert"]')
-        expect(alert).toBeInTheDocument()
+        expect(alert).toBeTruthy()
       },
       { timeout: 3000 },
     )
   })
 
   it("renders multiple messages", async () => {
-    renderWithProviders(<Timeline />)
+    renderWithProviders(<Timeline />, { socket: mockSocket })
 
     await waitFor(
       () => {
@@ -59,5 +83,47 @@ describe("Timeline", () => {
       },
       { timeout: 3000 },
     )
+  })
+
+  describe("Socket.io Integration", () => {
+    it("registers socket event listener for messageUpdated", async () => {
+      renderWithProviders(<Timeline />, { socket: mockSocket })
+
+      await waitFor(() => {
+        expect(mockSocket.on).toHaveBeenCalledWith(
+          "messageUpdated",
+          expect.any(Function),
+        )
+      })
+    })
+
+    it("subscribes to loaded messages", async () => {
+      renderWithProviders(<Timeline />, { socket: mockSocket })
+
+      await waitFor(() => {
+        // Should emit batch subscribe for all loaded messages
+        expect(mockSocket.emit).toHaveBeenCalledWith(
+          "subscribe",
+          expect.objectContaining({ messageIds: expect.any(Array) }),
+        )
+      })
+    })
+
+    it("cleans up socket listener on unmount", async () => {
+      const { unmount } = renderWithProviders(<Timeline />, {
+        socket: mockSocket,
+      })
+
+      await waitFor(() => {
+        expect(mockSocket.on).toHaveBeenCalled()
+      })
+
+      unmount()
+
+      expect(mockSocket.off).toHaveBeenCalledWith(
+        "messageUpdated",
+        expect.any(Function),
+      )
+    })
   })
 })

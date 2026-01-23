@@ -10,6 +10,8 @@ use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
+    event::{ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload},
+    model::Message,
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
@@ -21,7 +23,7 @@ use tower_sessions::{SessionManagerLayer, cookie::SameSite, session_store::Expir
 use tower_sessions_sqlx_store::MySqlStore;
 use tracing_subscriber::fmt;
 use utoipa::openapi::{
-    Components, Info, OpenApi, OpenApiBuilder, Server,
+    ComponentsBuilder, Info, OpenApi, OpenApiBuilder, Server,
     security::{ApiKey, ApiKeyValue, SecurityScheme},
 };
 use utoipa_axum::router::OpenApiRouter;
@@ -29,18 +31,25 @@ use utoipa_swagger_ui::SwaggerUi;
 
 mod handler;
 mod session;
+mod socket;
 #[cfg(test)]
 pub mod test_helpers;
 
 const API_ROOT: &str = "/api/v1";
 
 pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
-    let mut components = Components::new();
-
-    components.add_security_scheme(
-        "cookieAuth",
-        SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("id".to_string()))),
-    );
+    // Include Socket.IO event schemas
+    let components = ComponentsBuilder::new()
+        .schema_from::<ClientEvent>()
+        .schema_from::<Message>()
+        .schema_from::<ServerEvent>()
+        .schema_from::<SubscribePayload>()
+        .schema_from::<UnsubscribePayload>()
+        .security_scheme(
+            "cookieAuth",
+            SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("id".to_string()))),
+        )
+        .build();
 
     let openapi = OpenApiBuilder::new()
         .info(Info::new("Twittra", env!("CARGO_PKG_VERSION")))
@@ -103,7 +112,10 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
         ))?);
     let repository = mariadb::new_repository(pool).await?;
     let traq_client = TraqClientImpl::new(traq_api_base_url.clone());
-    let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone());
+
+    let (socket_layer, io) = socket::create_socket_layer();
+    let notifier = Arc::new(socket::SocketNotifier::new(io));
+    let crawler = MessageCrawler::new(Arc::new(traq_client.clone()), repository.clone(), notifier);
 
     task::spawn(async move {
         crawler.run().await;
@@ -117,7 +129,8 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     let (router, openapi) = setup_openapi_routes();
     let router = axum::Router::new()
         .nest(API_ROOT, router.layer(auth_layer))
-        .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi));
+        .merge(SwaggerUi::new("/docs/swagger-ui").url("/docs/openapi.json", openapi))
+        .layer(socket_layer);
 
     axum::serve(listener, router.with_state(app_state)).await?;
 

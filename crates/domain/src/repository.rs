@@ -17,7 +17,13 @@ pub struct Repository {
 #[async_trait::async_trait]
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>, RepositoryError>;
+    async fn find_by_id(&self, id: &Uuid) -> Result<Option<Message>, RepositoryError>;
     async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>, RepositoryError>;
+    /// Returns messages that may need refreshing from traQ.
+    /// Returns tuples of (message_id, created_at, last_crawled_at) for messages created within the last 24 hours.
+    async fn find_sync_candidates(
+        &self,
+    ) -> Result<Vec<(Uuid, OffsetDateTime, OffsetDateTime)>, RepositoryError>;
     /// Removes a reaction from a message.
     /// This is used for optimistic updates when deleting a stamp.
     async fn remove_reaction(

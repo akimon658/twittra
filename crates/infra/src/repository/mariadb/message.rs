@@ -19,11 +19,29 @@ impl MariaDbMessageRepository {
         Self { pool }
     }
 
-    async fn save_reactions(
+    async fn update_reactions(
         &self,
         tx: &mut Transaction<'_, MySql>,
+        message_ids: &[Uuid],
         reactions: &[(Uuid, Reaction)],
     ) -> Result<(), RepositoryError> {
+        if message_ids.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = QueryBuilder::new("DELETE FROM reactions WHERE message_id IN (");
+        let mut separated = query_builder.separated(", ");
+        for id in message_ids {
+            separated.push_bind(id);
+        }
+        query_builder.push(")");
+
+        query_builder
+            .build()
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
         if reactions.is_empty() {
             return Ok(());
         }
@@ -39,8 +57,6 @@ impl MariaDbMessageRepository {
                 .push_bind(reaction.user_id)
                 .push_bind(reaction.stamp_count);
         });
-
-        query_builder.push(" ON DUPLICATE KEY UPDATE stamp_count=VALUE(stamp_count)");
 
         query_builder
             .build()
@@ -122,6 +138,86 @@ impl MessageRepository for MariaDbMessageRepository {
         .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(result)
+    }
+
+    async fn find_by_id(&self, id: &Uuid) -> Result<Option<Message>, RepositoryError> {
+        #[derive(sqlx::FromRow)]
+        struct MessageRow {
+            id: Uuid,
+            user_id: Uuid,
+            channel_id: Uuid,
+            content: String,
+            created_at: OffsetDateTime,
+            updated_at: OffsetDateTime,
+        }
+
+        let message_row = sqlx::query_as!(
+            MessageRow,
+            r#"
+            SELECT id AS `id: _`, user_id AS `user_id: _`, channel_id AS `channel_id: _`, content, created_at, updated_at
+            FROM messages
+            WHERE id = ?
+            "#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        let Some(row) = message_row else {
+            return Ok(None);
+        };
+
+        let reactions = sqlx::query_as!(
+            ReactionRow,
+            r#"
+            SELECT message_id AS `message_id: _`, stamp_id AS `stamp_id: _`, user_id AS `user_id: _`, stamp_count
+            FROM reactions
+            WHERE message_id = ?
+            "#,
+            id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        Ok(Some(Message {
+            id: row.id,
+            user_id: row.user_id,
+            channel_id: row.channel_id,
+            content: row.content,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            reactions: reactions.into_iter().map(Into::into).collect(),
+        }))
+    }
+
+    async fn find_sync_candidates(
+        &self,
+    ) -> Result<Vec<(Uuid, OffsetDateTime, OffsetDateTime)>, RepositoryError> {
+        #[derive(sqlx::FromRow)]
+        struct SyncCandidateRow {
+            id: Uuid,
+            created_at: OffsetDateTime,
+            last_crawled_at: OffsetDateTime,
+        }
+
+        let rows = sqlx::query_as!(
+            SyncCandidateRow,
+            r#"
+            SELECT id AS `id: _`, created_at, last_crawled_at AS `last_crawled_at: _`
+            FROM messages
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.id, row.created_at, row.last_crawled_at))
+            .collect())
     }
 
     async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>, RepositoryError> {
@@ -236,7 +332,7 @@ impl MessageRepository for MariaDbMessageRepository {
             r#"
             INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)
+            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at), last_crawled_at=NOW(6)
             "#,
             message.id,
             message.user_id,
@@ -255,7 +351,8 @@ impl MessageRepository for MariaDbMessageRepository {
             .map(|r| (message.id, r.clone()))
             .collect();
 
-        self.save_reactions(&mut tx, &reactions_data).await?;
+        self.update_reactions(&mut tx, &[message.id], &reactions_data)
+            .await?;
 
         tx.commit()
             .await
@@ -288,7 +385,7 @@ impl MessageRepository for MariaDbMessageRepository {
                 .push_bind(message.updated_at);
         });
         query_builder
-            .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at)");
+            .push(" ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at), last_crawled_at=NOW(6)");
         query_builder
             .build()
             .execute(&mut *tx)
@@ -304,7 +401,9 @@ impl MessageRepository for MariaDbMessageRepository {
             })
             .collect::<Vec<_>>();
 
-        self.save_reactions(&mut tx, &reactions_data).await?;
+        let message_ids = messages.iter().map(|m| m.id).collect::<Vec<_>>();
+        self.update_reactions(&mut tx, &message_ids, &reactions_data)
+            .await?;
 
         tx.commit()
             .await
@@ -317,8 +416,10 @@ impl MessageRepository for MariaDbMessageRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::test_factories::{MessageBuilder, ReactionBuilder};
+    use domain::test_factories::{MessageBuilder, ReactionBuilder, fake_recent_datetime};
     use fake::{Fake, uuid::UUIDv4};
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[sqlx::test]
     async fn test_save_and_find_message(pool: sqlx::MySqlPool) {
@@ -408,5 +509,129 @@ mod tests {
 
         let saved_messages = repo.find_recent_messages().await.unwrap();
         assert!(saved_messages.len() >= 2); // At least our 2 messages
+    }
+
+    #[sqlx::test]
+    async fn test_find_sync_candidates_returns_recent_messages(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let recent_time = fake_recent_datetime();
+        let recent_message = MessageBuilder::new()
+            .created_at(recent_time - time::Duration::hours(1))
+            .build();
+        let old_message = MessageBuilder::new()
+            .created_at(recent_time - time::Duration::hours(25))
+            .build();
+
+        repo.save(&recent_message).await.unwrap();
+        repo.save(&old_message).await.unwrap();
+
+        let candidates = repo.find_sync_candidates().await.unwrap();
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].0, recent_message.id);
+    }
+
+    #[sqlx::test]
+    async fn test_save_updates_last_crawled_at(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let recent_time = fake_recent_datetime();
+        let message = MessageBuilder::new().created_at(recent_time).build();
+        repo.save(&message).await.unwrap();
+
+        let first_candidates = repo.find_sync_candidates().await.unwrap();
+        let first_crawled_at = first_candidates[0].2;
+
+        sleep(Duration::from_millis(100)).await;
+
+        repo.save(&message).await.unwrap();
+
+        let second_candidates = repo.find_sync_candidates().await.unwrap();
+        let second_crawled_at = second_candidates[0].2;
+
+        assert!(second_crawled_at > first_crawled_at);
+    }
+    #[sqlx::test]
+    async fn test_save_adds_new_reactions(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let message_id = UUIDv4.fake();
+        let reaction1 = ReactionBuilder::new().stamp_count(1).build();
+
+        // 1. Initial save with no reactions
+        let message = MessageBuilder::new().id(message_id).build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert!(saved.reactions.is_empty());
+
+        // 2. Update: Add reaction1
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 1);
+        assert_eq!(saved.reactions[0].stamp_id, reaction1.stamp_id);
+    }
+
+    #[sqlx::test]
+    async fn test_save_updates_reaction_counts(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let message_id = UUIDv4.fake();
+        let mut reaction = ReactionBuilder::new().stamp_count(1).build();
+
+        // 1. Initial save with count 1
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        // 2. Update: count 2
+        reaction.stamp_count = 2;
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 1);
+        assert_eq!(saved.reactions[0].stamp_count, 2);
+    }
+
+    #[sqlx::test]
+    async fn test_save_removes_missing_reactions(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+
+        let message_id = UUIDv4.fake();
+        let reaction1 = ReactionBuilder::new().stamp_count(1).build();
+        let reaction2 = ReactionBuilder::new().stamp_count(1).build();
+
+        // 1. Initial save with 2 reactions
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone(), reaction2.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 2);
+
+        // 2. Update: Remove reaction2
+        let message = MessageBuilder::new()
+            .id(message_id)
+            .reactions(vec![reaction1.clone()])
+            .build();
+        repo.save(&message).await.unwrap();
+
+        let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
+        assert_eq!(saved.reactions.len(), 1);
+        assert_eq!(saved.reactions[0].stamp_id, reaction1.stamp_id);
     }
 }

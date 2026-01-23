@@ -28,8 +28,9 @@ on content discovery and a fluid browsing experience.
   Rust, no external IO.**
 - `crates/infra`: DB implementation (sqlx), API clients (`traq` crate wrapper),
   Concrete repositories.
-- **API Definition:** **Code-first**. OpenAPI JSON is generated from Rust code
-  using `utoipa`.
+- **API Definition:** **Code-first**. Rust code is the single source of truth.
+  Uses `utoipa` to generate OpenAPI JSON from Rust code (including Socket.IO
+  events definition).
 
 ### Frontend (React)
 

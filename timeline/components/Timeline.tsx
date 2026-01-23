@@ -10,14 +10,27 @@ import {
   Text,
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
-import { QueryErrorResetBoundary } from "@tanstack/react-query"
+import { QueryErrorResetBoundary, useQueryClient } from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
-import { useGetTimelineSuspense } from "../../api/timeline/timeline.ts"
+import {
+  getGetTimelineQueryKey,
+  useGetTimelineSuspense,
+} from "../../api/timeline/timeline.ts"
+import { useMessageSubscription } from "../../socket/hooks/useMessageSubscription.ts"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {
   const { data: { data } } = useGetTimelineSuspense()
+  const queryClient = useQueryClient()
+
+  const handleMessageUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+  }
+
+  // Subscribe to all loaded messages and handle updates
+  const messageIds = data.map((item) => item.id)
+  useMessageSubscription(messageIds, handleMessageUpdated)
 
   return (
     <Stack>

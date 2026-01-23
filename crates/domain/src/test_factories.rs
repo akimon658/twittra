@@ -21,6 +21,17 @@ fn fake_datetime() -> OffsetDateTime {
     DateTimeBetween(start, end).fake()
 }
 
+/// Generate a random timestamp close to the current time for testing.
+///
+/// This is useful for tests that need to simulate recent activity,
+/// such as messages created within the last 24 hours.
+pub fn fake_recent_datetime() -> OffsetDateTime {
+    let now = OffsetDateTime::now_utc();
+    let start = now - time::Duration::hours(23);
+    let end = now;
+    DateTimeBetween(start, end).fake()
+}
+
 pub struct MessageBuilder {
     id: Uuid,
     user_id: Uuid,

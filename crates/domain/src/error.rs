@@ -46,6 +46,9 @@ impl<T> From<TraqApiError<T>> for TraqClientError {
 /// Domain-level errors for service operations
 #[derive(Error, Debug, PartialEq)]
 pub enum DomainError {
+    #[error("no message found for ID {0}")]
+    NoMessageForId(Uuid),
+
     #[error("no valid token found to fetch user from traQ")]
     NoTokenForUserFetch,
 

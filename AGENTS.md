@@ -37,3 +37,9 @@ issues where user input is the best solution.
 - **Refinement & Cleanup:** Review changes to ensure they are minimal and
   sufficient. Check for and remove any unnecessary modifications, unused
   variables, or leftover dependencies.
+- **Dependency Management:** You MUST NOT add dependencies directly to
+  `Cargo.toml` or `deno.jsonc`. Use `cargo add` or `deno add` to add
+  dependencies. However, `cargo add` writes the crate version to workspace
+  members' `Cargo.toml` files, so you need to manually write the version to
+  workspace root `Cargo.toml` and update workspace members' `Cargo.toml` files
+  to use `workspace = true`.

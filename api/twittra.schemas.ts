@@ -4,6 +4,47 @@
  * Twittra
  * OpenAPI spec version: 0.1.0
  */
+export type ClientEventOneOfType =
+  typeof ClientEventOneOfType[keyof typeof ClientEventOneOfType]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ClientEventOneOfType = {
+  subscribe: "subscribe",
+} as const
+
+export type ClientEventOneOf = {
+  payload: SubscribePayload
+  type: ClientEventOneOfType
+}
+
+export type ClientEventOneOfThreeType =
+  typeof ClientEventOneOfThreeType[keyof typeof ClientEventOneOfThreeType]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ClientEventOneOfThreeType = {
+  unsubscribe: "unsubscribe",
+} as const
+
+export type ClientEventOneOfThree = {
+  payload: UnsubscribePayload
+  type: ClientEventOneOfThreeType
+}
+
+/**
+ * Client-to-server events for Socket.io
+ */
+export type ClientEvent = ClientEventOneOf | ClientEventOneOfThree
+
+export interface Message {
+  channelId: string
+  content: string
+  createdAt: Date
+  id: string
+  reactions: Reaction[]
+  updatedAt: Date
+  userId: string
+}
+
 export interface MessageListItem {
   channelId: string
   content: string
@@ -23,10 +64,42 @@ export interface Reaction {
   userId: string
 }
 
+export type ServerEventOneOfType =
+  typeof ServerEventOneOfType[keyof typeof ServerEventOneOfType]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ServerEventOneOfType = {
+  messageUpdated: "messageUpdated",
+} as const
+
+export type ServerEventOneOf = {
+  payload: Message
+  type: ServerEventOneOfType
+}
+
+/**
+ * Server-to-client events for Socket.io
+ */
+export type ServerEvent = ServerEventOneOf
+
 export interface Stamp {
   id: string
   /** @maxLength 32 */
   name: string
+}
+
+/**
+ * Payload for the subscribe event
+ */
+export interface SubscribePayload {
+  messageIds: string[]
+}
+
+/**
+ * Payload for the unsubscribe event
+ */
+export interface UnsubscribePayload {
+  messageIds: string[]
 }
 
 export interface User {

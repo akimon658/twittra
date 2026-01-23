@@ -16,8 +16,11 @@ infra = { path = "../infra" }
 oauth2 = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+socketioxide = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
 tower-sessions = { workspace = true }
 tower-sessions-sqlx-store = { workspace = true }
@@ -33,8 +36,9 @@ uuid = { workspace = true }
 # domain exports mock models with the "test-utils" feature
 domain = { path = "../domain", features = ["test-utils"] }
 fake = { workspace = true, features = ["uuid"] }
+futures-util = { workspace = true }
 mockall = { workspace = true }
-serde_json = { workspace = true }
+rust_socketio = { workspace = true }
 tower = { workspace = true }
 tower-sessions = { workspace = true, features = ["memory-store"] }
 

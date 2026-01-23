@@ -23,6 +23,7 @@ CREATE TABLE messages (
   content TEXT NOT NULL,
   created_at TIMESTAMP(6) NOT NULL,
   updated_at TIMESTAMP(6) NOT NULL,
+  last_crawled_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 
   INDEX idx_created_at (created_at DESC)
 );
