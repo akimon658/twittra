@@ -1,16 +1,17 @@
 import { renderHook } from "@testing-library/react"
+import type { PropsWithChildren } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { MockSocketProvider } from "../../test/MockSocketProvider.tsx"
 import type { AppSocket } from "../lib/types.ts"
 import { useMessageSubscription } from "./useMessageSubscription.ts"
 
-// Mock the SocketProvider
 const mockSocket = {
   emit: vi.fn(),
 } as unknown as AppSocket
 
-vi.mock("../socket/hooks/useSocket.ts", () => ({
-  useSocket: () => mockSocket,
-}))
+const wrapper = ({ children }: PropsWithChildren) => (
+  <MockSocketProvider socket={mockSocket}>{children}</MockSocketProvider>
+)
 
 describe("useMessageSubscription", () => {
   beforeEach(() => {
@@ -26,6 +27,7 @@ describe("useMessageSubscription", () => {
       ({ ids }) => useMessageSubscription(ids),
       {
         initialProps: { ids: [] as string[] },
+        wrapper,
       },
     )
 
@@ -43,6 +45,7 @@ describe("useMessageSubscription", () => {
       ({ ids }) => useMessageSubscription(ids),
       {
         initialProps: { ids: ["msg-1", "msg-2", "msg-3"] },
+        wrapper,
       },
     )
 
@@ -62,6 +65,7 @@ describe("useMessageSubscription", () => {
       ({ ids }) => useMessageSubscription(ids),
       {
         initialProps: { ids: ["msg-1", "msg-2"] },
+        wrapper,
       },
     )
 
@@ -84,6 +88,7 @@ describe("useMessageSubscription", () => {
       ({ ids }) => useMessageSubscription(ids),
       {
         initialProps: { ids: ["msg-1", "msg-2"] },
+        wrapper,
       },
     )
 
@@ -106,8 +111,9 @@ describe("useMessageSubscription", () => {
       off: mockOff,
     })
 
-    const { unmount } = renderHook(() =>
-      useMessageSubscription(["msg-1"], mockCallback)
+    const { unmount } = renderHook(
+      () => useMessageSubscription(["msg-1"], mockCallback),
+      { wrapper },
     )
 
     expect(mockOn).toHaveBeenCalledWith("messageUpdated", mockCallback)
