@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { AppSocket } from "../socket/lib/types.ts"
+import type { AppSocket } from "../lib/types.ts"
 import { useMessageSubscription } from "./useMessageSubscription.ts"
 
 // Mock the SocketProvider

@@ -17,7 +17,7 @@ import {
   getGetTimelineQueryKey,
   useGetTimelineSuspense,
 } from "../../api/timeline/timeline.ts"
-import { useMessageSubscription } from "../../hooks/useMessageSubscription.ts"
+import { useMessageSubscription } from "../../socket/hooks/useMessageSubscription.ts"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {

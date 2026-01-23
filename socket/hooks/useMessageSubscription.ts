@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef } from "react"
-import type { Message } from "../api/twittra.schemas.ts"
-import { SocketContext } from "../socket/context/socket.ts"
+import type { Message } from "../../api/twittra.schemas.ts"
+import { SocketContext } from "../context/socket.ts"
 
 /**
  * Hook to manage message subscriptions via Socket.io.
