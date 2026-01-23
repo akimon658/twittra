@@ -59,7 +59,7 @@ pub fn create_socket_layer() -> (SocketIoLayer, SocketIo) {
     (socket_layer, io)
 }
 
-#[tracing::instrument(skip(socket, payload), fields(socket_id = %socket.id, message_count = payload.message_ids.len()))]
+#[tracing::instrument(skip(socket, payload), fields(socket_id = %socket.id))]
 async fn handle_subscribe(socket: SocketRef, payload: SubscribePayload) {
     for message_id in &payload.message_ids {
         socket.join(format!("message:{}", message_id));
@@ -67,7 +67,7 @@ async fn handle_subscribe(socket: SocketRef, payload: SubscribePayload) {
     tracing::info!("Client subscribed to message updates");
 }
 
-#[tracing::instrument(skip(socket, payload), fields(socket_id = %socket.id, message_count = payload.message_ids.len()))]
+#[tracing::instrument(skip(socket, payload), fields(socket_id = %socket.id))]
 async fn handle_unsubscribe(socket: SocketRef, payload: UnsubscribePayload) {
     for message_id in &payload.message_ids {
         socket.leave(format!("message:{}", message_id));
