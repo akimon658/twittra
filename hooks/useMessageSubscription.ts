@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react"
+import { useContext, useEffect, useRef } from "react"
 import type { Message } from "../api/twittra.schemas.ts"
-import { useSocket } from "../socket/hooks/useSocket.ts"
+import { SocketContext } from "../socket/context/socket.ts"
 
 /**
  * Hook to manage message subscriptions via Socket.io.
@@ -11,7 +11,7 @@ export const useMessageSubscription = (
   messageIds: string[],
   onMessageUpdated?: (message: Message) => void,
 ) => {
-  const socket = useSocket()
+  const socket = useContext(SocketContext)
   const subscribedIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
