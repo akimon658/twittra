@@ -80,9 +80,14 @@ impl StampRepository for MariaDbStampRepository {
         user_id: &Uuid,
         limit: i64,
     ) -> Result<Vec<Uuid>, RepositoryError> {
-        let channel_ids = sqlx::query!(
+        struct ChannelIdRecord {
+            channel_id: Uuid,
+        }
+
+        let records = sqlx::query_as!(
+            ChannelIdRecord,
             r#"
-            SELECT m.channel_id
+            SELECT m.channel_id AS `channel_id: _`
             FROM reactions r
             JOIN messages m ON r.message_id = m.id
             WHERE r.user_id = ?
@@ -95,26 +100,16 @@ impl StampRepository for MariaDbStampRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?
-        .into_iter()
-        .map(|record| {
-            if record.channel_id.len() == 16 {
-                Uuid::from_slice(&record.channel_id).unwrap_or_default()
-            } else {
-                let s = String::from_utf8(record.channel_id).unwrap_or_default();
-                Uuid::parse_str(&s).unwrap_or_default()
-            }
-        })
-        .collect();
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
-        Ok(channel_ids)
+        Ok(records.into_iter().map(|r| r.channel_id).collect())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::test_factories::StampBuilder;
+    use domain::test_factories::{MessageBuilder, ReactionBuilder, StampBuilder};
     use fake::{Fake, uuid::UUIDv4};
 
     #[sqlx::test]
@@ -188,5 +183,62 @@ mod tests {
         // Verify update
         let found = repo.find_by_id(&stamp_id).await.unwrap().unwrap();
         assert_eq!(found.name, "updated_name");
+    }
+
+    #[sqlx::test]
+    async fn test_find_frequently_stamped_channels_by(pool: sqlx::MySqlPool) {
+        use crate::repository::mariadb::message::MariaDbMessageRepository;
+        use domain::repository::MessageRepository;
+
+        let stamp_repo = MariaDbStampRepository::new(pool.clone());
+        let message_repo = MariaDbMessageRepository::new(pool.clone());
+
+        let user_id = UUIDv4.fake();
+        let channel_1 = UUIDv4.fake();
+        let channel_2 = UUIDv4.fake();
+
+        // Channel 1: 3 reactions
+        for _ in 0..3 {
+            let msg = MessageBuilder::new().channel_id(channel_1).build();
+            let reaction = ReactionBuilder::new().user_id(user_id).build();
+            let msg_with_reaction = MessageBuilder::new()
+                .id(msg.id)
+                .channel_id(msg.channel_id)
+                .reactions(vec![reaction])
+                .build();
+            message_repo.save(&msg_with_reaction).await.unwrap();
+        }
+
+        // Channel 2: 1 reaction
+        for _ in 0..1 {
+            let msg = MessageBuilder::new().channel_id(channel_2).build();
+            let reaction = ReactionBuilder::new().user_id(user_id).build();
+            let msg_with_reaction = MessageBuilder::new()
+                .id(msg.id)
+                .channel_id(msg.channel_id)
+                .reactions(vec![reaction])
+                .build();
+            message_repo.save(&msg_with_reaction).await.unwrap();
+        }
+
+        // Other user's reaction (should be ignored)
+        let other_user = UUIDv4.fake();
+        let msg = MessageBuilder::new().channel_id(channel_2).build();
+        let reaction = ReactionBuilder::new().user_id(other_user).build();
+        let msg_with_reaction = MessageBuilder::new()
+            .id(msg.id)
+            .channel_id(msg.channel_id)
+            .reactions(vec![reaction])
+            .build();
+        message_repo.save(&msg_with_reaction).await.unwrap();
+
+        let channels = stamp_repo
+            .find_frequently_stamped_channels_by(&user_id, 10)
+            .await
+            .unwrap();
+
+        assert_eq!(channels.len(), 2);
+        assert_eq!(channels[0], channel_1); // Most frequent first
+        assert_eq!(channels[1], channel_2);
     }
 }
