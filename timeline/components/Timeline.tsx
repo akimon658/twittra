@@ -120,7 +120,7 @@ export const Timeline = () => {
   return (
     <QueryErrorResetBoundary>
       {({ reset }) => (
-        <ErrorBoundary fallbackRender={ErrorFallback} onReset={reset}>
+        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={reset}>
           <Suspense fallback={<LoadingFallback />}>
             <TimelineContent />
           </Suspense>
