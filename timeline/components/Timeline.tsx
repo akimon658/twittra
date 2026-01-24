@@ -11,21 +11,14 @@ import {
   Text,
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
-import {
-  type InfiniteData,
-  QueryErrorResetBoundary,
-  useQueryClient,
-} from "@tanstack/react-query"
-import { Suspense } from "react"
+import { QueryErrorResetBoundary } from "@tanstack/react-query"
+import { Suspense, useCallback } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { VList } from "virtua"
-import {
-  getGetTimelineQueryKey,
-  type getTimelineResponseSuccess,
-} from "../../api/timeline/timeline.ts"
 import type { Message } from "../../api/twittra.schemas.ts"
 import { useReadManagement } from "../../app/hooks/useReadManagement.ts"
 import { useMessageSubscription } from "../../socket/hooks/useMessageSubscription.ts"
+import { useTimelineCache } from "../hooks/useTimelineCache.ts"
 import { useTimelineInfinite } from "../hooks/useTimelineInfinite.ts"
 import { MessageItem } from "./Message.tsx"
 
@@ -39,27 +32,19 @@ const TimelineContent = () => {
     isFetchingNextPage,
     isFetchingPreviousPage,
   } = useTimelineInfinite()
-  const queryClient = useQueryClient()
+  const { updateMessage } = useTimelineCache()
 
   // Optimize socket updates: update specific message in cache instead of refetching
-  const handleMessageUpdated = (updatedMessage: Message) => {
-    queryClient.setQueryData<InfiniteData<getTimelineResponseSuccess>>(
-      getGetTimelineQueryKey(),
-      (oldData) => {
-        if (!oldData) return oldData
-
-        return {
-          ...oldData,
-          pages: oldData.pages.map((page) => ({
-            ...page,
-            data: page.data.map((item) =>
-              item.id === updatedMessage.id ? updatedMessage : item
-            ),
-          })),
-        }
-      },
-    )
-  }
+  const handleMessageUpdated = useCallback(
+    (updatedMessage: Message) => {
+      updateMessage(updatedMessage.id, (oldMessage) => ({
+        ...updatedMessage,
+        // Preserve user info from the old message as the socket update doesn't include it
+        user: oldMessage.user,
+      }))
+    },
+    [updateMessage],
+  )
 
   // Subscribe to all loaded messages and handle updates
   const messageIds = messages.map((item) => item.id)
