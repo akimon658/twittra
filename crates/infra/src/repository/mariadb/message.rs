@@ -439,7 +439,7 @@ impl MessageRepository for MariaDbMessageRepository {
         query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
         query_builder.push_bind(limit);
 
-        let messages: Vec<MessageRow> = query_builder
+        let messages = query_builder
             .build_query_as()
             .fetch_all(&self.pool)
             .await
@@ -492,7 +492,7 @@ impl MessageRepository for MariaDbMessageRepository {
         query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
         query_builder.push_bind(limit);
 
-        let messages: Vec<MessageRow> = query_builder
+        let messages = query_builder
             .build_query_as()
             .fetch_all(&self.pool)
             .await
