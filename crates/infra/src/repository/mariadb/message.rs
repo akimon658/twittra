@@ -223,9 +223,9 @@ impl MessageRepository for MariaDbMessageRepository {
 
     async fn find_recent_messages(
         &self,
-        exclude_read_by_user_id: Option<Uuid>,
+        user_id: Option<Uuid>,
     ) -> Result<Vec<MessageListItem>, RepositoryError> {
-        let messages: Vec<MessageRow> = if let Some(user_id) = exclude_read_by_user_id {
+        let messages: Vec<MessageRow> = if let Some(user_id) = user_id {
             sqlx::query_as!(
                 MessageRow,
                 r#"
@@ -241,11 +241,13 @@ impl MessageRepository for MariaDbMessageRepository {
                 FROM (
                     SELECT id
                     FROM messages
-                    WHERE id NOT IN (
-                        SELECT message_id
-                        FROM read_messages
-                        WHERE user_id = ?
-                    )
+                    WHERE
+                        user_id != ?
+                        AND id NOT IN (
+                            SELECT message_id
+                            FROM read_messages
+                            WHERE user_id = ?
+                        )
                     ORDER BY created_at DESC
                     LIMIT 50
                 ) AS latest_messages
@@ -253,6 +255,7 @@ impl MessageRepository for MariaDbMessageRepository {
                 LEFT JOIN users u ON m.user_id = u.id
                 ORDER BY m.created_at DESC
                 "#,
+                user_id,
                 user_id
             )
             .fetch_all(&self.pool)
@@ -700,4 +703,58 @@ mod tests {
         assert_eq!(saved.reactions.len(), 1);
         assert_eq!(saved.reactions[0].stamp_id, reaction1.stamp_id);
     }
+
+    #[sqlx::test]
+    async fn test_find_recent_messages_excludes_own_messages(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+        let user_id = UUIDv4.fake();
+
+        // 1. Message by user
+        let message_by_user = MessageBuilder::new().user_id(user_id).build();
+        repo.save(&message_by_user).await.unwrap();
+
+        // 2. Message by other
+        let message_by_other = MessageBuilder::new().build();
+        repo.save(&message_by_other).await.unwrap();
+
+        // Find recent messages with exclusion
+        let messages = repo.find_recent_messages(Some(user_id)).await.unwrap();
+
+        // Verify
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, message_by_other.id);
+    }
+
+    #[sqlx::test]
+    async fn test_find_recent_messages_excludes_read_messages(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool.clone());
+        let user_id = UUIDv4.fake();
+
+        sqlx::query!(
+            "INSERT INTO users (id, handle, display_name) VALUES (?, 'handle', 'name')",
+            user_id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // 1. Unread message
+        let unread_message = MessageBuilder::new().build();
+        repo.save(&unread_message).await.unwrap();
+
+        // 2. Read message
+        let read_message = MessageBuilder::new().build();
+        repo.save(&read_message).await.unwrap();
+        repo.mark_messages_as_read(&user_id, &[read_message.id])
+            .await
+            .unwrap();
+
+        // Find recent messages with exclusion
+        let messages = repo.find_recent_messages(Some(user_id)).await.unwrap();
+
+        // Verify
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, unread_message.id);
+    }
 }
+
