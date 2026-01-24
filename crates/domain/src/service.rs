@@ -44,6 +44,8 @@ pub trait TraqService: Debug + Send + Sync {
         stamp_id: &Uuid,
     ) -> Result<(), DomainError>;
 }
+
+/// Service for timeline-related operations.
 #[derive(Clone, Debug)]
 pub struct TimelineServiceImpl {
     repo: Repository,
