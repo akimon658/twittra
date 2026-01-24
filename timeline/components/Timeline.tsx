@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Button,
   Center,
   Container,
@@ -35,6 +36,8 @@ const TimelineContent = () => {
     fetchPreviousPage,
     hasNextPage,
     hasPreviousPage,
+    isFetchingNextPage,
+    isFetchingPreviousPage,
   } = useTimelineInfinite()
   const queryClient = useQueryClient()
 
@@ -71,19 +74,19 @@ const TimelineContent = () => {
       style={{ height: "calc(100dvh - 2 * var(--mantine-spacing-md))" }}
       onRangeChange={(start, end) => {
         // Load more when reaching boundaries
-        if (start === 0 && hasPreviousPage) {
+        if (start === 0 && hasPreviousPage && !isFetchingPreviousPage) {
           fetchPreviousPage()
         }
-        if (end === messages.length - 1 && hasNextPage) {
+        if (end === messages.length - 1 && hasNextPage && !isFetchingNextPage) {
           fetchNextPage()
         }
       }}
     >
-      <Stack>
-        {messages.map((item) => (
-          <MessageItem key={item.id} message={item} onRead={markAsRead} />
-        ))}
-      </Stack>
+      {messages.map((item) => (
+        <Box key={item.id} mb="md">
+          <MessageItem message={item} onRead={markAsRead} />
+        </Box>
+      ))}
     </VList>
   )
 }
