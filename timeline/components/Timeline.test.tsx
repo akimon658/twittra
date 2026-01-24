@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { AppSocket } from "../../socket/lib/types.ts"
 import {
   mockApiError,
   renderWithProviders,
@@ -13,7 +14,7 @@ const mockSocket = {
   off: vi.fn(),
   emit: vi.fn(),
   close: vi.fn(),
-}
+} as unknown as AppSocket
 
 vi.mock("socket.io-client", () => ({
   io: vi.fn(() => mockSocket),
@@ -37,7 +38,7 @@ describe("Timeline", () => {
 
   it("renders messages from API", async () => {
     // MSW will automatically return mocked data from api/mocks.ts
-    renderWithProviders(<Timeline />, { socket: mockSocket as any })
+    renderWithProviders(<Timeline />, { socket: mockSocket })
 
     // Wait for messages to load
     await waitFor(
@@ -118,7 +119,7 @@ describe("Timeline", () => {
 
     it("cleans up socket listener on unmount", async () => {
       const { unmount } = renderWithProviders(<Timeline />, {
-        socket: mockSocket as any,
+        socket: mockSocket,
       })
 
       await waitFor(() => {
