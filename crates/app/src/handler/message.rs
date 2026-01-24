@@ -182,7 +182,7 @@ mod tests {
             .unwrap();
 
         let res = app.oneshot(req).await.unwrap();
-        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(res.status(), StatusCode::NO_CONTENT);
     }
     #[tokio::test]
     async fn test_add_message_stamp_success() {
