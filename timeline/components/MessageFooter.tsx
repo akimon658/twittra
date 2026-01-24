@@ -8,16 +8,15 @@ import {
   Text,
 } from "@mantine/core"
 import { IconPlus } from "@tabler/icons-react"
-import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import {
   useAddMessageStamp,
   useRemoveMessageStamp,
 } from "../../api/message/message.ts"
 import { getGetStampImageUrl, getStamps } from "../../api/stamp/stamp.ts"
-import { getGetTimelineQueryKey } from "../../api/timeline/timeline.ts"
 import type { Reaction } from "../../api/twittra.schemas.ts"
 import { useUser } from "../../auth/hooks/useUser.ts"
+import { useTimelineCache } from "../hooks/useTimelineCache.ts"
 
 interface StampProps {
   stampId: string
@@ -89,12 +88,23 @@ interface MessageFooterProps {
 
 export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
   const user = useUser()
-  const queryClient = useQueryClient()
+  const { updateMessage } = useTimelineCache()
   const { mutate: addStamp } = useAddMessageStamp({
     mutation: {
-      onSuccess: () => {
-        // Refetch timeline to update the UI
-        queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+      onSuccess: (_, { stampId }) => {
+        updateMessage(messageId, (msg) => {
+          const newReactions = [...msg.reactions]
+          const existingIndex = newReactions.findIndex(
+            (r) => r.userId === user.id && r.stampId === stampId,
+          )
+          if (existingIndex >= 0) {
+            const r = newReactions[existingIndex]
+            newReactions[existingIndex] = { ...r, stampCount: r.stampCount + 1 }
+          } else {
+            newReactions.push({ userId: user.id, stampId, stampCount: 1 })
+          }
+          return { ...msg, reactions: newReactions }
+        })
       },
       onError: (error) => {
         console.error("Failed to add stamp:", error)
@@ -104,9 +114,13 @@ export const MessageFooter = ({ messageId, reactions }: MessageFooterProps) => {
 
   const { mutate: removeStamp } = useRemoveMessageStamp({
     mutation: {
-      onSuccess: () => {
-        // Refetch timeline to update the UI
-        queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+      onSuccess: (_, { stampId }) => {
+        updateMessage(messageId, (msg) => ({
+          ...msg,
+          reactions: msg.reactions.filter(
+            (r) => !(r.userId === user.id && r.stampId === stampId),
+          ),
+        }))
       },
       onError: (error) => {
         console.error("Failed to remove stamp:", error)

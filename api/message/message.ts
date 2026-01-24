@@ -11,12 +11,145 @@ import type {
   UseMutationResult,
 } from "@tanstack/react-query"
 
+import type { ReadMessagesRequest } from "../twittra.schemas"
+
 import { customReviver } from ".././reviver"
 
 type AwaitedInput<T> = PromiseLike<T> | T
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
 
+export type markMessagesAsReadResponse204 = {
+  data: void
+  status: 204
+}
+
+export type markMessagesAsReadResponse401 = {
+  data: void
+  status: 401
+}
+
+export type markMessagesAsReadResponse500 = {
+  data: void
+  status: 500
+}
+
+export type markMessagesAsReadResponseSuccess =
+  & (markMessagesAsReadResponse204)
+  & {
+    headers: Headers
+  }
+export type markMessagesAsReadResponseError =
+  & (markMessagesAsReadResponse401 | markMessagesAsReadResponse500)
+  & {
+    headers: Headers
+  }
+
+export const getMarkMessagesAsReadUrl = () => {
+  return `/api/v1/messages/read`
+}
+
+export const markMessagesAsRead = async (
+  readMessagesRequest: ReadMessagesRequest,
+  options?: RequestInit,
+): Promise<markMessagesAsReadResponseSuccess> => {
+  const res = await fetch(getMarkMessagesAsReadUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(
+      readMessagesRequest,
+    ),
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: markMessagesAsReadResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: markMessagesAsReadResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: markMessagesAsReadResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as markMessagesAsReadResponseSuccess
+}
+
+export const getMarkMessagesAsReadMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof markMessagesAsRead>>,
+      TError,
+      { data: ReadMessagesRequest },
+      TContext
+    >
+    fetch?: RequestInit
+  },
+): UseMutationOptions<
+  Awaited<ReturnType<typeof markMessagesAsRead>>,
+  TError,
+  { data: ReadMessagesRequest },
+  TContext
+> => {
+  const mutationKey = ["markMessagesAsRead"]
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markMessagesAsRead>>,
+    { data: ReadMessagesRequest }
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return markMessagesAsRead(data, fetchOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type MarkMessagesAsReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markMessagesAsRead>>
+>
+export type MarkMessagesAsReadMutationBody = ReadMessagesRequest
+export type MarkMessagesAsReadMutationError = void
+
+export const useMarkMessagesAsRead = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof markMessagesAsRead>>,
+      TError,
+      { data: ReadMessagesRequest },
+      TContext
+    >
+    fetch?: RequestInit
+  },
+): UseMutationResult<
+  Awaited<ReturnType<typeof markMessagesAsRead>>,
+  TError,
+  { data: ReadMessagesRequest },
+  TContext
+> => {
+  const mutationOptions = getMarkMessagesAsReadMutationOptions(options)
+
+  return useMutation(mutationOptions)
+}
 export type addMessageStampResponse204 = {
   data: void
   status: 204

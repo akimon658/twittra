@@ -1,5 +1,7 @@
 import { Group, Paper, Spoiler, Stack, Typography } from "@mantine/core"
+import { useIntersection } from "@mantine/hooks"
 import { type Store, traQMarkdownIt } from "@traptitech/traq-markdown-it"
+import { useEffect } from "react"
 import type { MessageListItem } from "../../api/twittra.schemas.ts"
 import { MessageAuthorAvatar } from "./MessageAuthorAvatar.tsx"
 import { MessageFooter } from "./MessageFooter.tsx"
@@ -20,11 +22,22 @@ const md = new traQMarkdownIt(store, undefined, "")
 
 interface MessageProps {
   message: MessageListItem
+  onRead: (id: string) => void
 }
 
-export const MessageItem = ({ message }: MessageProps) => {
+export const MessageItem = ({ message, onRead }: MessageProps) => {
+  const { ref, entry } = useIntersection({
+    threshold: 0.5,
+  })
+
+  useEffect(() => {
+    if (entry?.isIntersecting) {
+      onRead(message.id)
+    }
+  }, [entry?.isIntersecting, message.id, onRead])
+
   return (
-    <Paper>
+    <Paper ref={ref}>
       <Group align="start" wrap="nowrap">
         <MessageAuthorAvatar user={message.user} userId={message.userId} />
 

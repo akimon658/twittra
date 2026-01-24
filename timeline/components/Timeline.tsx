@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Button,
   Center,
   Container,
@@ -10,41 +11,61 @@ import {
   Text,
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
-import { QueryErrorResetBoundary, useQueryClient } from "@tanstack/react-query"
+import { QueryErrorResetBoundary } from "@tanstack/react-query"
 import { Suspense } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
-import {
-  getGetTimelineQueryKey,
-  useGetTimelineSuspense,
-} from "../../api/timeline/timeline.ts"
+import { VList } from "virtua"
+import type { Message } from "../../api/twittra.schemas.ts"
+import { useReadManagement } from "../../app/hooks/useReadManagement.ts"
 import { useMessageSubscription } from "../../socket/hooks/useMessageSubscription.ts"
+import { useTimelineCache } from "../hooks/useTimelineCache.ts"
+import { useTimelineInfinite } from "../hooks/useTimelineInfinite.ts"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {
-  const { data: { data } } = useGetTimelineSuspense()
-  const queryClient = useQueryClient()
-
-  const handleMessageUpdated = () => {
-    queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
+  const {
+    messages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTimelineInfinite()
+  const { updateMessage } = useTimelineCache()
+  const handleMessageUpdated = (updatedMessage: Message) => {
+    updateMessage(updatedMessage.id, (oldMessage) => ({
+      ...updatedMessage,
+      // Preserve user info from the old message as the socket update doesn't include it
+      user: oldMessage.user,
+    }))
   }
 
   // Subscribe to all loaded messages and handle updates
-  const messageIds = data.map((item) => item.id)
+  const messageIds = messages.map((item) => item.id)
   useMessageSubscription(messageIds, handleMessageUpdated)
+  const { markAsRead } = useReadManagement()
 
   return (
-    <Stack>
-      {data.map((item) => <MessageItem key={item.id} message={item} />)}
-    </Stack>
+    <VList
+      style={{ height: "100dvh", paddingTop: "var(--mantine-spacing-md)" }}
+      onRangeChange={(_, end) => {
+        // Load more when reaching boundaries
+        if (end === messages.length - 1 && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      }}
+    >
+      {messages.map((item) => (
+        <Box key={item.id} mb="md">
+          <MessageItem message={item} onRead={markAsRead} />
+        </Box>
+      ))}
+    </VList>
   )
 }
 
 const LoadingFallback = () => {
   return (
     <Stack
-      h="calc(100dvh - var(--mantine-spacing-md))"
-      // Cancel out the padding of AppShell
-      mb="-md"
+      pt="md"
       style={{ overflow: "hidden" }}
     >
       {Array.from({ length: 10 }).map((_, index) => (
@@ -99,7 +120,7 @@ export const Timeline = () => {
   return (
     <QueryErrorResetBoundary>
       {({ reset }) => (
-        <ErrorBoundary fallbackRender={ErrorFallback} onReset={reset}>
+        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={reset}>
           <Suspense fallback={<LoadingFallback />}>
             <TimelineContent />
           </Suspense>

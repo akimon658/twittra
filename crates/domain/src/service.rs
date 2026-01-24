@@ -10,7 +10,15 @@ use uuid::Uuid;
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait TimelineService: Debug + Send + Sync {
-    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>, DomainError>;
+    async fn get_recommended_messages(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, DomainError>;
+    async fn mark_messages_as_read(
+        &self,
+        user_id: &Uuid,
+        message_ids: &[Uuid],
+    ) -> Result<(), DomainError>;
 }
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -51,9 +59,28 @@ impl TimelineServiceImpl {
 
 #[async_trait::async_trait]
 impl TimelineService for TimelineServiceImpl {
-    async fn get_recommended_messages(&self) -> Result<Vec<MessageListItem>, DomainError> {
-        let messages = self.repo.message.find_recent_messages().await?;
+    async fn get_recommended_messages(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, DomainError> {
+        let messages = self
+            .repo
+            .message
+            .find_recent_messages(Some(*user_id))
+            .await?;
         Ok(messages)
+    }
+
+    async fn mark_messages_as_read(
+        &self,
+        user_id: &Uuid,
+        message_ids: &[Uuid],
+    ) -> Result<(), DomainError> {
+        self.repo
+            .message
+            .mark_messages_as_read(user_id, message_ids)
+            .await?;
+        Ok(())
     }
 }
 
@@ -231,13 +258,17 @@ mod tests {
 
         mock_message_repo
             .expect_find_recent_messages()
+            .with(predicate::eq(Some(message.user_id)))
             .times(1)
-            .returning(move || Ok(messages.clone()));
+            .returning(move |_| Ok(messages.clone()));
 
         let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
         let service = TimelineServiceImpl::new(repo);
-        let result = service.get_recommended_messages().await.unwrap();
+        let result = service
+            .get_recommended_messages(&message.user_id)
+            .await
+            .unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, message.id);
@@ -248,15 +279,17 @@ mod tests {
     async fn timeline_get_recommended_messages_empty() {
         let mut mock_message_repo = MockMessageRepository::new();
 
+        let user_id = UUIDv4.fake();
         mock_message_repo
             .expect_find_recent_messages()
+            .with(predicate::eq(Some(user_id)))
             .times(1)
-            .returning(|| Ok(vec![]));
+            .returning(|_| Ok(vec![]));
 
         let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
         let service = TimelineServiceImpl::new(repo);
-        let result = service.get_recommended_messages().await.unwrap();
+        let result = service.get_recommended_messages(&user_id).await.unwrap();
 
         assert!(result.is_empty());
     }
@@ -265,15 +298,17 @@ mod tests {
     async fn timeline_get_recommended_messages_error() {
         let mut mock_message_repo = MockMessageRepository::new();
 
+        let user_id = UUIDv4.fake();
         mock_message_repo
             .expect_find_recent_messages()
+            .with(predicate::eq(Some(user_id)))
             .times(1)
-            .returning(|| Err(RepositoryError::Database("database error".to_string())));
+            .returning(|_| Err(RepositoryError::Database("database error".to_string())));
 
         let repo = RepositoryBuilder::new().message(mock_message_repo).build();
 
         let service = TimelineServiceImpl::new(repo);
-        let result = service.get_recommended_messages().await;
+        let result = service.get_recommended_messages(&user_id).await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), DomainError::Repository(_)));

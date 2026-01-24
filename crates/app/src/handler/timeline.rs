@@ -22,11 +22,15 @@ pub async fn get_timeline(
     auth_session: AuthSession,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    if auth_session.user.is_none() {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-
-    let messages = match state.timeline_service.get_recommended_messages().await {
+    let user = match auth_session.user {
+        Some(user) => user,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+    let messages = match state
+        .timeline_service
+        .get_recommended_messages(&user.id)
+        .await
+    {
         Ok(messages) => messages,
         Err(e) => {
             tracing::error!("{:?}", e);
@@ -58,15 +62,17 @@ mod tests {
         let mut mock_timeline_service = MockTimelineService::new();
 
         let message = MessageListItemBuilder::new().build();
+        let user_id_clone = message.user_id; // Will be overwritten by UserBuilder if not careful, but let's align them.
         let messages = vec![message.clone()];
         let messages_clone = messages.clone();
 
         mock_timeline_service
             .expect_get_recommended_messages()
+            .withf(move |uid| *uid == user_id_clone)
             .times(1)
-            .returning(move || Ok(messages_clone.clone()));
+            .returning(move |_| Ok(messages_clone.clone()));
 
-        let user = UserBuilder::new().build();
+        let user = UserBuilder::new().id(message.user_id).build();
 
         let app = TestAppBuilder::new()
             .with_timeline_service(mock_timeline_service)

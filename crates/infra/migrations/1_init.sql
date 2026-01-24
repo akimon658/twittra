@@ -28,6 +28,19 @@ CREATE TABLE messages (
   INDEX idx_created_at (created_at DESC)
 );
 
+CREATE TABLE read_messages (
+  user_id BINARY(16) NOT NULL, -- UUID
+  message_id BINARY(16) NOT NULL, -- UUID
+  read_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+
+  PRIMARY KEY (user_id, message_id),
+  INDEX idx_read_at (read_at),
+  CONSTRAINT fk_read_messages_user FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_read_messages_message FOREIGN KEY (message_id)
+    REFERENCES messages(id) ON DELETE CASCADE
+);
+
 CREATE TABLE reactions (
   message_id BINARY(16) NOT NULL, -- UUID
   stamp_id BINARY(16) NOT NULL, -- UUID

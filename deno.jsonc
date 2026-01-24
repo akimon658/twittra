@@ -15,6 +15,7 @@
   "imports": {
     "@faker-js/faker": "npm:@faker-js/faker@^9.9.0",
     "@mantine/core": "npm:@mantine/core@^8.3.10",
+    "@mantine/hooks": "npm:@mantine/hooks@^8.3.10",
     "@tabler/icons-react": "npm:@tabler/icons-react@^3.36.0",
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
     "@testing-library/react": "npm:@testing-library/react@^16.3.1",
@@ -31,6 +32,7 @@
     "react-error-boundary": "npm:react-error-boundary@^6.0.0",
     "socket.io-client": "npm:socket.io-client@^4.8.3",
     "socket.io-parser": "npm:socket.io-parser@^4.2.5",
+    "virtua": "npm:virtua@^0.35.1",
     "vite": "npm:vite@^7.3.0",
     "vite-plugin-webfont-dl": "npm:vite-plugin-webfont-dl@^3.11.1",
     "vitest": "npm:vitest@^4.0.17"

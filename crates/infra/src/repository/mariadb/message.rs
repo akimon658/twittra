@@ -68,6 +68,7 @@ impl MariaDbMessageRepository {
     }
 }
 
+#[derive(FromRow)]
 struct MessageRow {
     id: Uuid,
     user_id: Uuid,
@@ -220,35 +221,78 @@ impl MessageRepository for MariaDbMessageRepository {
             .collect())
     }
 
-    async fn find_recent_messages(&self) -> Result<Vec<MessageListItem>, RepositoryError> {
-        let messages = sqlx::query_as!(
-            MessageRow,
-            r#"
-            SELECT
-                m.id AS `id: _`,
-                m.user_id AS `user_id: _`,
-                m.channel_id AS `channel_id: _`,
-                m.content,
-                m.created_at,
-                m.updated_at,
-                u.handle AS user_handle,
-                u.display_name AS user_display_name
-            FROM (
-                SELECT id
-                FROM messages
-                ORDER BY created_at DESC
-                LIMIT 50
-            ) AS latest_messages
-            JOIN messages m ON latest_messages.id = m.id
-            LEFT JOIN users u ON m.user_id = u.id
-            ORDER BY m.created_at DESC
-            "#
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Database(format!("could not fetch recent messages: {}", e))
-        })?;
+    async fn find_recent_messages(
+        &self,
+        user_id: Option<Uuid>,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        let messages: Vec<MessageRow> = if let Some(user_id) = user_id {
+            sqlx::query_as!(
+                MessageRow,
+                r#"
+                SELECT
+                    m.id AS `id: _`,
+                    m.user_id AS `user_id: _`,
+                    m.channel_id AS `channel_id: _`,
+                    m.content,
+                    m.created_at,
+                    m.updated_at,
+                    u.handle AS user_handle,
+                    u.display_name AS user_display_name
+                FROM (
+                    SELECT id
+                    FROM messages
+                    WHERE
+                        user_id != ?
+                        AND id NOT IN (
+                            SELECT message_id
+                            FROM read_messages
+                            WHERE user_id = ?
+                        )
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                ) AS latest_messages
+                JOIN messages m ON latest_messages.id = m.id
+                LEFT JOIN users u ON m.user_id = u.id
+                ORDER BY m.created_at DESC
+                "#,
+                user_id,
+                user_id
+            )
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| {
+                RepositoryError::Database(format!("could not fetch recent messages: {}", e))
+            })?
+        } else {
+            sqlx::query_as!(
+                MessageRow,
+                r#"
+                SELECT
+                    m.id AS `id: _`,
+                    m.user_id AS `user_id: _`,
+                    m.channel_id AS `channel_id: _`,
+                    m.content,
+                    m.created_at,
+                    m.updated_at,
+                    u.handle AS user_handle,
+                    u.display_name AS user_display_name
+                FROM (
+                    SELECT id
+                    FROM messages
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                ) AS latest_messages
+                JOIN messages m ON latest_messages.id = m.id
+                LEFT JOIN users u ON m.user_id = u.id
+                ORDER BY m.created_at DESC
+                "#
+            )
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| {
+                RepositoryError::Database(format!("could not fetch recent messages: {}", e))
+            })?
+        };
 
         if messages.is_empty() {
             return Ok(vec![]);
@@ -411,6 +455,31 @@ impl MessageRepository for MariaDbMessageRepository {
 
         Ok(())
     }
+
+    async fn mark_messages_as_read(
+        &self,
+        user_id: &Uuid,
+        message_ids: &[Uuid],
+    ) -> Result<(), RepositoryError> {
+        if message_ids.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder =
+            QueryBuilder::new("INSERT IGNORE INTO read_messages (user_id, message_id) ");
+
+        query_builder.push_values(message_ids, |mut separated, message_id| {
+            separated.push_bind(user_id).push_bind(message_id);
+        });
+
+        query_builder
+            .build()
+            .execute(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -432,7 +501,7 @@ mod tests {
         repo.save(&message).await.unwrap();
 
         // Find recent messages
-        let messages = repo.find_recent_messages().await.unwrap();
+        let messages = repo.find_recent_messages(None).await.unwrap();
 
         // Verify
         assert_eq!(messages.len(), 1);
@@ -452,7 +521,7 @@ mod tests {
 
         repo.save(&message).await.unwrap();
 
-        let messages = repo.find_recent_messages().await.unwrap();
+        let messages = repo.find_recent_messages(None).await.unwrap();
 
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].reactions.len(), 1);
@@ -482,7 +551,7 @@ mod tests {
         repo.save(&message).await.unwrap();
 
         // Verify reaction exists
-        let messages = repo.find_recent_messages().await.unwrap();
+        let messages = repo.find_recent_messages(None).await.unwrap();
         assert_eq!(messages[0].reactions.len(), 1);
 
         // Remove reaction
@@ -491,7 +560,7 @@ mod tests {
             .unwrap();
 
         // Verify reaction is removed
-        let messages = repo.find_recent_messages().await.unwrap();
+        let messages = repo.find_recent_messages(None).await.unwrap();
         assert_eq!(messages[0].reactions.len(), 0);
     }
 
@@ -507,7 +576,7 @@ mod tests {
 
         repo.save_batch(&messages).await.unwrap();
 
-        let saved_messages = repo.find_recent_messages().await.unwrap();
+        let saved_messages = repo.find_recent_messages(None).await.unwrap();
         assert!(saved_messages.len() >= 2); // At least our 2 messages
     }
 
@@ -633,5 +702,58 @@ mod tests {
         let saved = repo.find_by_id(&message_id).await.unwrap().unwrap();
         assert_eq!(saved.reactions.len(), 1);
         assert_eq!(saved.reactions[0].stamp_id, reaction1.stamp_id);
+    }
+
+    #[sqlx::test]
+    async fn test_find_recent_messages_excludes_own_messages(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+        let user_id = UUIDv4.fake();
+
+        // 1. Message by user
+        let message_by_user = MessageBuilder::new().user_id(user_id).build();
+        repo.save(&message_by_user).await.unwrap();
+
+        // 2. Message by other
+        let message_by_other = MessageBuilder::new().build();
+        repo.save(&message_by_other).await.unwrap();
+
+        // Find recent messages with exclusion
+        let messages = repo.find_recent_messages(Some(user_id)).await.unwrap();
+
+        // Verify
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, message_by_other.id);
+    }
+
+    #[sqlx::test]
+    async fn test_find_recent_messages_excludes_read_messages(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool.clone());
+        let user_id = UUIDv4.fake();
+
+        sqlx::query!(
+            "INSERT INTO users (id, handle, display_name) VALUES (?, 'handle', 'name')",
+            user_id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // 1. Unread message
+        let unread_message = MessageBuilder::new().build();
+        repo.save(&unread_message).await.unwrap();
+
+        // 2. Read message
+        let read_message = MessageBuilder::new().build();
+        repo.save(&read_message).await.unwrap();
+        repo.mark_messages_as_read(&user_id, &[read_message.id])
+            .await
+            .unwrap();
+
+        // Find recent messages with exclusion
+        let messages = repo.find_recent_messages(Some(user_id)).await.unwrap();
+
+        // Verify
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, unread_message.id);
     }
 }

@@ -1,8 +1,20 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { MessageListItem } from "../../api/twittra.schemas.ts"
 import { createMockMessage, createMockReaction } from "../../test/factories.ts"
 import { renderWithProviders, screen } from "../../test/utils.tsx"
 import { MessageItem } from "./Message.tsx"
+
+// Mock useIntersection from @mantine/hooks
+vi.mock("@mantine/hooks", async () => {
+  const actual = await vi.importActual("@mantine/hooks")
+  return {
+    ...actual,
+    useIntersection: () => ({
+      ref: vi.fn(),
+      entry: { isIntersecting: true },
+    }),
+  }
+})
 
 describe("MessageItem", () => {
   let mockMessage: MessageListItem
@@ -13,13 +25,17 @@ describe("MessageItem", () => {
   })
 
   it("renders message content", () => {
-    renderWithProviders(<MessageItem message={mockMessage} />)
+    renderWithProviders(
+      <MessageItem message={mockMessage} onRead={vi.fn()} />,
+    )
 
     expect(screen.getByText(mockMessage.content)).toBeInTheDocument()
   })
 
   it("displays author information", () => {
-    renderWithProviders(<MessageItem message={mockMessage} />)
+    renderWithProviders(
+      <MessageItem message={mockMessage} onRead={vi.fn()} />,
+    )
 
     expect(screen.getByText(mockMessage.user!.displayName)).toBeInTheDocument()
   })
@@ -32,7 +48,9 @@ describe("MessageItem", () => {
       ],
     })
 
-    renderWithProviders(<MessageItem message={messageWithReactions} />)
+    renderWithProviders(
+      <MessageItem message={messageWithReactions} onRead={vi.fn()} />,
+    )
 
     expect(screen.getByText(reactionCount.toString())).toBeInTheDocument()
   })
@@ -42,9 +60,20 @@ describe("MessageItem", () => {
       user: undefined,
     })
 
-    renderWithProviders(<MessageItem message={messageWithoutUser} />)
+    renderWithProviders(
+      <MessageItem message={messageWithoutUser} onRead={vi.fn()} />,
+    )
 
     // Should still render the message content
     expect(screen.getByText(messageWithoutUser.content)).toBeInTheDocument()
+  })
+
+  it("calls onRead when visible", () => {
+    const onReadMock = vi.fn()
+    renderWithProviders(
+      <MessageItem message={mockMessage} onRead={onReadMock} />,
+    )
+
+    expect(onReadMock).toHaveBeenCalledWith(mockMessage.id)
   })
 })

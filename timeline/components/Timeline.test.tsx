@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { AppSocket } from "../../socket/lib/types.ts"
 import {
   mockApiError,
   renderWithProviders,
@@ -13,10 +14,17 @@ const mockSocket = {
   off: vi.fn(),
   emit: vi.fn(),
   close: vi.fn(),
-}
+} as unknown as AppSocket
 
 vi.mock("socket.io-client", () => ({
   io: vi.fn(() => mockSocket),
+}))
+
+vi.mock("@mantine/hooks", () => ({
+  useIntersection: () => ({
+    ref: { current: null },
+    entry: { isIntersecting: true },
+  }),
 }))
 
 describe("Timeline", () => {
