@@ -16,7 +16,7 @@ import {
   QueryErrorResetBoundary,
   useQueryClient,
 } from "@tanstack/react-query"
-import { Suspense, useCallback } from "react"
+import { Suspense } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { VList } from "virtua"
 import {
@@ -42,27 +42,24 @@ const TimelineContent = () => {
   const queryClient = useQueryClient()
 
   // Optimize socket updates: update specific message in cache instead of refetching
-  const handleMessageUpdated = useCallback(
-    (updatedMessage: Message) => {
-      queryClient.setQueryData<InfiniteData<getTimelineResponseSuccess>>(
-        getGetTimelineQueryKey(),
-        (oldData) => {
-          if (!oldData) return oldData
+  const handleMessageUpdated = (updatedMessage: Message) => {
+    queryClient.setQueryData<InfiniteData<getTimelineResponseSuccess>>(
+      getGetTimelineQueryKey(),
+      (oldData) => {
+        if (!oldData) return oldData
 
-          return {
-            ...oldData,
-            pages: oldData.pages.map((page) => ({
-              ...page,
-              data: page.data.map((item) =>
-                item.id === updatedMessage.id ? updatedMessage : item
-              ),
-            })),
-          }
-        },
-      )
-    },
-    [queryClient],
-  )
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page) => ({
+            ...page,
+            data: page.data.map((item) =>
+              item.id === updatedMessage.id ? updatedMessage : item
+            ),
+          })),
+        }
+      },
+    )
+  }
 
   // Subscribe to all loaded messages and handle updates
   const messageIds = messages.map((item) => item.id)
