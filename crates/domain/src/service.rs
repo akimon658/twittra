@@ -4,7 +4,7 @@ use crate::{
     repository::Repository,
     traq_client::TraqClient,
 };
-use std::{fmt::Debug, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, fmt::Debug, sync::Arc};
 use uuid::Uuid;
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -114,8 +114,7 @@ impl TimelineService for TimelineServiceImpl {
         // - Affinity Channel: 3.0 + (50 - rank) * 0.1
         // - Similar User: 5.0 + (50 - rank) * 0.1
 
-        let mut scored_messages: std::collections::HashMap<Uuid, (MessageListItem, f64)> =
-            std::collections::HashMap::new();
+        let mut scored_messages = HashMap::<Uuid, (MessageListItem, f64)>::new();
 
         let mut add_score = |msgs: Vec<MessageListItem>, base_score: f64, rank_multiplier: f64| {
             for (i, msg) in msgs.into_iter().enumerate() {
@@ -135,7 +134,7 @@ impl TimelineService for TimelineServiceImpl {
         add_score(similar_user_msgs, 5.0, 0.1);
         let mut final_list: Vec<(MessageListItem, f64)> = scored_messages.into_values().collect();
         // Sort by score descending
-        final_list.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        final_list.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
 
         // Return top 50
         let result = final_list.into_iter().take(50).map(|(m, _)| m).collect();
@@ -333,24 +332,15 @@ mod tests {
         // 1. Affinity / Similar users setup
         mock_user_repo
             .expect_find_frequently_stamped_users_by()
-            .with(
-                predicate::eq(Some(message.user_id).unwrap()),
-                predicate::eq(20),
-            )
+            .with(predicate::eq(message.user_id), predicate::eq(20))
             .returning(|_, _| Ok(vec![]));
         mock_stamp_repo
             .expect_find_frequently_stamped_channels_by()
-            .with(
-                predicate::eq(Some(message.user_id).unwrap()),
-                predicate::eq(10),
-            )
+            .with(predicate::eq(message.user_id), predicate::eq(10))
             .returning(|_, _| Ok(vec![]));
         mock_user_repo
             .expect_find_similar_users()
-            .with(
-                predicate::eq(Some(message.user_id).unwrap()),
-                predicate::eq(20),
-            )
+            .with(predicate::eq(message.user_id), predicate::eq(20))
             .returning(|_, _| Ok(vec![]));
 
         // 2. Mock setup for remaining fetches
