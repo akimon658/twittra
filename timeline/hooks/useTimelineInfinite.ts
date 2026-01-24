@@ -1,4 +1,6 @@
-import { useInfiniteQuery } from "@tanstack/react-query"
+import {
+  useSuspenseInfiniteQuery
+} from "@tanstack/react-query"
 import {
   getGetTimelineQueryKey,
   getTimeline,
@@ -12,7 +14,7 @@ const MAX_PAGES = 10 // Memory optimization: keep at most 10 pages of results in
  * This uses `useInfiniteQuery` with `maxPages` to limit memory usage.
  */
 export const useTimelineInfinite = () => {
-  const query = useInfiniteQuery({
+  const query = useSuspenseInfiniteQuery({
     queryKey: getGetTimelineQueryKey(),
     queryFn: ({ signal }) => getTimeline({ signal }),
     getNextPageParam: (lastPage) =>
