@@ -485,7 +485,6 @@ impl MessageRepository for MariaDbMessageRepository {
         &self,
         user_id: Option<Uuid>,
         limit: i64,
-        exclude_ids: &[Uuid],
     ) -> Result<Vec<MessageListItem>, RepositoryError> {
         let mut query_builder = QueryBuilder::new(
             r#"
@@ -514,15 +513,6 @@ impl MessageRepository for MariaDbMessageRepository {
             query_builder.push(") ");
         }
 
-        if !exclude_ids.is_empty() {
-            query_builder.push(" AND m.id NOT IN (");
-            let mut separated = query_builder.separated(", ");
-            for id in exclude_ids {
-                separated.push_bind(id);
-            }
-            query_builder.push(") ");
-        }
-
         query_builder.push(
             r#"
             GROUP BY m.id
@@ -545,7 +535,6 @@ impl MessageRepository for MariaDbMessageRepository {
         &self,
         author_ids: &[Uuid],
         limit: i64,
-        exclude_ids: &[Uuid],
         user_id: Option<Uuid>,
     ) -> Result<Vec<MessageListItem>, RepositoryError> {
         if author_ids.is_empty() {
@@ -588,15 +577,6 @@ impl MessageRepository for MariaDbMessageRepository {
             query_builder.push_bind(uid);
         }
 
-        if !exclude_ids.is_empty() {
-            query_builder.push(" AND m.id NOT IN (");
-            let mut separated = query_builder.separated(", ");
-            for id in exclude_ids {
-                separated.push_bind(id);
-            }
-            query_builder.push(") ");
-        }
-
         query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
         query_builder.push_bind(limit);
 
@@ -613,7 +593,6 @@ impl MessageRepository for MariaDbMessageRepository {
         &self,
         channel_ids: &[Uuid],
         limit: i64,
-        exclude_ids: &[Uuid],
         user_id: Option<Uuid>,
     ) -> Result<Vec<MessageListItem>, RepositoryError> {
         if channel_ids.is_empty() {
@@ -651,15 +630,6 @@ impl MessageRepository for MariaDbMessageRepository {
             query_builder.push(") ");
             query_builder.push(" AND m.user_id != ");
             query_builder.push_bind(uid);
-        }
-
-        if !exclude_ids.is_empty() {
-            query_builder.push(" AND m.id NOT IN (");
-            let mut separated = query_builder.separated(", ");
-            for id in exclude_ids {
-                separated.push_bind(id);
-            }
-            query_builder.push(") ");
         }
 
         query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
@@ -1010,7 +980,7 @@ mod tests {
             .build();
         repo.save(&message).await.unwrap();
 
-        let result = repo.find_top_reacted_messages(None, 10, &[]).await.unwrap();
+        let result = repo.find_top_reacted_messages(None, 10).await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, message.id);
     }
@@ -1026,7 +996,7 @@ mod tests {
         repo.save(&message).await.unwrap();
 
         let result = repo
-            .find_messages_by_author_allowlist(&[user_id], 10, &[], None)
+            .find_messages_by_author_allowlist(&[user_id], 10, None)
             .await
             .unwrap();
         assert_eq!(result.len(), 1);
@@ -1044,7 +1014,7 @@ mod tests {
         repo.save(&message).await.unwrap();
 
         let result = repo
-            .find_messages_by_channel_allowlist(&[channel_id], 10, &[], None)
+            .find_messages_by_channel_allowlist(&[channel_id], 10, None)
             .await
             .unwrap();
         assert_eq!(result.len(), 1);

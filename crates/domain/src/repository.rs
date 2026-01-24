@@ -56,7 +56,6 @@ pub trait MessageRepository: Debug + Send + Sync {
         &self,
         user_id: Option<Uuid>,
         limit: i64,
-        exclude_ids: &[Uuid],
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 
     /// Finds messages from specific authors (user affinity).
@@ -64,7 +63,6 @@ pub trait MessageRepository: Debug + Send + Sync {
         &self,
         author_ids: &[Uuid],
         limit: i64,
-        exclude_ids: &[Uuid],
         user_id: Option<Uuid>,
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 
@@ -73,7 +71,6 @@ pub trait MessageRepository: Debug + Send + Sync {
         &self,
         channel_ids: &[Uuid],
         limit: i64,
-        exclude_ids: &[Uuid],
         user_id: Option<Uuid>,
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 }

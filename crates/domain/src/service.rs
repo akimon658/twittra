@@ -85,25 +85,20 @@ impl TimelineService for TimelineServiceImpl {
         let (top_reacts, affinity_author_msgs, affinity_channel_msgs, similar_user_msgs) = tokio::join!(
             self.repo
                 .message
-                .find_top_reacted_messages(Some(*user_id), 50, &[]),
+                .find_top_reacted_messages(Some(*user_id), 50),
             self.repo.message.find_messages_by_author_allowlist(
                 &affinity_users,
                 50,
-                &[],
                 Some(*user_id)
             ),
             self.repo.message.find_messages_by_channel_allowlist(
                 &affinity_channels,
                 50,
-                &[],
                 Some(*user_id)
             ),
-            self.repo.message.find_messages_by_author_allowlist(
-                &similar_users,
-                50,
-                &[],
-                Some(*user_id)
-            )
+            self.repo
+                .message
+                .find_messages_by_author_allowlist(&similar_users, 50, Some(*user_id))
         );
 
         let top_reacts = top_reacts?;
@@ -361,15 +356,15 @@ mod tests {
         // 2. Mock setup for remaining fetches
         mock_message_repo
             .expect_find_messages_by_author_allowlist()
-            .returning(|_, _, _, _| Ok(vec![]));
+            .returning(|_, _, _| Ok(vec![]));
         mock_message_repo
             .expect_find_messages_by_channel_allowlist()
-            .returning(|_, _, _, _| Ok(vec![]));
+            .returning(|_, _, _| Ok(vec![]));
 
         // 3. Recommendation fetches
         mock_message_repo
             .expect_find_top_reacted_messages()
-            .returning(move |_, _, _| Ok(messages.clone()));
+            .returning(move |_, _| Ok(messages.clone()));
 
         let repo = RepositoryBuilder::new()
             .message(mock_message_repo)
@@ -407,14 +402,14 @@ mod tests {
             .returning(|_, _| Ok(vec![]));
         mock_message_repo
             .expect_find_messages_by_author_allowlist()
-            .returning(|_, _, _, _| Ok(vec![]));
+            .returning(|_, _, _| Ok(vec![]));
         mock_message_repo
             .expect_find_messages_by_channel_allowlist()
-            .returning(|_, _, _, _| Ok(vec![]));
+            .returning(|_, _, _| Ok(vec![]));
 
         mock_message_repo
             .expect_find_top_reacted_messages()
-            .returning(|_, _, _| Ok(vec![]));
+            .returning(|_, _| Ok(vec![]));
 
         let repo = RepositoryBuilder::new()
             .message(mock_message_repo)
@@ -446,14 +441,14 @@ mod tests {
             .returning(|_, _| Ok(vec![]));
         mock_message_repo
             .expect_find_messages_by_author_allowlist()
-            .returning(|_, _, _, _| Ok(vec![]));
+            .returning(|_, _, _| Ok(vec![]));
         mock_message_repo
             .expect_find_messages_by_channel_allowlist()
-            .returning(|_, _, _, _| Ok(vec![]));
+            .returning(|_, _, _| Ok(vec![]));
 
         mock_message_repo
             .expect_find_top_reacted_messages()
-            .returning(|_, _, _| Err(RepositoryError::Database("database error".to_string())));
+            .returning(|_, _| Err(RepositoryError::Database("database error".to_string())));
 
         let repo = RepositoryBuilder::new()
             .message(mock_message_repo)
