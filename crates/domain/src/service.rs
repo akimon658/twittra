@@ -83,22 +83,16 @@ impl TimelineService for TimelineServiceImpl {
         // 4. Fetch candidates from all sources concurrently
         // To avoid finding messages that user already read or self-authored, we pass user_id.
         let (top_reacts, affinity_author_msgs, affinity_channel_msgs, similar_user_msgs) = tokio::join!(
+            self.repo.message.find_top_reacted_messages(user_id, 50),
             self.repo
                 .message
-                .find_top_reacted_messages(Some(*user_id), 50),
-            self.repo.message.find_messages_by_author_allowlist(
-                &affinity_users,
-                50,
-                Some(*user_id)
-            ),
-            self.repo.message.find_messages_by_channel_allowlist(
-                &affinity_channels,
-                50,
-                Some(*user_id)
-            ),
+                .find_messages_by_author_allowlist(&affinity_users, 50, user_id),
             self.repo
                 .message
-                .find_messages_by_author_allowlist(&similar_users, 50, Some(*user_id))
+                .find_messages_by_channel_allowlist(&affinity_channels, 50, user_id),
+            self.repo
+                .message
+                .find_messages_by_author_allowlist(&similar_users, 50, user_id)
         );
 
         let top_reacts = top_reacts?;

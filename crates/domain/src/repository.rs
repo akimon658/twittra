@@ -20,11 +20,11 @@ pub trait MessageRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<Message>, RepositoryError>;
     /// Finds recent messages.
     ///
-    /// If `user_id` is provided, it excludes messages that have been read by the user
+    /// It excludes messages that have been read by the user
     /// and messages authored by the user themselves.
     async fn find_recent_messages(
         &self,
-        user_id: Option<Uuid>,
+        user_id: &Uuid,
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
     /// Returns messages that may need refreshing from traQ.
     /// Returns tuples of (message_id, created_at, last_crawled_at) for messages created within the last 24 hours.
@@ -54,7 +54,7 @@ pub trait MessageRepository: Debug + Send + Sync {
     /// Finds top reacted messages (popularity-based).
     async fn find_top_reacted_messages(
         &self,
-        user_id: Option<Uuid>,
+        user_id: &Uuid,
         limit: i64,
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 
@@ -63,7 +63,7 @@ pub trait MessageRepository: Debug + Send + Sync {
         &self,
         author_ids: &[Uuid],
         limit: i64,
-        user_id: Option<Uuid>,
+        user_id: &Uuid,
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 
     /// Finds messages from specific channels (channel affinity).
@@ -71,7 +71,7 @@ pub trait MessageRepository: Debug + Send + Sync {
         &self,
         channel_ids: &[Uuid],
         limit: i64,
-        user_id: Option<Uuid>,
+        user_id: &Uuid,
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 }
 
