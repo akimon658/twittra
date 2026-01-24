@@ -757,4 +757,3 @@ mod tests {
         assert_eq!(messages[0].id, unread_message.id);
     }
 }
-
