@@ -4,6 +4,18 @@ import { createMockMessage, createMockReaction } from "../../test/factories.ts"
 import { renderWithProviders, screen } from "../../test/utils.tsx"
 import { MessageItem } from "./Message.tsx"
 
+// Mock useIntersection from @mantine/hooks
+vi.mock("@mantine/hooks", async () => {
+  const actual = await vi.importActual("@mantine/hooks")
+  return {
+    ...actual,
+    useIntersection: () => ({
+      ref: vi.fn(),
+      entry: { isIntersecting: true },
+    }),
+  }
+})
+
 describe("MessageItem", () => {
   let mockMessage: MessageListItem
 
@@ -54,5 +66,14 @@ describe("MessageItem", () => {
 
     // Should still render the message content
     expect(screen.getByText(messageWithoutUser.content)).toBeInTheDocument()
+  })
+
+  it("calls onRead when visible", () => {
+    const onReadMock = vi.fn()
+    renderWithProviders(
+      <MessageItem message={mockMessage} onRead={onReadMock} />,
+    )
+
+    expect(onReadMock).toHaveBeenCalledWith(mockMessage.id)
   })
 })
