@@ -16,10 +16,9 @@ const MAX_PAGES = 10 // Memory optimization: keep at most 10 pages (200 items)
 export const useTimelineInfinite = () => {
   const query = useInfiniteQuery({
     queryKey: getGetTimelineQueryKey(),
-    queryFn: getTimeline,
-    // Always allow fetching in both directions since content is recommendation-based
-    getNextPageParam: () => true,
-    getPreviousPageParam: () => true,
+    queryFn: ({ signal }) => getTimeline({ signal }),
+    getNextPageParam: (lastPage) =>
+      lastPage?.data && lastPage.data.length > 0 ? true : undefined,
     initialPageParam: undefined,
     maxPages: MAX_PAGES,
     // Disable automatic refetching as timeline is dynamic
