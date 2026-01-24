@@ -59,14 +59,6 @@ pub trait MessageRepository: Debug + Send + Sync {
         exclude_ids: &[Uuid],
     ) -> Result<Vec<MessageListItem>, RepositoryError>;
 
-    /// Finds messages containing specific keywords (content-based).
-    async fn find_messages_contain_keywords(
-        &self,
-        keywords: &[String],
-        limit: i64,
-        exclude_ids: &[Uuid],
-    ) -> Result<Vec<MessageListItem>, RepositoryError>;
-
     /// Finds messages from specific authors (user affinity).
     async fn find_messages_by_author_allowlist(
         &self,

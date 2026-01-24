@@ -541,60 +541,6 @@ impl MessageRepository for MariaDbMessageRepository {
         self.hydrate_messages(messages).await
     }
 
-    async fn find_messages_contain_keywords(
-        &self,
-        keywords: &[String],
-        limit: i64,
-        exclude_ids: &[Uuid],
-    ) -> Result<Vec<MessageListItem>, RepositoryError> {
-        if keywords.is_empty() {
-            return Ok(vec![]);
-        }
-        let search_query = keywords.join(" ");
-
-        let mut query_builder = QueryBuilder::new(
-            r#"
-            SELECT
-                m.id,
-                m.user_id,
-                m.channel_id,
-                m.content,
-                m.created_at,
-                m.updated_at,
-                u.handle AS user_handle,
-                u.display_name AS user_display_name
-            FROM messages m
-            LEFT JOIN users u ON m.user_id = u.id
-            WHERE MATCH(m.content) AGAINST(
-            "#,
-        );
-        query_builder.push_bind(search_query);
-        query_builder.push(" IN BOOLEAN MODE) ");
-
-        // Date restriction for optimization
-        query_builder.push(" AND m.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) ");
-
-        if !exclude_ids.is_empty() {
-            query_builder.push(" AND m.id NOT IN (");
-            let mut separated = query_builder.separated(", ");
-            for id in exclude_ids {
-                separated.push_bind(id);
-            }
-            query_builder.push(") ");
-        }
-
-        query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
-        query_builder.push_bind(limit);
-
-        let messages: Vec<MessageRow> = query_builder
-            .build_query_as()
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
-
-        self.hydrate_messages(messages).await
-    }
-
     async fn find_messages_by_author_allowlist(
         &self,
         author_ids: &[Uuid],
@@ -1067,31 +1013,6 @@ mod tests {
         let result = repo.find_top_reacted_messages(None, 10, &[]).await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, message.id);
-    }
-
-    #[sqlx::test]
-    async fn test_find_messages_contain_keywords(pool: sqlx::MySqlPool) {
-        let repo = MariaDbMessageRepository::new(pool);
-        let message = MessageBuilder::new()
-            .content("Rust is great".to_string())
-            .build();
-        repo.save(&message).await.unwrap();
-
-        // Wait for fulltext index update?
-        // Note: Transactional tests usually roll back, but fulltext indexes in MySQL/MariaDB might behave differently or need commit.
-        // However, sqlx test fixture wraps in transaction.
-        // If MATCH AGAINST doesn't work in transaction, this might fail or return empty.
-        // But the previous "bug check" only checked for DB error, not content.
-        let result = repo
-            .find_messages_contain_keywords(&["Rust".to_string()], 10, &[])
-            .await
-            .unwrap();
-        // Even if empty (due to fulltext lag), it shouldn't error.
-        // If we want to verify content found, we might need a workaround for fulltext index in tests.
-        // For now, at least verify it returns success and if results, they match.
-        if !result.is_empty() {
-            assert_eq!(result[0].id, message.id);
-        }
     }
 
     #[sqlx::test]
