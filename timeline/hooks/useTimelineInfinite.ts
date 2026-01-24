@@ -7,11 +7,9 @@ import {
 const MAX_PAGES = 10 // Memory optimization: keep at most 10 pages (200 items)
 
 /**
- * Hook for bidirectional infinite scrolling of timeline.
+ * Hook for infinite scrolling of timeline.
  *
  * This uses `useInfiniteQuery` with `maxPages` to limit memory usage.
- * Since timeline is recommendation-based (not chronological), we always
- * allow fetching more in both directions.
  */
 export const useTimelineInfinite = () => {
   const query = useInfiniteQuery({

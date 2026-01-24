@@ -26,11 +26,8 @@ const TimelineContent = () => {
   const {
     messages,
     fetchNextPage,
-    fetchPreviousPage,
     hasNextPage,
-    hasPreviousPage,
     isFetchingNextPage,
-    isFetchingPreviousPage,
   } = useTimelineInfinite()
   const { updateMessage } = useTimelineCache()
   const handleMessageUpdated = (updatedMessage: Message) => {
@@ -49,11 +46,8 @@ const TimelineContent = () => {
   return (
     <VList
       style={{ height: "100dvh", paddingTop: "var(--mantine-spacing-md)" }}
-      onRangeChange={(start, end) => {
+      onRangeChange={(_, end) => {
         // Load more when reaching boundaries
-        if (start === 0 && hasPreviousPage && !isFetchingPreviousPage) {
-          fetchPreviousPage()
-        }
         if (end === messages.length - 1 && hasNextPage && !isFetchingNextPage) {
           fetchNextPage()
         }
