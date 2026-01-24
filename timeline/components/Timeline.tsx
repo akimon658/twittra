@@ -10,36 +10,81 @@ import {
   Text,
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
-import { QueryErrorResetBoundary, useQueryClient } from "@tanstack/react-query"
-import { Suspense } from "react"
+import {
+  type InfiniteData,
+  QueryErrorResetBoundary,
+  useQueryClient,
+} from "@tanstack/react-query"
+import { Suspense, useCallback } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
+import { VList } from "virtua"
 import {
   getGetTimelineQueryKey,
-  useGetTimelineSuspense,
+  type getTimelineResponseSuccess,
 } from "../../api/timeline/timeline.ts"
+import type { Message } from "../../api/twittra.schemas.ts"
 import { useReadManagement } from "../../app/hooks/useReadManagement.ts"
 import { useMessageSubscription } from "../../socket/hooks/useMessageSubscription.ts"
+import { useTimelineInfinite } from "../hooks/useTimelineInfinite.ts"
 import { MessageItem } from "./Message.tsx"
 
 const TimelineContent = () => {
-  const { data: { data } } = useGetTimelineSuspense()
+  const {
+    messages,
+    fetchNextPage,
+    fetchPreviousPage,
+    hasNextPage,
+    hasPreviousPage,
+  } = useTimelineInfinite()
   const queryClient = useQueryClient()
 
-  const handleMessageUpdated = () => {
-    queryClient.invalidateQueries({ queryKey: getGetTimelineQueryKey() })
-  }
+  // Optimize socket updates: update specific message in cache instead of refetching
+  const handleMessageUpdated = useCallback(
+    (updatedMessage: Message) => {
+      queryClient.setQueryData<InfiniteData<getTimelineResponseSuccess>>(
+        getGetTimelineQueryKey(),
+        (oldData) => {
+          if (!oldData) return oldData
+
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              data: page.data.map((item) =>
+                item.id === updatedMessage.id ? updatedMessage : item
+              ),
+            })),
+          }
+        },
+      )
+    },
+    [queryClient],
+  )
 
   // Subscribe to all loaded messages and handle updates
-  const messageIds = data.map((item) => item.id)
+  const messageIds = messages.map((item) => item.id)
   useMessageSubscription(messageIds, handleMessageUpdated)
   const { markAsRead } = useReadManagement()
 
   return (
-    <Stack>
-      {data.map((item) => (
-        <MessageItem key={item.id} message={item} onRead={markAsRead} />
-      ))}
-    </Stack>
+    <VList
+      style={{ height: "calc(100dvh - 2 * var(--mantine-spacing-md))" }}
+      onRangeChange={(start, end) => {
+        // Load more when reaching boundaries
+        if (start === 0 && hasPreviousPage) {
+          fetchPreviousPage()
+        }
+        if (end === messages.length - 1 && hasNextPage) {
+          fetchNextPage()
+        }
+      }}
+    >
+      <Stack>
+        {messages.map((item) => (
+          <MessageItem key={item.id} message={item} onRead={markAsRead} />
+        ))}
+      </Stack>
+    </VList>
   )
 }
 
