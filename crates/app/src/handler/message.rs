@@ -5,7 +5,8 @@ use axum::{
     response::IntoResponse,
 };
 use http::StatusCode;
-
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[utoipa::path(
@@ -88,9 +89,6 @@ pub async fn remove_message_stamp(
     StatusCode::NO_CONTENT.into_response()
 }
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct ReadMessagesRequest {
     pub message_ids: Vec<Uuid>,
@@ -101,7 +99,7 @@ pub struct ReadMessagesRequest {
     path = "/messages/read",
     request_body = ReadMessagesRequest,
     responses(
-        (status = StatusCode::OK),
+        (status = StatusCode::NO_CONTENT),
         (status = StatusCode::UNAUTHORIZED),
         (status = StatusCode::INTERNAL_SERVER_ERROR),
     ),
@@ -110,7 +108,7 @@ pub struct ReadMessagesRequest {
     ),
     tag = "message",
 )]
-#[tracing::instrument(skip(auth_session, state))]
+#[tracing::instrument(skip(auth_session, state, payload))]
 pub async fn mark_messages_as_read(
     auth_session: AuthSession,
     State(state): State<AppState>,
@@ -130,7 +128,7 @@ pub async fn mark_messages_as_read(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    StatusCode::OK.into_response()
+    StatusCode::NO_CONTENT.into_response()
 }
 #[cfg(test)]
 mod tests {

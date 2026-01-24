@@ -19,9 +19,9 @@ type AwaitedInput<T> = PromiseLike<T> | T
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never
 
-export type markMessagesAsReadResponse200 = {
+export type markMessagesAsReadResponse204 = {
   data: void
-  status: 200
+  status: 204
 }
 
 export type markMessagesAsReadResponse401 = {
@@ -35,7 +35,7 @@ export type markMessagesAsReadResponse500 = {
 }
 
 export type markMessagesAsReadResponseSuccess =
-  & (markMessagesAsReadResponse200)
+  & (markMessagesAsReadResponse204)
   & {
     headers: Headers
   }
