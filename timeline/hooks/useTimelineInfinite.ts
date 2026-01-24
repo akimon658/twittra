@@ -4,7 +4,7 @@ import {
   getTimeline,
 } from "../../api/timeline/timeline.ts"
 
-const MAX_PAGES = 10 // Memory optimization: keep at most 10 pages (200 items)
+const MAX_PAGES = 10 // Memory optimization: keep at most 10 pages of results in memory
 
 /**
  * Hook for infinite scrolling of timeline.
