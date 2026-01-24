@@ -74,6 +74,41 @@ impl StampRepository for MariaDbStampRepository {
 
         Ok(())
     }
+
+    async fn find_frequently_stamped_channels_by(
+        &self,
+        user_id: &Uuid,
+        limit: i64,
+    ) -> Result<Vec<Uuid>, RepositoryError> {
+        let channel_ids = sqlx::query!(
+            r#"
+            SELECT m.channel_id
+            FROM reactions r
+            JOIN messages m ON r.message_id = m.id
+            WHERE r.user_id = ?
+            GROUP BY m.channel_id
+            ORDER BY COUNT(*) DESC
+            LIMIT ?
+            "#,
+            user_id,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?
+        .into_iter()
+        .map(|record| {
+            if record.channel_id.len() == 16 {
+                Uuid::from_slice(&record.channel_id).unwrap_or_default()
+            } else {
+                let s = String::from_utf8(record.channel_id).unwrap_or_default();
+                Uuid::parse_str(&s).unwrap_or_default()
+            }
+        })
+        .collect();
+
+        Ok(channel_ids)
+    }
 }
 
 #[cfg(test)]

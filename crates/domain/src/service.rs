@@ -4,7 +4,10 @@ use crate::{
     repository::Repository,
     traq_client::TraqClient,
 };
-use std::{fmt::Debug, sync::Arc};
+use lindera::{
+    dictionary::load_dictionary, mode::Mode, segmenter::Segmenter, tokenizer::Tokenizer,
+};
+use std::{fmt, fmt::Debug, sync::Arc};
 use uuid::Uuid;
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -45,15 +48,74 @@ pub trait TraqService: Debug + Send + Sync {
     ) -> Result<(), DomainError>;
 }
 
+#[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
+pub trait KeywordExtractor: Debug + Send + Sync {
+    fn extract(&self, text: &str) -> Result<Vec<String>, DomainError>;
+}
+
+pub struct LinderaKeywordExtractor {
+    tokenizer: Tokenizer,
+}
+
+impl fmt::Debug for LinderaKeywordExtractor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LinderaKeywordExtractor")
+            .finish_non_exhaustive()
+    }
+}
+
+impl LinderaKeywordExtractor {
+    pub fn new() -> Result<Self, DomainError> {
+        let dictionary = load_dictionary("embedded://ipadic")
+            .map_err(|e| DomainError::Tokenizer(e.to_string()))?;
+        let segmenter = Segmenter::new(Mode::Normal, dictionary, None);
+        let tokenizer = Tokenizer::new(segmenter);
+        Ok(Self { tokenizer })
+    }
+}
+
+impl KeywordExtractor for LinderaKeywordExtractor {
+    fn extract(&self, text: &str) -> Result<Vec<String>, DomainError> {
+        let tokens = self
+            .tokenizer
+            .tokenize(text)
+            .map_err(|e| DomainError::Tokenizer(e.to_string()))?;
+
+        let mut keywords = Vec::new();
+        for mut token in tokens {
+            let details = token.details();
+
+            if details.is_empty() {
+                keywords.push(token.surface.to_string());
+                continue;
+            }
+
+            if details[0] == "名詞" {
+                if details.len() > 6 && details[6] != "*" {
+                    keywords.push(details[6].to_string());
+                } else {
+                    keywords.push(token.surface.to_string());
+                }
+            }
+        }
+        Ok(keywords)
+    }
+}
+
+/// Service for timeline-related operations.
 /// Service for timeline-related operations.
 #[derive(Clone, Debug)]
 pub struct TimelineServiceImpl {
     repo: Repository,
+    keyword_extractor: Arc<dyn KeywordExtractor>,
 }
 
 impl TimelineServiceImpl {
-    pub fn new(repo: Repository) -> Self {
-        Self { repo }
+    pub fn new(repo: Repository, keyword_extractor: Arc<dyn KeywordExtractor>) -> Self {
+        Self {
+            repo,
+            keyword_extractor,
+        }
     }
 }
 
@@ -63,12 +125,122 @@ impl TimelineService for TimelineServiceImpl {
         &self,
         user_id: &Uuid,
     ) -> Result<Vec<MessageListItem>, DomainError> {
-        let messages = self
+        // 1. Get user affinity list (people I stamp)
+        let affinity_users = self
+            .repo
+            .user
+            .find_frequently_stamped_users_by(user_id, 20)
+            .await?;
+
+        // 2. Get channel affinity list (channels I stamp in)
+        let affinity_channels = self
+            .repo
+            .stamp
+            .find_frequently_stamped_channels_by(user_id, 10)
+            .await?;
+
+        // 3. Get similar users (people who stamp same msgs)
+        let similar_users = self.repo.user.find_similar_users(user_id, 20).await?;
+
+        // 4. Extract keywords from my recent messages
+        // Retrieve recent messages by user (limit 10 for analysis)
+        let my_messages = self
             .repo
             .message
-            .find_recent_messages(Some(*user_id))
+            .find_messages_by_author_allowlist(&[*user_id], 10, &[], None)
             .await?;
-        Ok(messages)
+        let my_text = my_messages
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let keywords = if !my_text.is_empty() {
+            self.keyword_extractor.extract(&my_text).unwrap_or_default()
+        } else {
+            vec![]
+        };
+
+        // 5. Fetch candidates from all sources concurrently
+        // To avoid finding messages that user already read or self-authored, we pass user_id.
+        // We handle excludes later or pass them if we had global excludes.
+
+        let (
+            top_reacts,
+            keyword_matches,
+            affinity_author_msgs,
+            affinity_channel_msgs,
+            similar_user_msgs,
+        ) = tokio::join!(
+            self.repo
+                .message
+                .find_top_reacted_messages(Some(*user_id), 50, &[]),
+            self.repo
+                .message
+                .find_messages_contain_keywords(&keywords, 50, &[]),
+            self.repo.message.find_messages_by_author_allowlist(
+                &affinity_users,
+                50,
+                &[],
+                Some(*user_id)
+            ),
+            self.repo.message.find_messages_by_channel_allowlist(
+                &affinity_channels,
+                50,
+                &[],
+                Some(*user_id)
+            ),
+            self.repo.message.find_messages_by_author_allowlist(
+                &similar_users,
+                50,
+                &[],
+                Some(*user_id)
+            )
+        );
+
+        let top_reacts = top_reacts?;
+        let keyword_matches = keyword_matches?;
+        let affinity_author_msgs = affinity_author_msgs?;
+        let affinity_channel_msgs = affinity_channel_msgs?;
+        let similar_user_msgs = similar_user_msgs?;
+
+        // 6. Merge and Score
+        // Map message_id -> (Message, Score)
+        // Scores:
+        // - Top Reacted: 5.0 + (50 - rank) * 0.1
+        // - Keyword Match: 10.0 + (50 - rank) * 0.2
+        // - Affinity Author: 5.0 + (50 - rank) * 0.15
+        // - Affinity Channel: 3.0 + (50 - rank) * 0.1
+        // - Similar User: 5.0 + (50 - rank) * 0.1
+
+        let mut scored_messages: std::collections::HashMap<Uuid, (MessageListItem, f64)> =
+            std::collections::HashMap::new();
+
+        let mut add_score = |msgs: Vec<MessageListItem>, base_score: f64, rank_multiplier: f64| {
+            for (i, msg) in msgs.into_iter().enumerate() {
+                let rank_score = (50.0 - i as f64).max(0.0) * rank_multiplier;
+                let total_score = base_score + rank_score;
+
+                scored_messages
+                    .entry(msg.id)
+                    .and_modify(|(_, s)| *s += total_score)
+                    .or_insert((msg, total_score));
+            }
+        };
+
+        add_score(top_reacts, 5.0, 0.1);
+        add_score(keyword_matches, 10.0, 0.2);
+        add_score(affinity_author_msgs, 5.0, 0.15);
+        add_score(affinity_channel_msgs, 3.0, 0.1);
+        add_score(similar_user_msgs, 5.0, 0.1);
+        let mut final_list: Vec<(MessageListItem, f64)> = scored_messages.into_values().collect();
+        // Sort by score descending
+        final_list.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Return top 50
+        let result = final_list.into_iter().take(50).map(|(m, _)| m).collect();
+
+        Ok(result)
     }
 
     async fn mark_messages_as_read(
@@ -253,18 +425,62 @@ mod tests {
     #[tokio::test]
     async fn timeline_get_recommended_messages_success() {
         let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_stamp_repo = MockStampRepository::new();
         let message = MessageListItemBuilder::new().build();
         let messages = vec![message.clone()];
 
+        // 1. Affinity / Similar users setup
+        mock_user_repo
+            .expect_find_frequently_stamped_users_by()
+            .with(
+                predicate::eq(Some(message.user_id).unwrap()),
+                predicate::eq(20),
+            )
+            .returning(|_, _| Ok(vec![]));
+        mock_stamp_repo
+            .expect_find_frequently_stamped_channels_by()
+            .with(
+                predicate::eq(Some(message.user_id).unwrap()),
+                predicate::eq(10),
+            )
+            .returning(|_, _| Ok(vec![]));
+        mock_user_repo
+            .expect_find_similar_users()
+            .with(
+                predicate::eq(Some(message.user_id).unwrap()),
+                predicate::eq(20),
+            )
+            .returning(|_, _| Ok(vec![]));
+
+        // 2. My messages for keywords
         mock_message_repo
-            .expect_find_recent_messages()
-            .with(predicate::eq(Some(message.user_id)))
-            .times(1)
-            .returning(move |_| Ok(messages.clone()));
+            .expect_find_messages_by_author_allowlist()
+            .withf(move |authors, _, _, _| authors.contains(&message.user_id))
+            .returning(|_, _, _, _| Ok(vec![]));
+        // Fallback for other calls
+        mock_message_repo
+            .expect_find_messages_by_author_allowlist()
+            .returning(|_, _, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_by_channel_allowlist()
+            .returning(|_, _, _, _| Ok(vec![]));
 
-        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
+        // 3. Recommendation fetches
+        mock_message_repo
+            .expect_find_top_reacted_messages()
+            .returning(move |_, _, _| Ok(messages.clone()));
+        mock_message_repo
+            .expect_find_messages_contain_keywords()
+            .returning(|_, _, _| Ok(vec![]));
 
-        let service = TimelineServiceImpl::new(repo);
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .stamp(mock_stamp_repo)
+            .build();
+        let mock_extractor = MockKeywordExtractor::new();
+        let service = TimelineServiceImpl::new(repo, Arc::new(mock_extractor));
         let result = service
             .get_recommended_messages(&message.user_id)
             .await
@@ -278,17 +494,43 @@ mod tests {
     #[tokio::test]
     async fn timeline_get_recommended_messages_empty() {
         let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_stamp_repo = MockStampRepository::new();
 
         let user_id = UUIDv4.fake();
+
+        // Mocks returning empty/defaults
+        mock_user_repo
+            .expect_find_frequently_stamped_users_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_stamp_repo
+            .expect_find_frequently_stamped_channels_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_user_repo
+            .expect_find_similar_users()
+            .returning(|_, _| Ok(vec![]));
         mock_message_repo
-            .expect_find_recent_messages()
-            .with(predicate::eq(Some(user_id)))
-            .times(1)
-            .returning(|_| Ok(vec![]));
+            .expect_find_messages_by_author_allowlist()
+            .returning(|_, _, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_contain_keywords()
+            .returning(|_, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_by_channel_allowlist()
+            .returning(|_, _, _, _| Ok(vec![]));
 
-        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
+        mock_message_repo
+            .expect_find_top_reacted_messages()
+            .returning(|_, _, _| Ok(vec![]));
+        // Other fetches skipped because lists are empty
 
-        let service = TimelineServiceImpl::new(repo);
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .stamp(mock_stamp_repo)
+            .build();
+        let mock_extractor = MockKeywordExtractor::new();
+        let service = TimelineServiceImpl::new(repo, Arc::new(mock_extractor));
         let result = service.get_recommended_messages(&user_id).await.unwrap();
 
         assert!(result.is_empty());
@@ -297,17 +539,41 @@ mod tests {
     #[tokio::test]
     async fn timeline_get_recommended_messages_error() {
         let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_stamp_repo = MockStampRepository::new();
 
         let user_id = UUIDv4.fake();
+
+        mock_user_repo
+            .expect_find_frequently_stamped_users_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_stamp_repo
+            .expect_find_frequently_stamped_channels_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_user_repo
+            .expect_find_similar_users()
+            .returning(|_, _| Ok(vec![]));
         mock_message_repo
-            .expect_find_recent_messages()
-            .with(predicate::eq(Some(user_id)))
-            .times(1)
-            .returning(|_| Err(RepositoryError::Database("database error".to_string())));
+            .expect_find_messages_by_author_allowlist()
+            .returning(|_, _, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_contain_keywords()
+            .returning(|_, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_by_channel_allowlist()
+            .returning(|_, _, _, _| Ok(vec![]));
 
-        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
+        mock_message_repo
+            .expect_find_top_reacted_messages()
+            .returning(|_, _, _| Err(RepositoryError::Database("database error".to_string())));
 
-        let service = TimelineServiceImpl::new(repo);
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .stamp(mock_stamp_repo)
+            .build();
+        let mock_extractor = MockKeywordExtractor::new();
+        let service = TimelineServiceImpl::new(repo, Arc::new(mock_extractor));
         let result = service.get_recommended_messages(&user_id).await;
 
         assert!(result.is_err());
@@ -489,5 +755,18 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_lindera_keyword_extraction() {
+        let extractor = LinderaKeywordExtractor::new().unwrap();
+        // "猫が可愛い" -> "猫" (Noun)
+        let keywords = extractor.extract("猫が可愛い").unwrap();
+        assert!(keywords.contains(&"猫".to_string()));
+        assert!(!keywords.contains(&"可愛い".to_string())); // Adjective
+
+        // "Rust言語" -> "Rust", "言語"
+        let keywords = extractor.extract("Rust言語").unwrap();
+        assert!(keywords.contains(&"言語".to_string()));
     }
 }

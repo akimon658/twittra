@@ -12,7 +12,7 @@ use domain::{
     crawler::MessageCrawler,
     event::{ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload},
     model::Message,
-    service::{TimelineServiceImpl, TraqServiceImpl},
+    service::{LinderaKeywordExtractor, TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
 use oauth2::{AuthUrl, ClientId, ClientSecret, TokenUrl, basic::BasicClient};
@@ -124,7 +124,9 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
 
     let backend = Backend::new(client, traq_api_base_url, repository.user.clone());
     let traq_service = TraqServiceImpl::new(repository.clone(), Arc::new(traq_client));
-    let timeline_service = TimelineServiceImpl::new(repository);
+    let keyword_extractor =
+        Arc::new(LinderaKeywordExtractor::new().map_err(|e| Box::new(e) as Box<dyn Error>)?);
+    let timeline_service = TimelineServiceImpl::new(repository, keyword_extractor);
     let app_state = AppState::new(Arc::new(traq_service), Arc::new(timeline_service));
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let (router, openapi) = setup_openapi_routes();

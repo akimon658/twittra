@@ -30,6 +30,8 @@ mockall::mock! {
         async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>, RepositoryError>;
         async fn save(&self, user: &User) -> Result<(), RepositoryError>;
         async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<(), RepositoryError>;
+        async fn find_frequently_stamped_users_by(&self, user_id: &Uuid, limit: i64) -> Result<Vec<Uuid>, RepositoryError>;
+        async fn find_similar_users(&self, user_id: &Uuid, limit: i64) -> Result<Vec<Uuid>, RepositoryError>;
     }
 }
 
