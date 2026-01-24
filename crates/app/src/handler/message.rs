@@ -135,8 +135,10 @@ mod tests {
     use super::*;
     use crate::test_helpers::TestAppBuilder;
     use axum::{body::Body, http::Request};
-    use domain::service::MockTimelineService;
-    use domain::{service::MockTraqService, test_factories::UserBuilder};
+    use domain::{
+        service::{MockTimelineService, MockTraqService},
+        test_factories::UserBuilder,
+    };
     use fake::{Fake, uuid::UUIDv4};
     use http::header;
     use mockall::predicate;
