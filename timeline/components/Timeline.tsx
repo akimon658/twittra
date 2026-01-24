@@ -12,7 +12,7 @@ import {
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
 import { QueryErrorResetBoundary } from "@tanstack/react-query"
-import { Suspense, useCallback } from "react"
+import { Suspense } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { VList } from "virtua"
 import type { Message } from "../../api/twittra.schemas.ts"
@@ -33,18 +33,13 @@ const TimelineContent = () => {
     isFetchingPreviousPage,
   } = useTimelineInfinite()
   const { updateMessage } = useTimelineCache()
-
-  // Optimize socket updates: update specific message in cache instead of refetching
-  const handleMessageUpdated = useCallback(
-    (updatedMessage: Message) => {
-      updateMessage(updatedMessage.id, (oldMessage) => ({
-        ...updatedMessage,
-        // Preserve user info from the old message as the socket update doesn't include it
-        user: oldMessage.user,
-      }))
-    },
-    [updateMessage],
-  )
+  const handleMessageUpdated = (updatedMessage: Message) => {
+    updateMessage(updatedMessage.id, (oldMessage) => ({
+      ...updatedMessage,
+      // Preserve user info from the old message as the socket update doesn't include it
+      user: oldMessage.user,
+    }))
+  }
 
   // Subscribe to all loaded messages and handle updates
   const messageIds = messages.map((item) => item.id)
