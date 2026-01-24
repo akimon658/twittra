@@ -22,7 +22,7 @@ const md = new traQMarkdownIt(store, undefined, "")
 
 interface MessageProps {
   message: MessageListItem
-  onRead?: (id: string) => void
+  onRead: (id: string) => void
 }
 
 export const MessageItem = ({ message, onRead }: MessageProps) => {
@@ -31,7 +31,7 @@ export const MessageItem = ({ message, onRead }: MessageProps) => {
   })
 
   useEffect(() => {
-    if (entry?.isIntersecting && onRead) {
+    if (entry?.isIntersecting) {
       onRead(message.id)
     }
   }, [entry?.isIntersecting, message.id, onRead])
