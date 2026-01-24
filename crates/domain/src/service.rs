@@ -7,7 +7,10 @@ use crate::{
 use lindera::{
     dictionary::load_dictionary, mode::Mode, segmenter::Segmenter, tokenizer::Tokenizer,
 };
-use std::{fmt, fmt::Debug, sync::Arc};
+use std::{
+    fmt::{self, Debug},
+    sync::Arc,
+};
 use uuid::Uuid;
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -102,7 +105,6 @@ impl KeywordExtractor for LinderaKeywordExtractor {
     }
 }
 
-/// Service for timeline-related operations.
 /// Service for timeline-related operations.
 #[derive(Clone, Debug)]
 pub struct TimelineServiceImpl {
