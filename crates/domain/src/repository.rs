@@ -18,14 +18,7 @@ pub struct Repository {
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>, RepositoryError>;
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<Message>, RepositoryError>;
-    /// Finds recent messages.
-    ///
-    /// It excludes messages that have been read by the user
-    /// and messages authored by the user themselves.
-    async fn find_recent_messages(
-        &self,
-        user_id: &Uuid,
-    ) -> Result<Vec<MessageListItem>, RepositoryError>;
+
     /// Returns messages that may need refreshing from traQ.
     /// Returns tuples of (message_id, created_at, last_crawled_at) for messages created within the last 24 hours.
     async fn find_sync_candidates(

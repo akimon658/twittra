@@ -221,97 +221,6 @@ impl MessageRepository for MariaDbMessageRepository {
             .collect())
     }
 
-    async fn find_recent_messages(
-        &self,
-        user_id: &Uuid,
-    ) -> Result<Vec<MessageListItem>, RepositoryError> {
-        let messages: Vec<MessageRow> = sqlx::query_as!(
-            MessageRow,
-            r#"
-            SELECT
-                m.id AS `id: _`,
-                m.user_id AS `user_id: _`,
-                m.channel_id AS `channel_id: _`,
-                m.content,
-                m.created_at,
-                m.updated_at,
-                u.handle AS user_handle,
-                u.display_name AS user_display_name
-            FROM (
-                SELECT id
-                FROM messages
-                WHERE
-                    user_id != ?
-                    AND id NOT IN (
-                        SELECT message_id
-                        FROM read_messages
-                        WHERE user_id = ?
-                    )
-                ORDER BY created_at DESC
-                LIMIT 50
-            ) AS latest_messages
-            JOIN messages m ON latest_messages.id = m.id
-            LEFT JOIN users u ON m.user_id = u.id
-            ORDER BY m.created_at DESC
-            "#,
-            user_id,
-            user_id
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Database(format!("could not fetch recent messages: {}", e))
-        })?;
-
-        if messages.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut query_builder = QueryBuilder::new(
-            r#"
-            SELECT
-                message_id,
-                stamp_id,
-                user_id,
-                stamp_count
-            FROM reactions
-            WHERE message_id IN (
-            "#,
-        );
-        let mut separated = query_builder.separated(", ");
-
-        for msg in &messages {
-            separated.push_bind(msg.id);
-        }
-
-        query_builder.push(")");
-
-        let reactions = query_builder
-            .build_query_as::<ReactionRow>()
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| RepositoryError::Database(format!("could not fetch reactions: {}", e)))?;
-
-        let mut message_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
-
-        for reaction in reactions {
-            let entry = message_reaction_map.entry(reaction.message_id).or_default();
-
-            entry.push(reaction);
-        }
-
-        let messages = messages
-            .into_iter()
-            .map(|msg| {
-                let reactions = message_reaction_map.remove(&msg.id).unwrap_or_default();
-
-                MessageListItem::from(MessageRowWithReactions(msg, reactions))
-            })
-            .collect();
-
-        Ok(messages)
-    }
-
     async fn remove_reaction(
         &self,
         message_id: &Uuid,
@@ -647,6 +556,44 @@ impl MariaDbMessageRepository {
 
         Ok(messages)
     }
+
+    #[cfg(test)]
+    pub async fn find_all_messages_for_test(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        let messages: Vec<MessageRow> = sqlx::query_as!(
+            MessageRow,
+            r#"
+            SELECT
+                m.id AS `id: _`,
+                m.user_id AS `user_id: _`,
+                m.channel_id AS `channel_id: _`,
+                m.content,
+                m.created_at,
+                m.updated_at,
+                u.handle AS user_handle,
+                u.display_name AS user_display_name
+            FROM messages m
+            LEFT JOIN users u ON m.user_id = u.id
+            WHERE
+                m.user_id != ?
+                AND m.id NOT IN (
+                    SELECT message_id
+                    FROM read_messages
+                    WHERE user_id = ?
+                )
+            ORDER BY m.created_at DESC
+            "#,
+            user_id,
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(format!("could not fetch messages: {}", e)))?;
+
+        self.hydrate_messages(messages).await
+    }
 }
 
 #[cfg(test)]
@@ -670,7 +617,7 @@ mod tests {
         let user_id = UUIDv4.fake();
 
         // Find recent messages
-        let messages = repo.find_recent_messages(&user_id).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
 
         // Verify
         assert_eq!(messages.len(), 1);
@@ -692,7 +639,7 @@ mod tests {
 
         let user_id = UUIDv4.fake();
 
-        let messages = repo.find_recent_messages(&user_id).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
 
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].reactions.len(), 1);
@@ -724,7 +671,7 @@ mod tests {
         let viewer_id = UUIDv4.fake();
 
         // Verify reaction exists
-        let messages = repo.find_recent_messages(&viewer_id).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&viewer_id).await.unwrap();
         assert_eq!(messages[0].reactions.len(), 1);
 
         // Remove reaction
@@ -733,7 +680,7 @@ mod tests {
             .unwrap();
 
         // Verify reaction is removed
-        let messages = repo.find_recent_messages(&viewer_id).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&viewer_id).await.unwrap();
         assert_eq!(messages[0].reactions.len(), 0);
     }
 
@@ -751,7 +698,7 @@ mod tests {
 
         let user_id = UUIDv4.fake();
 
-        let saved_messages = repo.find_recent_messages(&user_id).await.unwrap();
+        let saved_messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
         assert!(saved_messages.len() >= 2); // At least our 2 messages
     }
 
@@ -893,7 +840,7 @@ mod tests {
         repo.save(&message_by_other).await.unwrap();
 
         // Find recent messages with exclusion
-        let messages = repo.find_recent_messages(&user_id).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
 
         // Verify
         assert_eq!(messages.len(), 1);
@@ -925,7 +872,7 @@ mod tests {
             .unwrap();
 
         // Find recent messages with exclusion
-        let messages = repo.find_recent_messages(&user_id).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
 
         // Verify
         assert_eq!(messages.len(), 1);
