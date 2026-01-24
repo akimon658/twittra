@@ -1,6 +1,4 @@
-import {
-  useSuspenseInfiniteQuery
-} from "@tanstack/react-query"
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query"
 import {
   getGetTimelineQueryKey,
   getTimeline,
