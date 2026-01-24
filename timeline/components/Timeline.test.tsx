@@ -20,7 +20,10 @@ vi.mock("socket.io-client", () => ({
 }))
 
 vi.mock("@mantine/hooks", () => ({
-  useIntersection: () => ({ ref: { current: null }, entry: { isIntersecting: true } }),
+  useIntersection: () => ({
+    ref: { current: null },
+    entry: { isIntersecting: true },
+  }),
 }))
 
 describe("Timeline", () => {
