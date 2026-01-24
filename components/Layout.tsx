@@ -24,7 +24,8 @@ export const Layout = () => {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main>
+      {/* Disable padding as we use virtual scrolling (scrollbar placed inside content) */}
+      <AppShell.Main pr={0} py={0}>
         {/* TODO: Replace below with `<Outlet />` */}
         <Timeline />
       </AppShell.Main>

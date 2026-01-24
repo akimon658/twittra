@@ -71,7 +71,7 @@ const TimelineContent = () => {
 
   return (
     <VList
-      style={{ height: "calc(100dvh - 2 * var(--mantine-spacing-md))" }}
+      style={{ height: "100dvh", paddingTop: "var(--mantine-spacing-md)" }}
       onRangeChange={(start, end) => {
         // Load more when reaching boundaries
         if (start === 0 && hasPreviousPage && !isFetchingPreviousPage) {
@@ -94,9 +94,7 @@ const TimelineContent = () => {
 const LoadingFallback = () => {
   return (
     <Stack
-      h="calc(100dvh - var(--mantine-spacing-md))"
-      // Cancel out the padding of AppShell
-      mb="-md"
+      pt="md"
       style={{ overflow: "hidden" }}
     >
       {Array.from({ length: 10 }).map((_, index) => (
