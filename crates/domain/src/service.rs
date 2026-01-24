@@ -82,8 +82,6 @@ impl TimelineService for TimelineServiceImpl {
 
         // 4. Fetch candidates from all sources concurrently
         // To avoid finding messages that user already read or self-authored, we pass user_id.
-        // We handle excludes later or pass them if we had global excludes.
-
         let (top_reacts, affinity_author_msgs, affinity_channel_msgs, similar_user_msgs) = tokio::join!(
             self.repo
                 .message
