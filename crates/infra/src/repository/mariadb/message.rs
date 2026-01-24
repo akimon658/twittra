@@ -426,19 +426,16 @@ impl MessageRepository for MariaDbMessageRepository {
 
         query_builder.push(" AND m.user_id IN (");
         let mut separated = query_builder.separated(", ");
+
         for id in author_ids {
             separated.push_bind(id);
         }
-        query_builder.push(") ");
 
+        query_builder.push(") ");
         query_builder
             .push(" AND m.id NOT IN (SELECT message_id FROM read_messages WHERE user_id = ");
         query_builder.push_bind(user_id);
         query_builder.push(") ");
-        // Note: user_id != uid is already checked if uid is not in author_ids or author_ids logic handles it. However, explicit check is safe.
-        query_builder.push(" AND m.user_id != ");
-        query_builder.push_bind(user_id);
-
         query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
         query_builder.push_bind(limit);
 
