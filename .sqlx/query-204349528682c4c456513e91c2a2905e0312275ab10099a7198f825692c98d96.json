@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            INSERT INTO stamps (id, name)\n            VALUES (?, ?)\n            ON DUPLICATE KEY UPDATE name = VALUE(name)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "204349528682c4c456513e91c2a2905e0312275ab10099a7198f825692c98d96"
+}

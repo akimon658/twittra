@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT m.channel_id AS `channel_id: _`\n            FROM reactions r\n            JOIN messages m ON r.message_id = m.id\n            WHERE r.user_id = ?\n            GROUP BY m.channel_id\n            ORDER BY COUNT(*) DESC\n            LIMIT ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b694876fc74abd5e591e874038988c06da5cbf981c3994916fcc77067848a6da"
+}

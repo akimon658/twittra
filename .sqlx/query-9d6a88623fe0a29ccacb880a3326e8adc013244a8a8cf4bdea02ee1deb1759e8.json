@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT m.user_id AS `user_id: _`\n            FROM reactions r\n            JOIN messages m ON r.message_id = m.id\n            WHERE r.user_id = ? AND m.user_id != ?\n            GROUP BY m.user_id\n            ORDER BY COUNT(*) DESC\n            LIMIT ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9d6a88623fe0a29ccacb880a3326e8adc013244a8a8cf4bdea02ee1deb1759e8"
+}

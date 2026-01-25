@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            INSERT INTO user_tokens (user_id, access_token)\n            VALUES (?, ?)\n            ON DUPLICATE KEY UPDATE access_token = VALUE(access_token)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ae5c3cf7d22036f858f1c5188c77e68827c048f31a4215e496c640573b2d5189"
+}

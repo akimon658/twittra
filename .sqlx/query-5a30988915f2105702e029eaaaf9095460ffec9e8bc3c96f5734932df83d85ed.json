@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            INSERT INTO messages (id, user_id, channel_id, content, created_at, updated_at)\n            VALUES (?, ?, ?, ?, ?, ?)\n            ON DUPLICATE KEY UPDATE content=VALUE(content), updated_at=VALUE(updated_at), last_crawled_at=NOW(6)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "5a30988915f2105702e029eaaaf9095460ffec9e8bc3c96f5734932df83d85ed"
+}
