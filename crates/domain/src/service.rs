@@ -4,7 +4,7 @@ use crate::{
     repository::Repository,
     traq_client::TraqClient,
 };
-use std::{fmt::Debug, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, fmt::Debug, sync::Arc};
 use uuid::Uuid;
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -63,12 +63,77 @@ impl TimelineService for TimelineServiceImpl {
         &self,
         user_id: &Uuid,
     ) -> Result<Vec<MessageListItem>, DomainError> {
-        let messages = self
+        // 1. Get user affinity list (people I stamp)
+        let affinity_users = self
             .repo
-            .message
-            .find_recent_messages(Some(*user_id))
+            .user
+            .find_frequently_stamped_users_by(user_id, 20)
             .await?;
-        Ok(messages)
+
+        // 2. Get channel affinity list (channels I stamp in)
+        let affinity_channels = self
+            .repo
+            .stamp
+            .find_frequently_stamped_channels_by(user_id, 10)
+            .await?;
+
+        // 3. Get similar users (people who stamp same msgs)
+        let similar_users = self.repo.user.find_similar_users(user_id, 20).await?;
+
+        // 4. Fetch candidates from all sources concurrently
+        // To avoid finding messages that user already read or self-authored, we pass user_id.
+        let (top_reacts, affinity_author_msgs, affinity_channel_msgs, similar_user_msgs) = tokio::join!(
+            self.repo.message.find_top_reacted_messages(user_id, 50),
+            self.repo
+                .message
+                .find_messages_by_author_allowlist(&affinity_users, 50, user_id),
+            self.repo
+                .message
+                .find_messages_by_channel_allowlist(&affinity_channels, 50, user_id),
+            self.repo
+                .message
+                .find_messages_by_author_allowlist(&similar_users, 50, user_id)
+        );
+
+        let top_reacts = top_reacts?;
+        let affinity_author_msgs = affinity_author_msgs?;
+        let affinity_channel_msgs = affinity_channel_msgs?;
+        let similar_user_msgs = similar_user_msgs?;
+
+        // 5. Merge and Score
+        // Map message_id -> (Message, Score)
+        // Scores:
+        // - Top Reacted: 5.0 + (50 - rank) * 0.1
+        // - Affinity Author: 5.0 + (50 - rank) * 0.15
+        // - Affinity Channel: 3.0 + (50 - rank) * 0.1
+        // - Similar User: 5.0 + (50 - rank) * 0.1
+
+        let mut scored_messages = HashMap::<Uuid, (MessageListItem, f64)>::new();
+
+        let mut add_score = |msgs: Vec<MessageListItem>, base_score: f64, rank_multiplier: f64| {
+            for (i, msg) in msgs.into_iter().enumerate() {
+                let rank_score = (50.0 - i as f64).max(0.0) * rank_multiplier;
+                let total_score = base_score + rank_score;
+
+                scored_messages
+                    .entry(msg.id)
+                    .and_modify(|(_, s)| *s += total_score)
+                    .or_insert((msg, total_score));
+            }
+        };
+
+        add_score(top_reacts, 5.0, 0.1);
+        add_score(affinity_author_msgs, 5.0, 0.15);
+        add_score(affinity_channel_msgs, 3.0, 0.1);
+        add_score(similar_user_msgs, 5.0, 0.1);
+        let mut final_list: Vec<(MessageListItem, f64)> = scored_messages.into_values().collect();
+        // Sort by score descending
+        final_list.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+
+        // Return top 50
+        let result = final_list.into_iter().take(50).map(|(m, _)| m).collect();
+
+        Ok(result)
     }
 
     async fn mark_messages_as_read(
@@ -253,17 +318,43 @@ mod tests {
     #[tokio::test]
     async fn timeline_get_recommended_messages_success() {
         let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_stamp_repo = MockStampRepository::new();
         let message = MessageListItemBuilder::new().build();
         let messages = vec![message.clone()];
 
+        // 1. Affinity / Similar users setup
+        mock_user_repo
+            .expect_find_frequently_stamped_users_by()
+            .with(predicate::eq(message.user_id), predicate::eq(20))
+            .returning(|_, _| Ok(vec![]));
+        mock_stamp_repo
+            .expect_find_frequently_stamped_channels_by()
+            .with(predicate::eq(message.user_id), predicate::eq(10))
+            .returning(|_, _| Ok(vec![]));
+        mock_user_repo
+            .expect_find_similar_users()
+            .with(predicate::eq(message.user_id), predicate::eq(20))
+            .returning(|_, _| Ok(vec![]));
+
+        // 2. Mock setup for remaining fetches
         mock_message_repo
-            .expect_find_recent_messages()
-            .with(predicate::eq(Some(message.user_id)))
-            .times(1)
-            .returning(move |_| Ok(messages.clone()));
+            .expect_find_messages_by_author_allowlist()
+            .returning(|_, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_by_channel_allowlist()
+            .returning(|_, _, _| Ok(vec![]));
 
-        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
+        // 3. Recommendation fetches
+        mock_message_repo
+            .expect_find_top_reacted_messages()
+            .returning(move |_, _| Ok(messages.clone()));
 
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .stamp(mock_stamp_repo)
+            .build();
         let service = TimelineServiceImpl::new(repo);
         let result = service
             .get_recommended_messages(&message.user_id)
@@ -278,16 +369,37 @@ mod tests {
     #[tokio::test]
     async fn timeline_get_recommended_messages_empty() {
         let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_stamp_repo = MockStampRepository::new();
 
         let user_id = UUIDv4.fake();
+
+        // Mocks returning empty/defaults
+        mock_user_repo
+            .expect_find_frequently_stamped_users_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_stamp_repo
+            .expect_find_frequently_stamped_channels_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_user_repo
+            .expect_find_similar_users()
+            .returning(|_, _| Ok(vec![]));
         mock_message_repo
-            .expect_find_recent_messages()
-            .with(predicate::eq(Some(user_id)))
-            .times(1)
-            .returning(|_| Ok(vec![]));
+            .expect_find_messages_by_author_allowlist()
+            .returning(|_, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_by_channel_allowlist()
+            .returning(|_, _, _| Ok(vec![]));
 
-        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
+        mock_message_repo
+            .expect_find_top_reacted_messages()
+            .returning(|_, _| Ok(vec![]));
 
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .stamp(mock_stamp_repo)
+            .build();
         let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages(&user_id).await.unwrap();
 
@@ -297,16 +409,36 @@ mod tests {
     #[tokio::test]
     async fn timeline_get_recommended_messages_error() {
         let mut mock_message_repo = MockMessageRepository::new();
+        let mut mock_user_repo = MockUserRepository::new();
+        let mut mock_stamp_repo = MockStampRepository::new();
 
         let user_id = UUIDv4.fake();
+
+        mock_user_repo
+            .expect_find_frequently_stamped_users_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_stamp_repo
+            .expect_find_frequently_stamped_channels_by()
+            .returning(|_, _| Ok(vec![]));
+        mock_user_repo
+            .expect_find_similar_users()
+            .returning(|_, _| Ok(vec![]));
         mock_message_repo
-            .expect_find_recent_messages()
-            .with(predicate::eq(Some(user_id)))
-            .times(1)
-            .returning(|_| Err(RepositoryError::Database("database error".to_string())));
+            .expect_find_messages_by_author_allowlist()
+            .returning(|_, _, _| Ok(vec![]));
+        mock_message_repo
+            .expect_find_messages_by_channel_allowlist()
+            .returning(|_, _, _| Ok(vec![]));
 
-        let repo = RepositoryBuilder::new().message(mock_message_repo).build();
+        mock_message_repo
+            .expect_find_top_reacted_messages()
+            .returning(|_, _| Err(RepositoryError::Database("database error".to_string())));
 
+        let repo = RepositoryBuilder::new()
+            .message(mock_message_repo)
+            .user(mock_user_repo)
+            .stamp(mock_stamp_repo)
+            .build();
         let service = TimelineServiceImpl::new(repo);
         let result = service.get_recommended_messages(&user_id).await;
 

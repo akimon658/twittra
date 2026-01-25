@@ -18,14 +18,7 @@ pub struct Repository {
 pub trait MessageRepository: Debug + Send + Sync {
     async fn find_latest_message_time(&self) -> Result<Option<OffsetDateTime>, RepositoryError>;
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<Message>, RepositoryError>;
-    /// Finds recent messages.
-    ///
-    /// If `user_id` is provided, it excludes messages that have been read by the user
-    /// and messages authored by the user themselves.
-    async fn find_recent_messages(
-        &self,
-        user_id: Option<Uuid>,
-    ) -> Result<Vec<MessageListItem>, RepositoryError>;
+
     /// Returns messages that may need refreshing from traQ.
     /// Returns tuples of (message_id, created_at, last_crawled_at) for messages created within the last 24 hours.
     async fn find_sync_candidates(
@@ -50,6 +43,29 @@ pub trait MessageRepository: Debug + Send + Sync {
         user_id: &Uuid,
         message_ids: &[Uuid],
     ) -> Result<(), RepositoryError>;
+
+    /// Finds top reacted messages (popularity-based).
+    async fn find_top_reacted_messages(
+        &self,
+        user_id: &Uuid,
+        limit: i64,
+    ) -> Result<Vec<MessageListItem>, RepositoryError>;
+
+    /// Finds messages from specific authors (user affinity).
+    async fn find_messages_by_author_allowlist(
+        &self,
+        author_ids: &[Uuid],
+        limit: i64,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, RepositoryError>;
+
+    /// Finds messages from specific channels (channel affinity).
+    async fn find_messages_by_channel_allowlist(
+        &self,
+        channel_ids: &[Uuid],
+        limit: i64,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, RepositoryError>;
 }
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -58,6 +74,12 @@ pub trait StampRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<Stamp>, RepositoryError>;
     async fn save(&self, stamp: &Stamp) -> Result<(), RepositoryError>;
     async fn save_batch(&self, stamps: &[Stamp]) -> Result<(), RepositoryError>;
+    /// Finds channels that the user frequently stamps in.
+    async fn find_frequently_stamped_channels_by(
+        &self,
+        user_id: &Uuid,
+        limit: i64,
+    ) -> Result<Vec<Uuid>, RepositoryError>;
 }
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -71,4 +93,16 @@ pub trait UserRepository: Debug + Send + Sync {
     ) -> Result<Option<String>, RepositoryError>;
     async fn save(&self, user: &User) -> Result<(), RepositoryError>;
     async fn save_token(&self, user_id: &Uuid, access_token: &str) -> Result<(), RepositoryError>;
+    /// Finds users who the target user frequently stamps to.
+    async fn find_frequently_stamped_users_by(
+        &self,
+        user_id: &Uuid,
+        limit: i64,
+    ) -> Result<Vec<Uuid>, RepositoryError>;
+    /// Finds users who have similar reaction patterns to the target user.
+    async fn find_similar_users(
+        &self,
+        user_id: &Uuid,
+        limit: i64,
+    ) -> Result<Vec<Uuid>, RepositoryError>;
 }

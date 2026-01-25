@@ -221,128 +221,6 @@ impl MessageRepository for MariaDbMessageRepository {
             .collect())
     }
 
-    async fn find_recent_messages(
-        &self,
-        user_id: Option<Uuid>,
-    ) -> Result<Vec<MessageListItem>, RepositoryError> {
-        let messages: Vec<MessageRow> = if let Some(user_id) = user_id {
-            sqlx::query_as!(
-                MessageRow,
-                r#"
-                SELECT
-                    m.id AS `id: _`,
-                    m.user_id AS `user_id: _`,
-                    m.channel_id AS `channel_id: _`,
-                    m.content,
-                    m.created_at,
-                    m.updated_at,
-                    u.handle AS user_handle,
-                    u.display_name AS user_display_name
-                FROM (
-                    SELECT id
-                    FROM messages
-                    WHERE
-                        user_id != ?
-                        AND id NOT IN (
-                            SELECT message_id
-                            FROM read_messages
-                            WHERE user_id = ?
-                        )
-                    ORDER BY created_at DESC
-                    LIMIT 50
-                ) AS latest_messages
-                JOIN messages m ON latest_messages.id = m.id
-                LEFT JOIN users u ON m.user_id = u.id
-                ORDER BY m.created_at DESC
-                "#,
-                user_id,
-                user_id
-            )
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| {
-                RepositoryError::Database(format!("could not fetch recent messages: {}", e))
-            })?
-        } else {
-            sqlx::query_as!(
-                MessageRow,
-                r#"
-                SELECT
-                    m.id AS `id: _`,
-                    m.user_id AS `user_id: _`,
-                    m.channel_id AS `channel_id: _`,
-                    m.content,
-                    m.created_at,
-                    m.updated_at,
-                    u.handle AS user_handle,
-                    u.display_name AS user_display_name
-                FROM (
-                    SELECT id
-                    FROM messages
-                    ORDER BY created_at DESC
-                    LIMIT 50
-                ) AS latest_messages
-                JOIN messages m ON latest_messages.id = m.id
-                LEFT JOIN users u ON m.user_id = u.id
-                ORDER BY m.created_at DESC
-                "#
-            )
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| {
-                RepositoryError::Database(format!("could not fetch recent messages: {}", e))
-            })?
-        };
-
-        if messages.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut query_builder = QueryBuilder::new(
-            r#"
-            SELECT
-                message_id,
-                stamp_id,
-                user_id,
-                stamp_count
-            FROM reactions
-            WHERE message_id IN (
-            "#,
-        );
-        let mut separated = query_builder.separated(", ");
-
-        for msg in &messages {
-            separated.push_bind(msg.id);
-        }
-
-        query_builder.push(")");
-
-        let reactions = query_builder
-            .build_query_as::<ReactionRow>()
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| RepositoryError::Database(format!("could not fetch reactions: {}", e)))?;
-
-        let mut message_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
-
-        for reaction in reactions {
-            let entry = message_reaction_map.entry(reaction.message_id).or_default();
-
-            entry.push(reaction);
-        }
-
-        let messages = messages
-            .into_iter()
-            .map(|msg| {
-                let reactions = message_reaction_map.remove(&msg.id).unwrap_or_default();
-
-                MessageListItem::from(MessageRowWithReactions(msg, reactions))
-            })
-            .collect();
-
-        Ok(messages)
-    }
-
     async fn remove_reaction(
         &self,
         message_id: &Uuid,
@@ -480,6 +358,239 @@ impl MessageRepository for MariaDbMessageRepository {
 
         Ok(())
     }
+
+    async fn find_top_reacted_messages(
+        &self,
+        user_id: &Uuid,
+        limit: i64,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        let messages: Vec<MessageRow> = sqlx::query_as!(
+            MessageRow,
+            r#"
+            SELECT
+                m.id AS `id: _`,
+                m.user_id AS `user_id: _`,
+                m.channel_id AS `channel_id: _`,
+                m.content,
+                m.created_at,
+                m.updated_at,
+                u.handle AS user_handle,
+                u.display_name AS user_display_name
+            FROM messages m
+            LEFT JOIN users u ON m.user_id = u.id
+            LEFT JOIN reactions r ON m.id = r.message_id
+            WHERE m.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+              AND m.user_id != ?
+              AND m.id NOT IN (SELECT message_id FROM read_messages WHERE user_id = ?)
+            GROUP BY m.id
+            ORDER BY (COUNT(r.user_id) / POW((TIMESTAMPDIFF(HOUR, m.created_at, NOW()) + 2), 1.8)) DESC
+            LIMIT ?
+            "#,
+            user_id,
+            user_id,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        self.hydrate_messages(messages).await
+    }
+
+    async fn find_messages_by_author_allowlist(
+        &self,
+        author_ids: &[Uuid],
+        limit: i64,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        if author_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut query_builder = QueryBuilder::new(
+            r#"
+            SELECT
+                m.id,
+                m.user_id,
+                m.channel_id,
+                m.content,
+                m.created_at,
+                m.updated_at,
+                u.handle AS user_handle,
+                u.display_name AS user_display_name
+            FROM messages m
+            LEFT JOIN users u ON m.user_id = u.id
+            WHERE m.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+            "#,
+        );
+
+        query_builder.push(" AND m.user_id IN (");
+        let mut separated = query_builder.separated(", ");
+
+        for id in author_ids {
+            separated.push_bind(id);
+        }
+
+        query_builder.push(") ");
+        query_builder
+            .push(" AND m.id NOT IN (SELECT message_id FROM read_messages WHERE user_id = ");
+        query_builder.push_bind(user_id);
+        query_builder.push(") ");
+        query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
+        query_builder.push_bind(limit);
+
+        let messages = query_builder
+            .build_query_as()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        self.hydrate_messages(messages).await
+    }
+
+    async fn find_messages_by_channel_allowlist(
+        &self,
+        channel_ids: &[Uuid],
+        limit: i64,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        if channel_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut query_builder = QueryBuilder::new(
+            r#"
+            SELECT
+                m.id,
+                m.user_id,
+                m.channel_id,
+                m.content,
+                m.created_at,
+                m.updated_at,
+                u.handle AS user_handle,
+                u.display_name AS user_display_name
+            FROM messages m
+            LEFT JOIN users u ON m.user_id = u.id
+            WHERE m.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+            "#,
+        );
+
+        query_builder.push(" AND m.channel_id IN (");
+        let mut separated = query_builder.separated(", ");
+        for id in channel_ids {
+            separated.push_bind(id);
+        }
+        query_builder.push(") ");
+
+        query_builder
+            .push(" AND m.id NOT IN (SELECT message_id FROM read_messages WHERE user_id = ");
+        query_builder.push_bind(user_id);
+        query_builder.push(") ");
+        query_builder.push(" AND m.user_id != ");
+        query_builder.push_bind(user_id);
+
+        query_builder.push(" ORDER BY m.created_at DESC LIMIT ");
+        query_builder.push_bind(limit);
+
+        let messages = query_builder
+            .build_query_as()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        self.hydrate_messages(messages).await
+    }
+}
+
+impl MariaDbMessageRepository {
+    async fn hydrate_messages(
+        &self,
+        messages: Vec<MessageRow>,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        if messages.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut query_builder = QueryBuilder::new(
+            r#"
+            SELECT
+                message_id,
+                stamp_id,
+                user_id,
+                stamp_count
+            FROM reactions
+            WHERE message_id IN (
+            "#,
+        );
+        let mut separated = query_builder.separated(", ");
+
+        for msg in &messages {
+            separated.push_bind(msg.id);
+        }
+
+        query_builder.push(")");
+
+        let reactions = query_builder
+            .build_query_as::<ReactionRow>()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Database(format!("could not fetch reactions: {}", e)))?;
+
+        let mut message_reaction_map = HashMap::<Uuid, Vec<ReactionRow>>::new();
+
+        for reaction in reactions {
+            let entry = message_reaction_map.entry(reaction.message_id).or_default();
+            entry.push(reaction);
+        }
+
+        let messages = messages
+            .into_iter()
+            .map(|msg| {
+                let reactions = message_reaction_map.remove(&msg.id).unwrap_or_default();
+                MessageListItem::from(MessageRowWithReactions(msg, reactions))
+            })
+            .collect();
+
+        Ok(messages)
+    }
+
+    #[cfg(test)]
+    pub async fn find_all_messages_for_test(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<Vec<MessageListItem>, RepositoryError> {
+        let messages: Vec<MessageRow> = sqlx::query_as!(
+            MessageRow,
+            r#"
+            SELECT
+                m.id AS `id: _`,
+                m.user_id AS `user_id: _`,
+                m.channel_id AS `channel_id: _`,
+                m.content,
+                m.created_at,
+                m.updated_at,
+                u.handle AS user_handle,
+                u.display_name AS user_display_name
+            FROM messages m
+            LEFT JOIN users u ON m.user_id = u.id
+            WHERE
+                m.user_id != ?
+                AND m.id NOT IN (
+                    SELECT message_id
+                    FROM read_messages
+                    WHERE user_id = ?
+                )
+            ORDER BY m.created_at DESC
+            "#,
+            user_id,
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Database(format!("could not fetch messages: {}", e)))?;
+
+        self.hydrate_messages(messages).await
+    }
 }
 
 #[cfg(test)]
@@ -500,8 +611,8 @@ mod tests {
         // Save the message
         repo.save(&message).await.unwrap();
 
-        // Find recent messages
-        let messages = repo.find_recent_messages(None).await.unwrap();
+        let user_id = UUIDv4.fake();
+        let messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
 
         // Verify
         assert_eq!(messages.len(), 1);
@@ -521,7 +632,9 @@ mod tests {
 
         repo.save(&message).await.unwrap();
 
-        let messages = repo.find_recent_messages(None).await.unwrap();
+        let user_id = UUIDv4.fake();
+
+        let messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
 
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].reactions.len(), 1);
@@ -550,8 +663,10 @@ mod tests {
         // Save with reaction
         repo.save(&message).await.unwrap();
 
+        let viewer_id = UUIDv4.fake();
+
         // Verify reaction exists
-        let messages = repo.find_recent_messages(None).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&viewer_id).await.unwrap();
         assert_eq!(messages[0].reactions.len(), 1);
 
         // Remove reaction
@@ -560,7 +675,7 @@ mod tests {
             .unwrap();
 
         // Verify reaction is removed
-        let messages = repo.find_recent_messages(None).await.unwrap();
+        let messages = repo.find_all_messages_for_test(&viewer_id).await.unwrap();
         assert_eq!(messages[0].reactions.len(), 0);
     }
 
@@ -576,7 +691,9 @@ mod tests {
 
         repo.save_batch(&messages).await.unwrap();
 
-        let saved_messages = repo.find_recent_messages(None).await.unwrap();
+        let user_id = UUIDv4.fake();
+
+        let saved_messages = repo.find_all_messages_for_test(&user_id).await.unwrap();
         assert!(saved_messages.len() >= 2); // At least our 2 messages
     }
 
@@ -705,55 +822,56 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn test_find_recent_messages_excludes_own_messages(pool: sqlx::MySqlPool) {
+    async fn test_find_top_reacted_messages(pool: sqlx::MySqlPool) {
         let repo = MariaDbMessageRepository::new(pool);
+        let message = MessageBuilder::new()
+            .created_at(OffsetDateTime::now_utc() - Duration::from_secs(3600))
+            .build();
+        repo.save(&message).await.unwrap();
+
         let user_id = UUIDv4.fake();
-
-        // 1. Message by user
-        let message_by_user = MessageBuilder::new().user_id(user_id).build();
-        repo.save(&message_by_user).await.unwrap();
-
-        // 2. Message by other
-        let message_by_other = MessageBuilder::new().build();
-        repo.save(&message_by_other).await.unwrap();
-
-        // Find recent messages with exclusion
-        let messages = repo.find_recent_messages(Some(user_id)).await.unwrap();
-
-        // Verify
-        assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].id, message_by_other.id);
+        let result = repo.find_top_reacted_messages(&user_id, 10).await.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, message.id);
     }
 
     #[sqlx::test]
-    async fn test_find_recent_messages_excludes_read_messages(pool: sqlx::MySqlPool) {
-        let repo = MariaDbMessageRepository::new(pool.clone());
+    async fn test_find_messages_by_author_allowlist(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
         let user_id = UUIDv4.fake();
+        let message = MessageBuilder::new()
+            .user_id(user_id)
+            .created_at(OffsetDateTime::now_utc() - Duration::from_secs(60))
+            .build();
+        repo.save(&message).await.unwrap();
 
-        sqlx::query!(
-            "INSERT INTO users (id, handle, display_name) VALUES (?, 'handle', 'name')",
-            user_id
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+        let viewer_id = UUIDv4.fake();
 
-        // 1. Unread message
-        let unread_message = MessageBuilder::new().build();
-        repo.save(&unread_message).await.unwrap();
-
-        // 2. Read message
-        let read_message = MessageBuilder::new().build();
-        repo.save(&read_message).await.unwrap();
-        repo.mark_messages_as_read(&user_id, &[read_message.id])
+        let result = repo
+            .find_messages_by_author_allowlist(&[user_id], 10, &viewer_id)
             .await
             .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, message.id);
+    }
 
-        // Find recent messages with exclusion
-        let messages = repo.find_recent_messages(Some(user_id)).await.unwrap();
+    #[sqlx::test]
+    async fn test_find_messages_by_channel_allowlist(pool: sqlx::MySqlPool) {
+        let repo = MariaDbMessageRepository::new(pool);
+        let channel_id = UUIDv4.fake();
+        let message = MessageBuilder::new()
+            .channel_id(channel_id)
+            .created_at(OffsetDateTime::now_utc() - Duration::from_secs(60))
+            .build();
+        repo.save(&message).await.unwrap();
 
-        // Verify
-        assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].id, unread_message.id);
+        let viewer_id = UUIDv4.fake();
+
+        let result = repo
+            .find_messages_by_channel_allowlist(&[channel_id], 10, &viewer_id)
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, message.id);
     }
 }

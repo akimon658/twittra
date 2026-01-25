@@ -63,15 +63,6 @@ on content discovery and a fluid browsing experience.
   yet in the local DB, it is transparently fetched from traQ API and stored
   locally.
 
-### Recommendation Scoring
-
-The timeline is constructed by merging 4 buckets:
-
-1. **Recency:** Latest posts.
-1. **Popularity:** Posts with stamps from many users.
-1. **Affinity:** Posts from users frequently interacted with.
-1. **Interest:** Full-text search matches based on user-defined keywords.
-
 ## Development Setup
 
 This project uses a local instance of traQ for development to ensure a
