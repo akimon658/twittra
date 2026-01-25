@@ -67,9 +67,6 @@ pub enum DomainError {
     #[error("no valid token found for user {0}")]
     NoTokenForUser(Uuid),
 
-    #[error("tokenizer error: {0}")]
-    Tokenizer(String),
-
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 
