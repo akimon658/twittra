@@ -71,7 +71,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "v$new_version"
-          git push origin HEAD --tags
+          git push origin "v$new_version"
 
           echo "version=$new_version" >> "$GITHUB_OUTPUT"
 
