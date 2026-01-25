@@ -13,6 +13,10 @@ impl MariaDbUserRepository {
     }
 }
 
+struct UserIdRecord {
+    user_id: Uuid,
+}
+
 #[async_trait::async_trait]
 impl UserRepository for MariaDbUserRepository {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>, RepositoryError> {
@@ -130,9 +134,10 @@ impl UserRepository for MariaDbUserRepository {
         user_id: &Uuid,
         limit: i64,
     ) -> Result<Vec<Uuid>, RepositoryError> {
-        let user_ids = sqlx::query!(
+        let records = sqlx::query_as!(
+            UserIdRecord,
             r#"
-            SELECT m.user_id
+            SELECT m.user_id AS `user_id: _`
             FROM reactions r
             JOIN messages m ON r.message_id = m.id
             WHERE r.user_id = ?
@@ -145,19 +150,9 @@ impl UserRepository for MariaDbUserRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?
-        .into_iter()
-        .map(|record| {
-            if record.user_id.len() == 16 {
-                Uuid::from_slice(&record.user_id).unwrap_or_default()
-            } else {
-                let s = String::from_utf8(record.user_id).unwrap_or_default();
-                Uuid::parse_str(&s).unwrap_or_default()
-            }
-        })
-        .collect();
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
-        Ok(user_ids)
+        Ok(records.into_iter().map(|r| r.user_id).collect())
     }
 
     async fn find_similar_users(
@@ -165,9 +160,10 @@ impl UserRepository for MariaDbUserRepository {
         user_id: &Uuid,
         limit: i64,
     ) -> Result<Vec<Uuid>, RepositoryError> {
-        let user_ids = sqlx::query!(
+        let records = sqlx::query_as!(
+            UserIdRecord,
             r#"
-            SELECT r2.user_id
+            SELECT r2.user_id AS `user_id: _`
             FROM reactions r1
             JOIN reactions r2 ON r1.message_id = r2.message_id
             WHERE r1.user_id = ? AND r2.user_id != ?
@@ -181,26 +177,16 @@ impl UserRepository for MariaDbUserRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?
-        .into_iter()
-        .map(|record| {
-            if record.user_id.len() == 16 {
-                Uuid::from_slice(&record.user_id).unwrap_or_default()
-            } else {
-                let s = String::from_utf8(record.user_id).unwrap_or_default();
-                Uuid::parse_str(&s).unwrap_or_default()
-            }
-        })
-        .collect();
+        .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
-        Ok(user_ids)
+        Ok(records.into_iter().map(|r| r.user_id).collect())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::test_factories::UserBuilder;
+    use domain::test_factories::{MessageBuilder, ReactionBuilder, UserBuilder};
     use fake::{Fake, uuid::UUIDv4};
 
     #[sqlx::test]
@@ -306,5 +292,126 @@ mod tests {
         assert!(result.is_some());
         let token = result.unwrap();
         assert!(["token1", "token2", "token3"].contains(&token.as_str()));
+    }
+
+    #[sqlx::test]
+    async fn test_find_frequently_stamped_users_by(pool: sqlx::MySqlPool) {
+        use crate::repository::mariadb::message::MariaDbMessageRepository;
+        use domain::repository::MessageRepository;
+
+        let user_repo = MariaDbUserRepository::new(pool.clone());
+        let message_repo = MariaDbMessageRepository::new(pool.clone());
+
+        let me = UUIDv4.fake();
+        let target_user_1 = UUIDv4.fake(); // Most frequent
+        let target_user_2 = UUIDv4.fake(); // Less frequent
+
+        // User 1: 3 reactions from me
+        for _ in 0..3 {
+            let msg = MessageBuilder::new().user_id(target_user_1).build();
+            let reaction = ReactionBuilder::new().user_id(me).build();
+            let msg_with_reaction = MessageBuilder::new()
+                .id(msg.id)
+                .user_id(msg.user_id)
+                .reactions(vec![reaction])
+                .build();
+            message_repo.save(&msg_with_reaction).await.unwrap();
+        }
+
+        // User 2: 1 reaction from me
+        for _ in 0..1 {
+            let msg = MessageBuilder::new().user_id(target_user_2).build();
+            let reaction = ReactionBuilder::new().user_id(me).build();
+            let msg_with_reaction = MessageBuilder::new()
+                .id(msg.id)
+                .user_id(msg.user_id)
+                .reactions(vec![reaction])
+                .build();
+            message_repo.save(&msg_with_reaction).await.unwrap();
+        }
+
+        // Other's reaction (should be ignored)
+        let other = UUIDv4.fake();
+        let msg = MessageBuilder::new().user_id(target_user_2).build();
+        let reaction = ReactionBuilder::new().user_id(other).build();
+        let msg_with_reaction = MessageBuilder::new()
+            .id(msg.id)
+            .user_id(msg.user_id)
+            .reactions(vec![reaction])
+            .build();
+        message_repo.save(&msg_with_reaction).await.unwrap();
+
+        let stamped_users = user_repo
+            .find_frequently_stamped_users_by(&me, 10)
+            .await
+            .unwrap();
+
+        assert_eq!(stamped_users.len(), 2);
+        assert_eq!(stamped_users[0], target_user_1);
+        assert_eq!(stamped_users[1], target_user_2);
+    }
+
+    #[sqlx::test]
+    async fn test_find_similar_users(pool: sqlx::MySqlPool) {
+        use crate::repository::mariadb::message::MariaDbMessageRepository;
+        use domain::repository::MessageRepository;
+
+        let user_repo = MariaDbUserRepository::new(pool.clone());
+        let message_repo = MariaDbMessageRepository::new(pool.clone());
+
+        let me = UUIDv4.fake();
+        let similar_user_1 = UUIDv4.fake(); // Most similar (reacted to 2 same msgs)
+        let similar_user_2 = UUIDv4.fake(); // Less similar (reacted to 1 same msg)
+        let other_user = UUIDv4.fake(); // Not similar (reacted to different msg)
+
+        // Msg 1: Me and Similar 1 reacted
+        let msg1 = MessageBuilder::new().build();
+        let reaction_me = ReactionBuilder::new().user_id(me).build();
+        let reaction_s1 = ReactionBuilder::new().user_id(similar_user_1).build();
+        message_repo
+            .save(
+                &MessageBuilder::new()
+                    .id(msg1.id)
+                    .reactions(vec![reaction_me.clone(), reaction_s1.clone()])
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        // Msg 2: Me and Similar 1 and Similar 2 reacted
+        let msg2 = MessageBuilder::new().build();
+        let reaction_s2 = ReactionBuilder::new().user_id(similar_user_2).build();
+        message_repo
+            .save(
+                &MessageBuilder::new()
+                    .id(msg2.id)
+                    .reactions(vec![
+                        reaction_me.clone(),
+                        reaction_s1.clone(),
+                        reaction_s2.clone(),
+                    ])
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        // Msg 3: Only Other reacted
+        let msg3 = MessageBuilder::new().build();
+        let reaction_other = ReactionBuilder::new().user_id(other_user).build();
+        message_repo
+            .save(
+                &MessageBuilder::new()
+                    .id(msg3.id)
+                    .reactions(vec![reaction_other])
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        let similar_users = user_repo.find_similar_users(&me, 10).await.unwrap();
+
+        assert_eq!(similar_users.len(), 2);
+        assert_eq!(similar_users[0], similar_user_1); // 2 co-occurrences
+        assert_eq!(similar_users[1], similar_user_2); // 1 co-occurrence
     }
 }
