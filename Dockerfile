@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.93.0-trixie AS backend-builder
+FROM rust:1.93.0-trixie AS builder
 
 WORKDIR /usr/src/app
 
@@ -14,21 +14,10 @@ RUN --mount=type=bind,source=.sqlx,target=.sqlx \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     cargo build --locked --release && cp target/release/app /tmp/app
 
-FROM denoland/deno:alpine-2.6.6 AS frontend-builder
+FROM gcr.io/distroless/cc-debian12:nonroot
 
-WORKDIR /usr/src/app
+COPY --from=builder /tmp/app /usr/local/bin/app
 
-COPY . .
+EXPOSE 8080
 
-RUN deno task build
-
-FROM caddy:2.10.2-alpine
-
-COPY --from=backend-builder /tmp/app /usr/local/bin/app
-COPY --from=frontend-builder /usr/src/app/dist /usr/share/caddy
-COPY Caddyfile /etc/caddy/Caddyfile
-
-RUN /usr/local/bin/app &
-
-EXPOSE 80
-CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]
+CMD ["/usr/local/bin/app"]
