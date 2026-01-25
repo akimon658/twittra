@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT COUNT(*)\n            FROM user_tokens\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "COUNT(*)",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "max_size": 21
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5840850a9b3a2325a4008ff11a4bb8ce01830a99022bba663a48880e6de848ec"
+}

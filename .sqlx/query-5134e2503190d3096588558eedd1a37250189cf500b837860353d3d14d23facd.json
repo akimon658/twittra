@@ -1,0 +1,44 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT id AS `id: _`, created_at, last_crawled_at AS `last_crawled_at: _`\n            FROM messages\n            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | PRIMARY_KEY | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | MULTIPLE_KEY | UNSIGNED | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 26
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "last_crawled_at: _",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | UNSIGNED | BINARY | TIMESTAMP",
+          "max_size": 26
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5134e2503190d3096588558eedd1a37250189cf500b837860353d3d14d23facd"
+}

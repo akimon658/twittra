@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: Release level
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump version and create tag
+        id: bump_version
+        run: |
+          current_version=$(grep -oP '(?<=^version = ")[^"]+' Cargo.toml)
+          echo "Current version: $current_version"
+
+          IFS='.' read -r major minor patch <<< "$current_version"
+
+          case "${{ github.event.inputs.level }}" in
+            patch)
+              patch=$((patch + 1))
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            *)
+              echo "Invalid level: ${{ github.event.inputs.level }}"
+              exit 1
+              ;;
+          esac
+
+          new_version="$major.$minor.$patch"
+          echo "New version: $new_version"
+
+          sed -i "s/^version = \".*\"/version = \"$new_version\"/" Cargo.toml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Bump version to $new_version"
+          git tag "v$new_version"
+          git push origin HEAD --tags
+
+          echo "::set-output name=version::$new_version"
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=workflow_dispatch
+            type=semver,pattern={{version}},version=${{ steps.bump_version.outputs.version }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,74 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT id AS `id: _`, user_id AS `user_id: _`, channel_id AS `channel_id: _`, content, created_at, updated_at\n            FROM messages\n            WHERE id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | PRIMARY_KEY | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "channel_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "max_size": 262140
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | MULTIPLE_KEY | UNSIGNED | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 26
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "updated_at",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | UNSIGNED | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 26
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e3e3bdb660ef1e7a466ee1be393f55b3b359362e047dbf7980f32108b204f157"
+}

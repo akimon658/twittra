@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT MAX(created_at)\n            FROM messages\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "MAX(created_at)",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "UNSIGNED | BINARY",
+          "max_size": 26
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8eaccf449577dde729a2e3ad096db58f22055aa88ee7dd1d2a908fac69f3664c"
+}

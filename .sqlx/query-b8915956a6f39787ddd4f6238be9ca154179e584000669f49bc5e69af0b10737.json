@@ -1,0 +1,54 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            SELECT message_id AS `message_id: _`, stamp_id AS `stamp_id: _`, user_id AS `user_id: _`, stamp_count\n            FROM reactions\n            WHERE message_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | PRIMARY_KEY | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "stamp_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | PRIMARY_KEY | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id: _",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | PRIMARY_KEY | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 16
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "stamp_count",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "max_size": 11
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b8915956a6f39787ddd4f6238be9ca154179e584000669f49bc5e69af0b10737"
+}
