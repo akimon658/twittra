@@ -140,11 +140,12 @@ impl UserRepository for MariaDbUserRepository {
             SELECT m.user_id AS `user_id: _`
             FROM reactions r
             JOIN messages m ON r.message_id = m.id
-            WHERE r.user_id = ?
+            WHERE r.user_id = ? AND m.user_id != ?
             GROUP BY m.user_id
             ORDER BY COUNT(*) DESC
             LIMIT ?
             "#,
+            user_id,
             user_id,
             limit
         )
