@@ -30,4 +30,5 @@ COPY Caddyfile /etc/caddy/Caddyfile
 
 RUN /usr/local/bin/app &
 
+EXPOSE 80
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]
