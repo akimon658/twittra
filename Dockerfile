@@ -12,11 +12,11 @@ RUN --mount=type=bind,source=.sqlx,target=.sqlx \
     --mount=type=cache,target=/usr/src/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --locked --release
+    cargo build --locked --release && cp target/release/app /tmp/app
 
 FROM gcr.io/distroless/cc-debian12:nonroot
 
-COPY --from=builder /usr/src/app/target/release/app /usr/local/bin/app
+COPY --from=builder /tmp/app /usr/local/bin/app
 
 EXPOSE 8080
 
