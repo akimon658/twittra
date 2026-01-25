@@ -12,5 +12,3 @@ COPY --from=builder /usr/src/app/dist /usr/share/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 80
-
-CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]
