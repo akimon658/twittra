@@ -7,7 +7,10 @@ export const Layout = () => {
   const user = useUser()
 
   return (
-    <AppShell navbar={{ breakpoint: "sm", width: 256 }} padding="md">
+    <AppShell
+      navbar={{ breakpoint: "sm", collapsed: { mobile: true }, width: 256 }}
+      padding="md"
+    >
       <AppShell.Navbar>
         <AppShell.Section grow p="md">Home</AppShell.Section>
 
