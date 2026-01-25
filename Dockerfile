@@ -9,7 +9,7 @@ RUN --mount=type=bind,source=.sqlx,target=.sqlx \
     --mount=type=bind,source=crates,target=crates \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
-    --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/src/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     cargo build --locked --release
