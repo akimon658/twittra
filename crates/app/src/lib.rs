@@ -87,7 +87,9 @@ pub async fn serve() -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
     let database_url = env::var("DATABASE_URL")?;
     let pool = MySqlPool::connect(&database_url).await?;
-    let session_store = MySqlStore::new(pool.clone());
+    let session_store = MySqlStore::new(pool.clone())
+        .with_schema_name(env::var("SESSION_TABLE_SCHEMA")?)?
+        .with_table_name(env::var("SESSION_TABLE_NAME")?)?;
 
     session_store.migrate().await?;
 
