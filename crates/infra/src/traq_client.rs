@@ -211,6 +211,50 @@ impl TraqClient for TraqClientImpl {
 
         Ok(message)
     }
+
+    async fn get_channel_messages(
+        &self,
+        token: &str,
+        channel_id: &Uuid,
+        limit: Option<i32>,
+        since: Option<OffsetDateTime>,
+        until: Option<OffsetDateTime>,
+        order: Option<String>,
+    ) -> Result<Vec<Message>, TraqClientError> {
+        let config = Configuration {
+            base_path: self.base_url.clone(),
+            oauth_access_token: Some(token.to_string()),
+            ..Default::default()
+        };
+        let since_str = since
+            .map(|dt| dt.format(&Rfc3339))
+            .transpose()
+            .map_err(|e| TraqClientError::ResponseParse(e.to_string()))?;
+        let until_str = until
+            .map(|dt| dt.format(&Rfc3339))
+            .transpose()
+            .map_err(|e| TraqClientError::ResponseParse(e.to_string()))?;
+
+        let messages = message_api::get_messages(
+            &config,
+            &channel_id.to_string(),
+            limit,
+            None, // offset
+            since_str,
+            until_str,
+            None, // inclusive
+            order.as_deref(),
+        )
+        .await?;
+
+        let messages = messages
+            .into_iter()
+            .map(|msg| msg.try_into())
+            .collect::<Result<Vec<Message>, _>>()
+            .map_err(|e: Parse| TraqClientError::ResponseParse(e.to_string()))?;
+
+        Ok(messages)
+    }
 }
 
 #[cfg(test)]

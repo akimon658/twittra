@@ -2,7 +2,7 @@ use crate::{
     handler::{
         AppState,
         auth::{self},
-        message, stamp, timeline, user,
+        channel, message, stamp, timeline, user,
     },
     session::Backend,
 };
@@ -60,6 +60,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     OpenApiRouter::with_openapi(openapi)
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
+        .routes(utoipa_axum::routes!(channel::get_channel_messages))
         .routes(utoipa_axum::routes!(
             message::add_message_stamp,
             message::remove_message_stamp

@@ -2,6 +2,7 @@ use domain::service::{TimelineService, TraqService};
 use std::sync::Arc;
 
 pub mod auth;
+pub mod channel;
 pub mod message;
 pub mod stamp;
 pub mod timeline;

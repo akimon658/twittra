@@ -43,6 +43,15 @@ pub trait TraqService: Debug + Send + Sync {
         message_id: &Uuid,
         stamp_id: &Uuid,
     ) -> Result<(), DomainError>;
+    async fn get_channel_messages(
+        &self,
+        user_id: &Uuid,
+        channel_id: &Uuid,
+        limit: Option<i32>,
+        since: Option<time::OffsetDateTime>,
+        until: Option<time::OffsetDateTime>,
+        order: Option<String>,
+    ) -> Result<Vec<MessageListItem>, DomainError>;
 }
 
 /// Service for timeline-related operations.
@@ -300,6 +309,46 @@ impl TraqService for TraqServiceImpl {
             .await?;
 
         Ok(())
+    }
+
+    async fn get_channel_messages(
+        &self,
+        user_id: &Uuid,
+        channel_id: &Uuid,
+        limit: Option<i32>,
+        since: Option<time::OffsetDateTime>,
+        until: Option<time::OffsetDateTime>,
+        order: Option<String>,
+    ) -> Result<Vec<MessageListItem>, DomainError> {
+        let token = match self.repo.user.find_token_by_user_id(user_id).await? {
+            Some(token) => token,
+            None => {
+                return Err(DomainError::NoTokenForUser(*user_id));
+            }
+        };
+
+        let messages = self
+            .traq_client
+            .get_channel_messages(&token, channel_id, limit, since, until, order)
+            .await?;
+
+        // Convert Message to MessageListItem by enriching with user data
+        let mut message_list_items = Vec::new();
+        for message in messages {
+            let user = self.repo.user.find_by_id(&message.user_id).await?;
+            message_list_items.push(MessageListItem {
+                id: message.id,
+                user_id: message.user_id,
+                user,
+                channel_id: message.channel_id,
+                content: message.content,
+                created_at: message.created_at,
+                updated_at: message.updated_at,
+                reactions: message.reactions,
+            });
+        }
+
+        Ok(message_list_items)
     }
 }
 
