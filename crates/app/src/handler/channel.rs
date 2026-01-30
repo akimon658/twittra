@@ -26,8 +26,8 @@ pub struct GetChannelMessagesQuery {
     path = "/channels/{channelId}/messages",
     params(
         ("channelId" = Uuid, Path, description = "Channel ID"),
-        ("since" = Option<String>, Query, description = "Fetch messages created after this timestamp (RFC3339)"),
-        ("until" = Option<String>, Query, description = "Fetch messages created before this timestamp (RFC3339)"),
+        ("since" = Option<OffsetDateTime>, Query, description = "Fetch messages created after this timestamp (RFC3339)"),
+        ("until" = Option<OffsetDateTime>, Query, description = "Fetch messages created before this timestamp (RFC3339)"),
         ("order" = Option<String>, Query, description = "Sort order (asc/desc)"),
     ),
     responses(

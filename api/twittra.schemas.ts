@@ -124,6 +124,21 @@ export type OauthCallbackParams = {
   state: string
 }
 
+export type GetChannelMessagesParams = {
+  /**
+   * Fetch messages created after this timestamp (RFC3339)
+   */
+  since?: Date
+  /**
+   * Fetch messages created before this timestamp (RFC3339)
+   */
+  until?: Date
+  /**
+   * Sort order (asc/desc)
+   */
+  order?: string
+}
+
 export type GetStampsParams = {
   /**
    * Filter stamps by name
