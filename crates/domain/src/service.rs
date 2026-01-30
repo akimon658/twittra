@@ -4,7 +4,12 @@ use crate::{
     repository::Repository,
     traq_client::TraqClient,
 };
-use std::{cmp::Ordering, collections::HashMap, fmt::Debug, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+    sync::Arc,
+};
 use uuid::Uuid;
 
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
@@ -332,21 +337,32 @@ impl TraqService for TraqServiceImpl {
             .get_channel_messages(&token, channel_id, limit, since, until, order)
             .await?;
 
+        // Collect unique user IDs from messages
+        let user_ids: Vec<Uuid> = messages
+            .iter()
+            .map(|m| m.user_id)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        // Batch fetch users
+        let users = self.repo.user.find_by_ids(&user_ids).await?;
+        let user_map: HashMap<Uuid, User> = users.into_iter().map(|u| (u.id, u)).collect();
+
         // Convert Message to MessageListItem by enriching with user data
-        let mut message_list_items = Vec::new();
-        for message in messages {
-            let user = self.repo.user.find_by_id(&message.user_id).await?;
-            message_list_items.push(MessageListItem {
+        let message_list_items = messages
+            .into_iter()
+            .map(|message| MessageListItem {
                 id: message.id,
                 user_id: message.user_id,
-                user,
+                user: user_map.get(&message.user_id).cloned(),
                 channel_id: message.channel_id,
                 content: message.content,
                 created_at: message.created_at,
                 updated_at: message.updated_at,
                 reactions: message.reactions,
-            });
-        }
+            })
+            .collect();
 
         Ok(message_list_items)
     }

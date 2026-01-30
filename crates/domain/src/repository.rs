@@ -86,6 +86,12 @@ pub trait StampRepository: Debug + Send + Sync {
 #[async_trait::async_trait]
 pub trait UserRepository: Debug + Send + Sync {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>, RepositoryError>;
+    /// Finds users by their IDs in batch.
+    ///
+    /// Note: The users table is a cache and may not contain all users from traQ.
+    /// This method may return fewer users than requested if some IDs are not found in the cache.
+    /// The returned Vec will only contain users that were found.
+    async fn find_by_ids(&self, ids: &[Uuid]) -> Result<Vec<User>, RepositoryError>;
     async fn find_random_valid_token(&self) -> Result<Option<String>, RepositoryError>;
     async fn find_token_by_user_id(
         &self,

@@ -268,8 +268,12 @@ mod tests {
         TokenUrl, basic::BasicClient,
     };
     use reqwest::redirect::Policy;
-    use std::path::PathBuf;
+    use std::{error::Error, path::PathBuf, time::Duration as StdDuration};
     use testcontainers::{compose::DockerCompose, core::wait::HttpWaitStrategy};
+    use traq::{
+        apis::channel_api,
+        models::{PostChannelRequest, PostMessageRequest},
+    };
     use uuid::Uuid;
 
     /// Test environment that orchestrates traQ via Docker Compose
@@ -499,6 +503,48 @@ mod tests {
             self.default_user_id
         }
 
+        async fn create_channel(
+            &self,
+            name: &str,
+            parent_id: Option<Uuid>,
+        ) -> Result<Uuid, Box<dyn Error>> {
+            let conf = Configuration {
+                base_path: self.base_url.clone(),
+                bearer_access_token: Some(self.default_user_token.clone()),
+                ..Default::default()
+            };
+
+            let req = PostChannelRequest {
+                name: name.to_string(),
+                parent: parent_id,
+            };
+
+            let channel = channel_api::create_channel(&conf, Some(req)).await?;
+            Ok(channel.id)
+        }
+
+        async fn post_message(
+            &self,
+            channel_id: Uuid,
+            content: &str,
+        ) -> Result<Uuid, Box<dyn Error>> {
+            let conf = Configuration {
+                base_path: self.base_url.clone(),
+                bearer_access_token: Some(self.default_user_token.clone()),
+                ..Default::default()
+            };
+
+            let req = PostMessageRequest {
+                content: content.to_string(),
+                embed: Some(false),
+                nonce: None,
+            };
+
+            let message =
+                message_api::post_message(&conf, &channel_id.to_string(), Some(req)).await?;
+            Ok(message.id)
+        }
+
         /// Explicit cleanup method
         async fn cleanup(mut self) {
             if let Some(compose) = self.compose.take() {
@@ -510,6 +556,72 @@ mod tests {
                 eprintln!("Cleanup complete!");
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_channel_messages() {
+        let env = TraqTestEnvironment::start().await;
+        let client = TraqClientImpl::new(env.base_url().to_string());
+
+        // Create a channel
+        let channel_id = env
+            .create_channel("test_channel", None)
+            .await
+            .expect("Failed to create channel");
+
+        // Post 3 messages
+        let msg1_id = env
+            .post_message(channel_id, "msg1")
+            .await
+            .expect("Failed to post msg1");
+
+        // Wait a small amount to ensure timestamps ensure ordering if ms precision is loose
+        tokio::time::sleep(StdDuration::from_millis(100)).await;
+
+        let msg2_id = env
+            .post_message(channel_id, "msg2")
+            .await
+            .expect("Failed to post msg2");
+
+        tokio::time::sleep(StdDuration::from_millis(100)).await;
+
+        let msg3_id = env
+            .post_message(channel_id, "msg3")
+            .await
+            .expect("Failed to post msg3");
+
+        // Fetch messages with limit=3, order=desc (default)
+        let messages = client
+            .get_channel_messages(
+                env.default_user_token(),
+                &channel_id,
+                Some(3),
+                None,
+                None,
+                None,
+            )
+            .await
+            .expect("Failed to get messages");
+
+        assert_eq!(messages.len(), 3);
+
+        // Strict order verification (Newest first)
+        assert_eq!(
+            messages[0].id, msg3_id,
+            "First message should be msg3 (newest)"
+        );
+        assert_eq!(messages[0].content, "msg3");
+
+        assert_eq!(messages[1].id, msg2_id, "Second message should be msg2");
+        assert_eq!(messages[1].content, "msg2");
+
+        assert_eq!(
+            messages[2].id, msg1_id,
+            "Third message should be msg1 (oldest)"
+        );
+        assert_eq!(messages[2].content, "msg1");
+
+        env.cleanup().await;
     }
 
     #[tokio::test]

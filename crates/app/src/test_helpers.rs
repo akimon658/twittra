@@ -26,6 +26,7 @@ mockall::mock! {
     #[async_trait::async_trait]
     impl UserRepository for UserRepo {
         async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>, RepositoryError>;
+        async fn find_by_ids(&self, ids: &[Uuid]) -> Result<Vec<User>, RepositoryError>;
         async fn find_random_valid_token(&self) -> Result<Option<String>, RepositoryError>;
         async fn find_token_by_user_id(&self, user_id: &Uuid) -> Result<Option<String>, RepositoryError>;
         async fn save(&self, user: &User) -> Result<(), RepositoryError>;

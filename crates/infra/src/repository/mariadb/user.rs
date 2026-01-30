@@ -40,6 +40,50 @@ impl UserRepository for MariaDbUserRepository {
         Ok(user)
     }
 
+    async fn find_by_ids(&self, ids: &[Uuid]) -> Result<Vec<User>, RepositoryError> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        #[derive(sqlx::FromRow)]
+        struct UserRow {
+            id: Uuid,
+            handle: String,
+            display_name: String,
+        }
+
+        let mut query_builder = sqlx::QueryBuilder::new(
+            r#"
+            SELECT id, handle, display_name
+            FROM users
+            WHERE id IN (
+            "#,
+        );
+
+        let mut separated = query_builder.separated(", ");
+        for id in ids {
+            separated.push_bind(id);
+        }
+
+        query_builder.push(")");
+
+        let rows = query_builder
+            .build_query_as::<UserRow>()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+        let users = rows
+            .into_iter()
+            .map(|row| User {
+                id: row.id,
+                handle: row.handle,
+                display_name: row.display_name,
+            })
+            .collect();
+
+        Ok(users)
+    }
     async fn find_random_valid_token(&self) -> Result<Option<String>, RepositoryError> {
         let rows_count = sqlx::query_scalar!(
             r#"
@@ -414,5 +458,57 @@ mod tests {
         assert_eq!(similar_users.len(), 2);
         assert_eq!(similar_users[0], similar_user_1); // 2 co-occurrences
         assert_eq!(similar_users[1], similar_user_2); // 1 co-occurrence
+    }
+
+    #[sqlx::test]
+    async fn test_find_by_ids(pool: sqlx::MySqlPool) {
+        let repo = MariaDbUserRepository::new(pool);
+
+        let user1 = UserBuilder::new().build();
+        let user2 = UserBuilder::new().build();
+        let user3 = UserBuilder::new().build();
+
+        // Save users
+        repo.save(&user1).await.unwrap();
+        repo.save(&user2).await.unwrap();
+        repo.save(&user3).await.unwrap();
+
+        // Test fetching all three users
+        let ids = vec![user1.id, user2.id, user3.id];
+        let found = repo.find_by_ids(&ids).await.unwrap();
+
+        assert_eq!(found.len(), 3);
+        assert!(found.iter().any(|u| u.id == user1.id));
+        assert!(found.iter().any(|u| u.id == user2.id));
+        assert!(found.iter().any(|u| u.id == user3.id));
+    }
+
+    #[sqlx::test]
+    async fn test_find_by_ids_empty(pool: sqlx::MySqlPool) {
+        let repo = MariaDbUserRepository::new(pool);
+
+        let found = repo.find_by_ids(&[]).await.unwrap();
+
+        assert_eq!(found.len(), 0);
+    }
+
+    #[sqlx::test]
+    async fn test_find_by_ids_partial(pool: sqlx::MySqlPool) {
+        use fake::Fake;
+        use fake::uuid::UUIDv4;
+
+        let repo = MariaDbUserRepository::new(pool);
+
+        let user = UserBuilder::new().build();
+        repo.save(&user).await.unwrap();
+
+        // Mix of existing and non-existing IDs
+        let nonexistent_id: Uuid = UUIDv4.fake();
+        let ids = vec![user.id, nonexistent_id];
+        let found = repo.find_by_ids(&ids).await.unwrap();
+
+        // Should only return the existing user
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].id, user.id);
     }
 }
