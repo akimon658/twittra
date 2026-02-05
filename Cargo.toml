@@ -23,7 +23,7 @@ strum = "0.27.2"
 sqlx = { version = "0.8.6", default-features = false, features = ["macros", "migrate", "mysql", "runtime-tokio", "time", "uuid"] }
 testcontainers = { version = "0.26.3", default-features = false }
 thiserror = "2.0.17"
-time = { version = "0.3.44", features = ["formatting", "parsing", "serde"] }
+time = { version = "0.3.47", features = ["formatting", "parsing", "serde"] }
 tokio = { version = "1.48.0", features = ["net", "rt-multi-thread"] }
 tower = "0.5.3"
 tower-sessions = { version = "0.14.0", default-features = false, features = ["axum-core"] }
