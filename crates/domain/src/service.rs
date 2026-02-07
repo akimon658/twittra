@@ -1,6 +1,6 @@
 use crate::{
     error::DomainError,
-    model::{MessageListItem, Stamp, User},
+    model::{MessageListItem, Order, Stamp, User},
     repository::Repository,
     traq_client::TraqClient,
 };
@@ -55,7 +55,7 @@ pub trait TraqService: Debug + Send + Sync {
         limit: Option<i32>,
         since: Option<time::OffsetDateTime>,
         until: Option<time::OffsetDateTime>,
-        order: Option<String>,
+        order: Option<Order>,
     ) -> Result<Vec<MessageListItem>, DomainError>;
 }
 
@@ -323,7 +323,7 @@ impl TraqService for TraqServiceImpl {
         limit: Option<i32>,
         since: Option<time::OffsetDateTime>,
         until: Option<time::OffsetDateTime>,
-        order: Option<String>,
+        order: Option<Order>,
     ) -> Result<Vec<MessageListItem>, DomainError> {
         let token = match self.repo.user.find_token_by_user_id(user_id).await? {
             Some(token) => token,

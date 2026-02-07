@@ -1,6 +1,6 @@
 use domain::{
     error::TraqClientError,
-    model::{Message, Stamp, User},
+    model::{Message, Order, Stamp, User},
     traq_client::TraqClient,
 };
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
@@ -219,7 +219,7 @@ impl TraqClient for TraqClientImpl {
         limit: Option<i32>,
         since: Option<OffsetDateTime>,
         until: Option<OffsetDateTime>,
-        order: Option<String>,
+        order: Option<Order>,
     ) -> Result<Vec<Message>, TraqClientError> {
         let config = Configuration {
             base_path: self.base_url.clone(),
@@ -243,7 +243,7 @@ impl TraqClient for TraqClientImpl {
             since_str,
             until_str,
             None, // inclusive
-            order.as_deref(),
+            order.map(|o| o.into()),
         )
         .await?;
 
@@ -598,7 +598,7 @@ mod tests {
                 Some(3),
                 None,
                 None,
-                None,
+                Some(Order::Desc),
             )
             .await
             .expect("Failed to get messages");

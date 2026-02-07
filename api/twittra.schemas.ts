@@ -58,6 +58,14 @@ Omitted if the server hasn't cached the user info. */
   userId: string
 }
 
+export type Order = typeof Order[keyof typeof Order]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const Order = {
+  asc: "asc",
+  desc: "desc",
+} as const
+
 export interface Reaction {
   stampCount: number
   stampId: string
@@ -136,7 +144,7 @@ export type GetChannelMessagesParams = {
   /**
    * Sort order (asc/desc)
    */
-  order?: string
+  order?: Order
 }
 
 export type GetStampsParams = {

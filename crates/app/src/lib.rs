@@ -11,7 +11,7 @@ use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
     event::{ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload},
-    model::Message,
+    model::{Message, Order},
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
@@ -42,6 +42,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     let components = ComponentsBuilder::new()
         .schema_from::<ClientEvent>()
         .schema_from::<Message>()
+        .schema_from::<Order>()
         .schema_from::<ServerEvent>()
         .schema_from::<SubscribePayload>()
         .schema_from::<UnsubscribePayload>()

@@ -1,8 +1,17 @@
 use serde::{Deserialize, Serialize};
+use strum::{Display, IntoStaticStr};
 use time::{OffsetDateTime, error::Parse, format_description::well_known::Rfc3339};
 use traq::models::{self, MessageStamp, MyUserDetail, StampWithThumbnail, UserDetail};
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, Display, IntoStaticStr)]
+#[strum(serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum Order {
+    Asc,
+    Desc,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

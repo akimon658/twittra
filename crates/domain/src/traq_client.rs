@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::model::{Message, Stamp, User};
+use crate::model::{Message, Order, Stamp, User};
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
@@ -49,6 +49,6 @@ pub trait TraqClient: Debug + Send + Sync {
         limit: Option<i32>,
         since: Option<OffsetDateTime>,
         until: Option<OffsetDateTime>,
-        order: Option<String>,
+        order: Option<Order>,
     ) -> Result<Vec<Message>, TraqClientError>;
 }

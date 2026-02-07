@@ -4,7 +4,7 @@ use axum::{
     extract::{Path, Query, State},
     response::IntoResponse,
 };
-use domain::model::MessageListItem;
+use domain::model::{MessageListItem, Order};
 use http::StatusCode;
 use serde::Deserialize;
 use time::OffsetDateTime;
@@ -17,7 +17,7 @@ pub struct GetChannelMessagesQuery {
     since: Option<OffsetDateTime>,
     #[serde(default, with = "time::serde::rfc3339::option")]
     until: Option<OffsetDateTime>,
-    order: Option<String>,
+    order: Option<Order>,
 }
 
 /// Get messages from a specific channel.
@@ -28,7 +28,7 @@ pub struct GetChannelMessagesQuery {
         ("channelId" = Uuid, Path, description = "Channel ID"),
         ("since" = Option<OffsetDateTime>, Query, description = "Fetch messages created after this timestamp (RFC3339)"),
         ("until" = Option<OffsetDateTime>, Query, description = "Fetch messages created before this timestamp (RFC3339)"),
-        ("order" = Option<String>, Query, description = "Sort order (asc/desc)"),
+        ("order" = Option<Order>, Query, description = "Sort order (asc/desc)"),
     ),
     responses(
         (status = StatusCode::OK, body = [MessageListItem]),
