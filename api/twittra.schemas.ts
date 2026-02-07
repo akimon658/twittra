@@ -134,11 +134,11 @@ export type OauthCallbackParams = {
 
 export type GetChannelMessagesParams = {
   /**
-   * Fetch messages created after this timestamp (RFC3339)
+   * Fetch messages created after this timestamp
    */
   since?: Date
   /**
-   * Fetch messages created before this timestamp (RFC3339)
+   * Fetch messages created before this timestamp
    */
   until?: Date
   /**
