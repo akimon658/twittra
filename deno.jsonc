@@ -18,6 +18,7 @@
     "@mantine/hooks": "npm:@mantine/hooks@^8.3.10",
     "@tabler/icons-react": "npm:@tabler/icons-react@^3.36.0",
     "@tanstack/react-query": "npm:@tanstack/react-query@^5.90.12",
+    "@tanstack/react-router": "npm:@tanstack/react-router@^1.158.4",
     "@testing-library/react": "npm:@testing-library/react@^16.3.1",
     "@testing-library/user-event": "npm:@testing-library/user-event@^14.6.1",
     "@traptitech/traq-markdown-it": "npm:@traptitech/traq-markdown-it@^7.0.2",

@@ -66,6 +66,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
             message::add_message_stamp,
             message::remove_message_stamp
         ))
+        .routes(utoipa_axum::routes!(message::get_message))
         .routes(utoipa_axum::routes!(message::mark_messages_as_read))
         .routes(utoipa_axum::routes!(stamp::get_stamp_by_id))
         .routes(utoipa_axum::routes!(stamp::get_stamps))

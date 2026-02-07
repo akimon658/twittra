@@ -4,10 +4,49 @@ use axum::{
     extract::{Path, State},
     response::IntoResponse,
 };
+use domain::model::MessageListItem;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+/// Get a single message by ID.
+#[utoipa::path(
+    get,
+    params(
+        ("messageId" = Uuid, Path, description = "The ID of the message to fetch"),
+    ),
+    path = "/messages/{messageId}",
+    responses(
+        (status = StatusCode::OK, body = MessageListItem),
+        (status = StatusCode::NOT_FOUND),
+        (status = StatusCode::UNAUTHORIZED),
+        (status = StatusCode::INTERNAL_SERVER_ERROR),
+    ),
+    security(
+        ("cookieAuth" = []),
+    ),
+    tag = "message",
+)]
+#[tracing::instrument(skip(auth_session, state))]
+pub async fn get_message(
+    auth_session: AuthSession,
+    State(state): State<AppState>,
+    Path(message_id): Path<Uuid>,
+) -> impl IntoResponse {
+    if auth_session.user.is_none() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    match state.timeline_service.get_message_by_id(&message_id).await {
+        Ok(Some(message)) => Json(message).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            tracing::error!("{:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
 
 #[utoipa::path(
     post,

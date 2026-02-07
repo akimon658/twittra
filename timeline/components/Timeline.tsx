@@ -12,6 +12,7 @@ import {
 } from "@mantine/core"
 import { IconExclamationCircle, IconReload } from "@tabler/icons-react"
 import { QueryErrorResetBoundary } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 import { Suspense } from "react"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { VList } from "virtua"
@@ -42,6 +43,7 @@ const TimelineContent = () => {
   const messageIds = messages.map((item) => item.id)
   useMessageSubscription(messageIds, handleMessageUpdated)
   const { markAsRead } = useReadManagement()
+  const navigate = useNavigate()
 
   return (
     <VList
@@ -55,7 +57,17 @@ const TimelineContent = () => {
     >
       {messages.map((item) => (
         <Box key={item.id} mb="md">
-          <MessageItem message={item} onRead={markAsRead} />
+          <MessageItem
+            message={item}
+            onClick={() =>
+              navigate({
+                to: "/channels/$channelId",
+                params: { channelId: item.channelId },
+                search: { messageId: item.id },
+              })
+            }
+            onRead={markAsRead}
+          />
         </Box>
       ))}
     </VList>

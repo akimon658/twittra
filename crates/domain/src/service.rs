@@ -15,6 +15,10 @@ use uuid::Uuid;
 #[cfg_attr(any(test, feature = "test-utils"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait TimelineService: Debug + Send + Sync {
+    async fn get_message_by_id(
+        &self,
+        message_id: &Uuid,
+    ) -> Result<Option<MessageListItem>, DomainError>;
     async fn get_recommended_messages(
         &self,
         user_id: &Uuid,
@@ -73,6 +77,29 @@ impl TimelineServiceImpl {
 
 #[async_trait::async_trait]
 impl TimelineService for TimelineServiceImpl {
+    async fn get_message_by_id(
+        &self,
+        message_id: &Uuid,
+    ) -> Result<Option<MessageListItem>, DomainError> {
+        let message = match self.repo.message.find_by_id(message_id).await? {
+            Some(m) => m,
+            None => return Ok(None),
+        };
+
+        let user = self.repo.user.find_by_id(&message.user_id).await?;
+
+        Ok(Some(MessageListItem {
+            id: message.id,
+            user_id: message.user_id,
+            user,
+            channel_id: message.channel_id,
+            content: message.content,
+            created_at: message.created_at,
+            updated_at: message.updated_at,
+            reactions: message.reactions,
+        }))
+    }
+
     async fn get_recommended_messages(
         &self,
         user_id: &Uuid,
