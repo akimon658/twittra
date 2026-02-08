@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::model::{Message, Stamp, User};
+use crate::model::{Message, Order, Stamp, User};
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
@@ -42,4 +42,13 @@ pub trait TraqClient: Debug + Send + Sync {
     ) -> Result<(), TraqClientError>;
     async fn get_message(&self, token: &str, message_id: &Uuid)
     -> Result<Message, TraqClientError>;
+    async fn get_channel_messages(
+        &self,
+        token: &str,
+        channel_id: &Uuid,
+        limit: Option<i32>,
+        since: Option<OffsetDateTime>,
+        until: Option<OffsetDateTime>,
+        order: Option<Order>,
+    ) -> Result<Vec<Message>, TraqClientError>;
 }

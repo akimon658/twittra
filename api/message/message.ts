@@ -4,14 +4,18 @@
  * Twittra
  * OpenAPI spec version: 0.1.0
  */
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query"
 import type {
   MutationFunction,
+  QueryFunction,
+  QueryKey,
   UseMutationOptions,
   UseMutationResult,
+  UseSuspenseQueryOptions,
+  UseSuspenseQueryResult,
 } from "@tanstack/react-query"
 
-import type { ReadMessagesRequest } from "../twittra.schemas"
+import type { MessageListItem, ReadMessagesRequest } from "../twittra.schemas"
 
 import { customReviver } from ".././reviver"
 
@@ -150,6 +154,145 @@ export const useMarkMessagesAsRead = <TError = void, TContext = unknown>(
 
   return useMutation(mutationOptions)
 }
+/**
+ * @summary Get a single message by ID.
+ */
+export type getMessageResponse200 = {
+  data: MessageListItem
+  status: 200
+}
+
+export type getMessageResponse401 = {
+  data: void
+  status: 401
+}
+
+export type getMessageResponse404 = {
+  data: void
+  status: 404
+}
+
+export type getMessageResponse500 = {
+  data: void
+  status: 500
+}
+
+export type getMessageResponseSuccess = (getMessageResponse200) & {
+  headers: Headers
+}
+export type getMessageResponseError =
+  & (getMessageResponse401 | getMessageResponse404 | getMessageResponse500)
+  & {
+    headers: Headers
+  }
+
+export const getGetMessageUrl = (messageId: string) => {
+  return `/api/v1/messages/${messageId}`
+}
+
+export const getMessage = async (
+  messageId: string,
+  options?: RequestInit,
+): Promise<getMessageResponseSuccess> => {
+  const res = await fetch(getGetMessageUrl(messageId), {
+    ...options,
+    method: "GET",
+  })
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text()
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getMessageResponseError["data"]
+      status?: number
+    } = new globalThis.Error()
+    const data: getMessageResponseError["data"] = body
+      ? JSON.parse(body, customReviver)
+      : {}
+    err.info = data
+    err.status = res.status
+    throw err
+  }
+  const data: getMessageResponseSuccess["data"] = body
+    ? JSON.parse(body, customReviver)
+    : {}
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getMessageResponseSuccess
+}
+
+export const getGetMessageQueryKey = (messageId?: string) => {
+  return [
+    `/api/v1/messages/${messageId}`,
+  ] as const
+}
+
+export const getGetMessageSuspenseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMessage>>,
+  TError = void,
+>(
+  messageId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getMessage>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getGetMessageQueryKey(messageId)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessage>>> = (
+    { signal },
+  ) => getMessage(messageId, { signal, ...fetchOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as
+    & UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getMessage>>,
+      TError,
+      TData
+    >
+    & { queryKey: QueryKey }
+}
+
+export type GetMessageSuspenseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMessage>>
+>
+export type GetMessageSuspenseQueryError = void
+
+/**
+ * @summary Get a single message by ID.
+ */
+
+export function useGetMessageSuspense<
+  TData = Awaited<ReturnType<typeof getMessage>>,
+  TError = void,
+>(
+  messageId: string,
+  options?: {
+    query?: UseSuspenseQueryOptions<
+      Awaited<ReturnType<typeof getMessage>>,
+      TError,
+      TData
+    >
+    fetch?: RequestInit
+  },
+): UseSuspenseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMessageSuspenseQueryOptions(messageId, options)
+
+  const query = useSuspenseQuery(queryOptions) as
+    & UseSuspenseQueryResult<TData, TError>
+    & { queryKey: QueryKey }
+
+  query.queryKey = queryOptions.queryKey
+
+  return query
+}
+
 export type addMessageStampResponse204 = {
   data: void
   status: 204

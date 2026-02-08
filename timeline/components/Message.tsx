@@ -23,9 +23,10 @@ const md = new traQMarkdownIt(store, undefined, "")
 interface MessageProps {
   message: MessageListItem
   onRead: (id: string) => void
+  onClick?: () => void
 }
 
-export const MessageItem = ({ message, onRead }: MessageProps) => {
+export const MessageItem = ({ message, onRead, onClick }: MessageProps) => {
   const { ref, entry } = useIntersection({
     threshold: 0.5,
   })
@@ -37,7 +38,11 @@ export const MessageItem = ({ message, onRead }: MessageProps) => {
   }, [entry?.isIntersecting, message.id, onRead])
 
   return (
-    <Paper ref={ref}>
+    <Paper
+      ref={ref}
+      onClick={onClick}
+      style={onClick ? { cursor: "pointer" } : undefined}
+    >
       <Group align="start" wrap="nowrap">
         <MessageAuthorAvatar user={message.user} userId={message.userId} />
 

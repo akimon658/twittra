@@ -9,11 +9,12 @@ import {
 import "@mantine/core/styles.css"
 import { IconExclamationCircle } from "@tabler/icons-react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { RouterProvider } from "@tanstack/react-router"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { AuthProvider } from "../auth/components/AuthProvider.tsx"
-import { Layout } from "../components/Layout.tsx"
 import { SocketProvider } from "../socket/components/SocketProvider.tsx"
 import "./global.css"
+import { router } from "./router.tsx"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,7 +57,7 @@ export const App = () => {
         <QueryClientProvider client={queryClient}>
           <SocketProvider>
             <AuthProvider>
-              <Layout />
+              <RouterProvider router={router} />
             </AuthProvider>
           </SocketProvider>
         </QueryClientProvider>

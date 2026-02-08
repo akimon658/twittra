@@ -4,8 +4,37 @@
  * Twittra
  * OpenAPI spec version: 0.1.0
  */
+import { faker } from "@faker-js/faker"
+
 import { delay, http, HttpResponse } from "msw"
 import type { RequestHandlerOptions } from "msw"
+
+import type { MessageListItem } from "../twittra.schemas"
+
+export const getGetMessageResponseMock = (
+  overrideResponse: Partial<MessageListItem> = {},
+): MessageListItem => ({
+  channelId: faker.string.uuid(),
+  content: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  createdAt: new Date(`${faker.date.past().toISOString().split(".")[0]}Z`),
+  id: faker.string.uuid(),
+  reactions: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    stampCount: faker.number.int({ min: undefined, max: undefined }),
+    stampId: faker.string.uuid(),
+    userId: faker.string.uuid(),
+  })),
+  updatedAt: new Date(`${faker.date.past().toISOString().split(".")[0]}Z`),
+  user: faker.helpers.arrayElement([{
+    displayName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    handle: faker.string.alpha({ length: { min: 10, max: 32 } }),
+    id: faker.string.uuid(),
+  }, undefined]),
+  userId: faker.string.uuid(),
+  ...overrideResponse,
+})
 
 export const getMarkMessagesAsReadMockHandler = (
   overrideResponse?:
@@ -19,6 +48,30 @@ export const getMarkMessagesAsReadMockHandler = (
     await delay(100)
     if (typeof overrideResponse === "function") await overrideResponse(info)
     return new HttpResponse(null, { status: 204 })
+  }, options)
+}
+
+export const getGetMessageMockHandler = (
+  overrideResponse?:
+    | MessageListItem
+    | ((
+      info: Parameters<Parameters<typeof http.get>[1]>[0],
+    ) => Promise<MessageListItem> | MessageListItem),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get("*/messages/:messageId", async (info) => {
+    await delay(100)
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? (typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse)
+          : getGetMessageResponseMock(),
+      ),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )
   }, options)
 }
 
@@ -53,6 +106,7 @@ export const getRemoveMessageStampMockHandler = (
 }
 export const getMessageMock = () => [
   getMarkMessagesAsReadMockHandler(),
+  getGetMessageMockHandler(),
   getAddMessageStampMockHandler(),
   getRemoveMessageStampMockHandler(),
 ]

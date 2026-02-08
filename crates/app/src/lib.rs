@@ -2,7 +2,7 @@ use crate::{
     handler::{
         AppState,
         auth::{self},
-        message, stamp, timeline, user,
+        channel, message, stamp, timeline, user,
     },
     session::Backend,
 };
@@ -11,7 +11,7 @@ use axum_login::AuthManagerLayerBuilder;
 use domain::{
     crawler::MessageCrawler,
     event::{ClientEvent, ServerEvent, SubscribePayload, UnsubscribePayload},
-    model::Message,
+    model::{Message, Order},
     service::{TimelineServiceImpl, TraqServiceImpl},
 };
 use infra::{repository::mariadb, traq_client::TraqClientImpl};
@@ -42,6 +42,7 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     let components = ComponentsBuilder::new()
         .schema_from::<ClientEvent>()
         .schema_from::<Message>()
+        .schema_from::<Order>()
         .schema_from::<ServerEvent>()
         .schema_from::<SubscribePayload>()
         .schema_from::<UnsubscribePayload>()
@@ -60,10 +61,12 @@ pub fn setup_openapi_routes() -> (Router<AppState>, OpenApi) {
     OpenApiRouter::with_openapi(openapi)
         .routes(utoipa_axum::routes!(auth::login))
         .routes(utoipa_axum::routes!(auth::oauth_callback))
+        .routes(utoipa_axum::routes!(channel::get_channel_messages))
         .routes(utoipa_axum::routes!(
             message::add_message_stamp,
             message::remove_message_stamp
         ))
+        .routes(utoipa_axum::routes!(message::get_message))
         .routes(utoipa_axum::routes!(message::mark_messages_as_read))
         .routes(utoipa_axum::routes!(stamp::get_stamp_by_id))
         .routes(utoipa_axum::routes!(stamp::get_stamps))

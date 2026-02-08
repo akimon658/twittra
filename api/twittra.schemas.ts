@@ -58,6 +58,14 @@ Omitted if the server hasn't cached the user info. */
   userId: string
 }
 
+export type Order = typeof Order[keyof typeof Order]
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const Order = {
+  asc: "asc",
+  desc: "desc",
+} as const
+
 export interface Reaction {
   stampCount: number
   stampId: string
@@ -122,6 +130,21 @@ export type OauthCallbackParams = {
    * The CSRF state returned by the OAuth2 provider.
    */
   state: string
+}
+
+export type GetChannelMessagesParams = {
+  /**
+   * Fetch messages created after this timestamp
+   */
+  since?: Date
+  /**
+   * Fetch messages created before this timestamp
+   */
+  until?: Date
+  /**
+   * Sort order (asc/desc)
+   */
+  order?: Order
 }
 
 export type GetStampsParams = {
