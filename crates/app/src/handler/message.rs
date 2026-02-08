@@ -173,10 +173,12 @@ pub async fn mark_messages_as_read(
 mod tests {
     use super::*;
     use crate::test_helpers::TestAppBuilder;
-    use axum::{body::Body, http::Request};
+    use axum::body::{Body, to_bytes};
+    use axum::http::Request;
     use domain::{
+        model::MessageListItem,
         service::{MockTimelineService, MockTraqService},
-        test_factories::UserBuilder,
+        test_factories::{MessageListItemBuilder, UserBuilder},
     };
     use fake::{Fake, uuid::UUIDv4};
     use http::header;
@@ -270,5 +272,107 @@ mod tests {
 
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn test_get_message_success() {
+        let mut mock_timeline_service = MockTimelineService::new();
+        let user = UserBuilder::new().build();
+        let message_id: Uuid = UUIDv4.fake();
+        let expected_message = MessageListItemBuilder::new().id(message_id).build();
+        let expected_message_clone = expected_message.clone();
+
+        mock_timeline_service
+            .expect_get_message_by_id()
+            .with(predicate::eq(message_id))
+            .times(1)
+            .returning(move |_| Ok(Some(expected_message_clone.clone())));
+
+        let app = TestAppBuilder::new()
+            .with_timeline_service(mock_timeline_service)
+            .with_user(user.clone())
+            .build();
+
+        // Login
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
+        let login_res = app.clone().oneshot(login_req).await.unwrap();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
+
+        // Get message
+        let req = Request::builder()
+            .uri(format!("/api/v1/messages/{}", message_id))
+            .method("GET")
+            .header(header::COOKIE, cookie)
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let response_message: MessageListItem = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response_message.id, expected_message.id);
+    }
+
+    #[tokio::test]
+    async fn test_get_message_not_found() {
+        let mut mock_timeline_service = MockTimelineService::new();
+        let user = UserBuilder::new().build();
+        let message_id: Uuid = UUIDv4.fake();
+
+        mock_timeline_service
+            .expect_get_message_by_id()
+            .with(predicate::eq(message_id))
+            .times(1)
+            .returning(|_| Ok(None));
+
+        let app = TestAppBuilder::new()
+            .with_timeline_service(mock_timeline_service)
+            .with_user(user.clone())
+            .build();
+
+        // Login
+        let login_req = Request::builder()
+            .uri("/login")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
+        let login_res = app.clone().oneshot(login_req).await.unwrap();
+        let cookie = login_res.headers().get(header::SET_COOKIE).unwrap().clone();
+
+        // Get message
+        let req = Request::builder()
+            .uri(format!("/api/v1/messages/{}", message_id))
+            .method("GET")
+            .header(header::COOKIE, cookie)
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_message_unauthorized() {
+        let mock_timeline_service = MockTimelineService::new();
+        let message_id: Uuid = UUIDv4.fake();
+
+        let app = TestAppBuilder::new()
+            .with_timeline_service(mock_timeline_service)
+            .build();
+
+        // Don't login, make request directly
+        let req = Request::builder()
+            .uri(format!("/api/v1/messages/{}", message_id))
+            .method("GET")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }
 }
